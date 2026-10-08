@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Khazana Outlet: surplus brand stock, sold properly</title>
+<meta name="description" content="Khazana Outlet is a controlled channel for Pakistani brands to clear surplus and previous season stock in bulk, and for verified resellers to buy original branded stock at wholesale prices. Join the waiting list.">
+<meta name="theme-color" content="#14402f">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%2314402f'/><path d='M8 12h16v12H8z' fill='none' stroke='%23e8b53f' stroke-width='2'/><path d='M8 12l8-5 8 5' fill='none' stroke='%23e8b53f' stroke-width='2'/></svg>">
+
+<style>
+  :root {
+    --ink: #16211d;
+    --ink-soft: #4c5a54;
+    --ink-faint: #6e7d76;
+    --surface: #ffffff;
+    --surface-alt: #f5f3ee;
+    --surface-sunk: #ebe7df;
+    --line: #d9d4ca;
+    --brand: #14402f;
+    --brand-hover: #0e2e22;
+    --accent: #9a5b06;
+    --accent-soft: #fdf3e2;
+    --ok: #1c6b45;
+    --err: #9b2226;
+    --radius: 4px;
+    --radius-lg: 8px;
+    --maxw: 68rem;
+    --step-1: 0.875rem;
+    --step0: 1rem;
+    --step1: 1.125rem;
+    --step2: 1.375rem;
+    --step3: 1.75rem;
+    --step4: 2.25rem;
+  }
+
+  @media (min-width: 48rem) {
+    :root { --step3: 2.125rem; --step4: 3rem; }
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #eceae4;
+      --ink-soft: #b4bdb7;
+      --ink-faint: #8e9a93;
+      --surface: #111614;
+      --surface-alt: #181f1c;
+      --surface-sunk: #212a26;
+      --line: #313b36;
+      --brand: #d7e8db;
+      --brand-hover: #eaf4ec;
+      --accent: #e8b53f;
+      --accent-soft: #241d0d;
+      --ok: #76c79b;
+      --err: #f08f92;
+    }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--surface);
+    color: var(--ink);
+    font: var(--step0)/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; font-weight: 650; letter-spacing: -0.01em; }
+  h1 { font-size: var(--step4); }
+  h2 { font-size: var(--step3); }
+  h3 { font-size: var(--step1); }
+  p, ul, ol { margin: 0 0 1rem; }
+  a { color: inherit; }
+
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 1rem; }
+
+  @media (min-width: 48rem) { .wrap { padding: 0 2rem; } }
+
+  .skip {
+    position: absolute; left: -9999px; top: 0;
+    background: var(--brand); color: var(--surface);
+    padding: 0.75rem 1rem; z-index: 10;
+  }
+  .skip:focus { left: 0; }
+
+  :focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* Header */
+  header {
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .bar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; padding: 0.875rem 0;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-weight: 700; letter-spacing: -0.02em; text-decoration: none;
+    font-size: var(--step1);
+  }
+  .logo span.mark {
+    display: grid; place-items: center;
+    width: 1.75rem; height: 1.75rem;
+    background: var(--brand); color: var(--surface);
+    border-radius: var(--radius);
+    font-size: 0.875rem; font-weight: 700;
+  }
+  @media (prefers-color-scheme: dark) {
+    .logo span.mark { color: #111614; }
+  }
+  .bar nav { display: none; }
+  @media (min-width: 48rem) {
+    .bar nav { display: flex; gap: 1.5rem; font-size: var(--step-1); }
+    .bar nav a { color: var(--ink-soft); text-decoration: none; }
+    .bar nav a:hover { color: var(--ink); text-decoration: underline; }
+  }
+
+  /* Hero */
+  .hero { padding: 2.5rem 0 2rem; }
+  @media (min-width: 48rem) { .hero { padding: 4rem 0 3rem; } }
+  .hero p.lead {
+    font-size: var(--step1); color: var(--ink-soft); max-width: 40rem;
+  }
+  .eyebrow {
+    display: inline-block;
+    font-size: var(--step-1); font-weight: 650;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--accent); background: var(--accent-soft);
+    padding: 0.25rem 0.5rem; border-radius: var(--radius);
+    margin-bottom: 1rem;
+  }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 2.875rem; padding: 0.625rem 1.25rem;
+    border: 1px solid var(--brand); border-radius: var(--radius);
+    background: var(--brand); color: var(--surface);
+    font: inherit; font-weight: 600; text-decoration: none;
+    cursor: pointer;
+  }
+  .btn:hover { background: var(--brand-hover); border-color: var(--brand-hover); }
+  .btn.secondary { background: transparent; color: var(--ink); border-color: var(--line); }
+  .btn.secondary:hover { background: var(--surface-alt); border-color: var(--ink-faint); }
+  .btn[disabled] { opacity: 0.6; cursor: progress; }
+  @media (prefers-color-scheme: dark) {
+    .btn { color: #111614; }
+  }
+
+  /* Sections */
+  section { padding: 2.5rem 0; border-top: 1px solid var(--line); }
+  @media (min-width: 48rem) { section { padding: 3.5rem 0; } }
+  .section-intro { max-width: 44rem; color: var(--ink-soft); }
+
+  /* Two audiences */
+  .split { display: grid; gap: 1rem; margin-top: 1.5rem; }
+  @media (min-width: 48rem) { .split { grid-template-columns: 1fr 1fr; gap: 1.5rem; } }
+  .panel {
+    background: var(--surface-alt);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+  }
+  .panel h3 { margin-bottom: 0.75rem; }
+  .panel ul { margin: 0; padding-left: 1.125rem; }
+  .panel li { margin-bottom: 0.5rem; }
+  .panel li::marker { color: var(--accent); }
+
+  /* Steps */
+  ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 1.5rem 0 0; }
+  ol.steps li {
+    counter-increment: s;
+    display: grid; grid-template-columns: 2rem 1fr; gap: 0.875rem;
+    padding: 0.875rem 0; border-bottom: 1px solid var(--line);
+  }
+  ol.steps li:last-child { border-bottom: 0; }
+  ol.steps li::before {
+    content: counter(s);
+    display: grid; place-items: center;
+    width: 2rem; height: 2rem;
+    border: 1px solid var(--line); border-radius: 50%;
+    font-size: var(--step-1); font-weight: 650; color: var(--accent);
+  }
+  ol.steps strong { display: block; }
+  ol.steps span { color: var(--ink-soft); font-size: var(--step-1); }
+
+  /* Protection list */
+  .protect { display: grid; gap: 1rem; margin-top: 1.5rem; }
+  @media (min-width: 56rem) { .protect { grid-template-columns: repeat(3, 1fr); } }
+  .protect div {
+    border-left: 3px solid var(--accent);
+    padding: 0.25rem 0 0.25rem 0.875rem;
+  }
+  .protect h3 { font-size: var(--step0); margin-bottom: 0.25rem; }
+  .protect p { color: var(--ink-soft); font-size: var(--step-1); margin: 0; }
+
+  /* Form */
+  .form-shell {
+    background: var(--surface-alt);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    margin-top: 1.5rem;
+  }
+  @media (min-width: 48rem) { .form-shell { padding: 2rem; } }
+  fieldset { border: 0; padding: 0; margin: 0 0 1.25rem; }
+  legend { font-weight: 650; padding: 0; margin-bottom: 0.5rem; }
+  .choices { display: grid; gap: 0.5rem; }
+  @media (min-width: 34rem) { .choices { grid-template-columns: 1fr 1fr; } }
+  .choice {
+    display: flex; align-items: flex-start; gap: 0.625rem;
+    border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--surface); padding: 0.75rem; cursor: pointer;
+  }
+  .choice:hover { border-color: var(--ink-faint); }
+  .choice input { margin: 0.2rem 0 0; width: 1.125rem; height: 1.125rem; accent-color: var(--brand); }
+  .choice strong { display: block; font-size: var(--step0); }
+  .choice span { color: var(--ink-soft); font-size: var(--step-1); }
+  .choice:has(input:checked) { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); }
+
+  .field { margin-bottom: 1rem; }
+  .field label { display: block; font-weight: 600; margin-bottom: 0.25rem; }
+  .field .hint { display: block; font-weight: 400; color: var(--ink-faint); font-size: var(--step-1); }
+  input[type="text"], input[type="tel"], input[type="email"], select, textarea {
+    width: 100%; min-height: 2.875rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--surface); color: var(--ink);
+    font: inherit;
+  }
+  textarea { min-height: 5.5rem; resize: vertical; }
+  input:invalid:not(:placeholder-shown) { border-color: var(--err); }
+  .err {
+    display: none; color: var(--err); font-size: var(--step-1);
+    margin-top: 0.25rem; font-weight: 600;
+  }
+  .field.has-error .err, fieldset.has-error .err { display: block; }
+  .field.has-error input, .field.has-error select { border-color: var(--err); }
+  fieldset.has-error .choice { border-color: var(--err); }
+
+  .status { margin-top: 1rem; font-weight: 600; }
+  .status.ok { color: var(--ok); }
+  .status.bad { color: var(--err); }
+  .status p { margin: 0 0 0.5rem; }
+
+  .privacy { color: var(--ink-faint); font-size: var(--step-1); margin-top: 0.75rem; }
+
+  /* FAQ */
+  details {
+    border-bottom: 1px solid var(--line);
+    padding: 0.875rem 0;
+  }
+  details summary {
+    cursor: pointer; font-weight: 600;
+    list-style: none; display: flex; justify-content: space-between; gap: 1rem;
+  }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::after { content: "+"; color: var(--accent); font-weight: 700; }
+  details[open] summary::after { content: "\2212"; }
+  details p { margin: 0.75rem 0 0; color: var(--ink-soft); }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--line);
+    background: var(--surface-alt);
+    padding: 2rem 0;
+    font-size: var(--step-1); color: var(--ink-soft);
+  }
+  footer .cols { display: grid; gap: 1rem; }
+  @media (min-width: 40rem) { footer .cols { grid-template-columns: 2fr 1fr; align-items: start; } }
+  footer a { color: var(--ink-soft); }
+
+  .visually-hidden {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<a class="skip" href="#join">Skip to the waiting list form</a>
+
+<header>
+  <div class="wrap bar">
+    <a class="logo" href="#top"><span class="mark" aria-hidden="true">KO</span> Khazana Outlet</a>
+    <nav aria-label="Page sections">
+      <a href="#brands">For brands</a>
+      <a href="#buyers">For resellers</a>
+      <a href="#how">How it works</a>
+      <a href="#join">Join</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <div class="wrap hero">
+    <p class="eyebrow">Opening in Pakistan, invitation only at first</p>
+    <h1>Surplus stock is trapped cash. We move it without touching your brand.</h1>
+    <p class="lead">
+      Khazana Outlet is a controlled channel where Pakistani brands clear previous
+      season and over produced stock in bulk, and verified resellers buy original
+      branded goods at wholesale prices. You approve every listing before it goes
+      live, and you choose who is allowed to see it.
+    </p>
+    <div class="cta-row">
+      <a class="btn" href="#join" data-role="brand">I have stock to clear</a>
+      <a class="btn secondary" href="#join" data-role="reseller">I want to buy stock</a>
+    </div>
+  </div>
+
+  <section id="brands">
+    <div class="wrap">
+      <h2>Two sides, one channel</h2>
+      <p class="section-intro">
+        Right now surplus stock usually leaves through one dealer, for cash, with
+        no record and no control over where it ends up. That is fast, and it is
+        why it happens. It is also why brands lose both margin and control.
+      </p>
+      <div class="split">
+        <div class="panel">
+          <h3>If you are a brand</h3>
+          <ul>
+            <li>Sell whole lots to many competing buyers instead of one dealer</li>
+            <li>Approve every listing, with your name shown or hidden</li>
+            <li>Block cities where you have your own stores</li>
+            <li>Get a documented, invoiced sale for your books, not a cash deal</li>
+            <li>See what sold, where, and at what price</li>
+          </ul>
+        </div>
+        <div class="panel" id="buyers">
+          <h3>If you are a reseller or shop</h3>
+          <ul>
+            <li>Original branded stock, not export rejects, clearly labelled</li>
+            <li>An honest manifest: piece count, sizes, colours and condition</li>
+            <li>Your money held until you confirm the goods arrived as described</li>
+            <li>Lot sizes a small shop can actually afford</li>
+            <li>Delivery to your city through a tracked courier</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <h2>How a sale works</h2>
+      <ol class="steps">
+        <li><strong>The brand lists a lot</strong><span>Piece count, sizes, condition and photographs, with the protection level the brand chooses.</span></li>
+        <li><strong>We check it</strong><span>Every listing is reviewed before it is visible. No listing goes live without the brand's written approval.</span></li>
+        <li><strong>Verified buyers order</strong><span>Only resellers who have passed verification can see protected listings.</span></li>
+        <li><strong>The money is held</strong><span>Payment stays with the platform until delivery is confirmed by the buyer.</span></li>
+        <li><strong>The brand is paid</strong><span>Funds are released to the brand after confirmation, minus our commission. Nothing else is deducted.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>Your brand name is yours, not ours</h2>
+      <p class="section-intro">
+        The most common reason brands avoid clearance channels is that discounted
+        stock turns up in the wrong place with their logo on it. You pick the level
+        of protection, lot by lot.
+      </p>
+      <div class="protect">
+        <div>
+          <h3>Private sale</h3>
+          <p>Only verified business buyers who have signed terms can see the listing. The public cannot.</p>
+        </div>
+        <div>
+          <h3>Unbranded listing</h3>
+          <p>The brand name is hidden. The listing describes the category and quality only.</p>
+        </div>
+        <div>
+          <h3>Region lock</h3>
+          <p>Sell only into the cities you nominate, so the stock never appears near your own stores.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="join">
+    <div class="wrap">
+      <h2>Join the waiting list</h2>
+      <p class="section-intro">
+        We are starting with a small number of brands and resellers in a controlled
+        first sale. Leave your details and we will contact you on WhatsApp before
+        it opens. No payment, no commitment, and nothing is listed without your
+        approval.
+      </p>
+
+      <div class="form-shell">
+        <form id="join-form" method="post" novalidate>
+          <fieldset>
+            <legend>I am joining as</legend>
+            <div class="choices">
+              <label class="choice">
+                <input type="radio" name="role" value="brand" required>
+                <span>
+                  <strong>A brand or manufacturer</strong>
+                  <span>I have surplus or previous season stock</span>
+                </span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="role" value="reseller">
+                <span>
+                  <strong>A reseller or shop</strong>
+                  <span>I want to buy branded stock in bulk</span>
+                </span>
+              </label>
+            </div>
+            <p class="err" id="role-err">Please choose one option.</p>
+          </fieldset>
+
+          <div class="field">
+            <label for="name">Your name</label>
+            <input type="text" id="name" name="name" autocomplete="name" required>
+            <p class="err">Please enter your name.</p>
+          </div>
+
+          <div class="field">
+            <label for="org">Business or brand name <span class="hint">Leave blank if you do not have one yet</span></label>
+            <input type="text" id="org" name="org" autocomplete="organization">
+          </div>
+
+          <div class="field">
+            <label for="phone">WhatsApp number <span class="hint">Format: 03001234567</span></label>
+            <input type="tel" id="phone" name="phone" inputmode="numeric" autocomplete="tel" placeholder="03001234567" required>
+            <p class="err">Please enter a valid Pakistani mobile number, 11 digits starting with 03.</p>
+          </div>
+
+          <div class="field">
+            <label for="city">City</label>
+            <input type="text" id="city" name="city" autocomplete="address-level2" required>
+            <p class="err">Please enter your city.</p>
+          </div>
+
+          <div class="field">
+            <label for="category">Main category</label>
+            <select id="category" name="category" required>
+              <option value="">Choose one</option>
+              <option>Womenswear, stitched</option>
+              <option>Unstitched fabric</option>
+              <option>Menswear</option>
+              <option>Kidswear</option>
+              <option>Footwear</option>
+              <option>Bags and accessories</option>
+              <option>Home textiles</option>
+              <option>Stationery</option>
+              <option>Cosmetics</option>
+              <option>Electronics accessories</option>
+              <option>Other</option>
+            </select>
+            <p class="err">Please choose a category.</p>
+          </div>
+
+          <div class="field">
+            <label for="detail">Anything useful to know <span class="hint">Optional. Brands: roughly how much stock. Resellers: how much you buy in a month.</span></label>
+            <textarea id="detail" name="detail" rows="3"></textarea>
+          </div>
+
+          <button class="btn" type="submit" id="submit-btn">Join the waiting list</button>
+
+          <div class="status" id="status" role="status" aria-live="polite"></div>
+
+          <p class="privacy">
+            We use your number only to contact you about this platform. We do not
+            sell or share your details, and you can ask us to delete them at any
+            time.
+          </p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>Questions brands ask first</h2>
+
+      <details>
+        <summary>Will my discounted stock damage my full price sales?</summary>
+        <p>
+          That is the risk we are built around. Use a private sale so only verified
+          business buyers see the lot, hide your brand name on the listing, and lock
+          the sale out of the cities where you have stores. You set this per lot, and
+          nothing goes live until you approve it.
+        </p>
+      </details>
+
+      <details>
+        <summary>How is this better than selling to a dealer?</summary>
+        <p>
+          A dealer gives you one price, take it or leave it. Here several verified
+          buyers see the same lot, so the price is set by demand. You also get a
+          proper invoice and a record of the sale, which a cash deal in a wholesale
+          market cannot give you.
+        </p>
+      </details>
+
+      <details>
+        <summary>When do I get paid?</summary>
+        <p>
+          After the buyer confirms delivery, the payment is released to you minus our
+          commission. During the first sales we will agree the exact timetable with
+          you in writing before you list anything.
+        </p>
+      </details>
+
+      <details>
+        <summary>What does it cost?</summary>
+        <p>
+          A commission on completed sales only. Listing is free during the first
+          sales. We are still agreeing the rate with the brands joining now, which is
+          one reason to talk to us early.
+        </p>
+      </details>
+
+      <details>
+        <summary>I am a reseller. How do I know the goods are real and the count is right?</summary>
+        <p>
+          Every lot carries a manifest with piece count, size breakdown, colours and
+          condition. Your payment is held until you confirm what arrived matches it.
+          If it does not, you are not left arguing on WhatsApp with a stranger.
+        </p>
+      </details>
+
+      <details>
+        <summary>Are you selling export rejects?</summary>
+        <p>
+          No. Our listings are brand surplus and previous season stock. If a lot is
+          factory seconds or has defects, it is graded and labelled as such, so you
+          always know what you are buying.
+        </p>
+      </details>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap cols">
+    <div>
+      <p><strong>Khazana Outlet</strong><br>
+      A controlled channel for brand surplus stock in Pakistan.</p>
+      <p>Questions: <a id="contact-link" href="#join">contact us</a></p>
+    </div>
+    <div>
+      <p>Opening invitation only.<br>
+      Brands and resellers on the waiting list are contacted first.</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ------------------------------------------------------------------
+     CONFIGURATION
+     Set FORM_ENDPOINT to the URL that should receive the signup.
+     Options that need no server of your own:
+       1. Formspree:   https://formspree.io/f/xxxxxxx
+       2. Google Apps Script web app bound to a Google Sheet
+       3. Any endpoint you build later in the real platform
+     Set WHATSAPP_NUMBER to your number in international format with no
+     plus sign or spaces, for example 923001234567. While FORM_ENDPOINT
+     is empty the form falls back to opening WhatsApp with the details
+     filled in, so the page is still usable from day one.
+     ------------------------------------------------------------------ */
+  var FORM_ENDPOINT = "";
+  var WHATSAPP_NUMBER = "";
+
+  var form = document.getElementById("join-form");
+  var statusBox = document.getElementById("status");
+  var submitBtn = document.getElementById("submit-btn");
+
+  if (FORM_ENDPOINT) {
+    form.setAttribute("action", FORM_ENDPOINT);
+  }
+
+  if (WHATSAPP_NUMBER) {
+    var link = document.getElementById("contact-link");
+    link.href = "https://wa.me/" + WHATSAPP_NUMBER;
+    link.textContent = "WhatsApp us";
+  }
+
+  function fieldOf(el) {
+    return el.closest(".field");
+  }
+
+  function setError(el, on) {
+    var wrap = fieldOf(el);
+    if (wrap) { wrap.classList.toggle("has-error", on); }
+    el.setAttribute("aria-invalid", on ? "true" : "false");
+  }
+
+  function validPhone(value) {
+    return /^03\d{9}$/.test(value.replace(/[\s-]/g, ""));
+  }
+
+  function validate() {
+    var firstBad = null;
+
+    ["name", "city", "category"].forEach(function (id) {
+      var el = document.getElementById(id);
+      var bad = el.value.trim() === "";
+      setError(el, bad);
+      if (bad && !firstBad) { firstBad = el; }
+    });
+
+    var phone = document.getElementById("phone");
+    var phoneBad = !validPhone(phone.value);
+    setError(phone, phoneBad);
+    if (phoneBad && !firstBad) { firstBad = phone; }
+
+    var role = form.querySelector("input[name=role]:checked");
+    var roleField = document.querySelector("#join-form fieldset");
+    roleField.classList.toggle("has-error", !role);
+    if (!role && !firstBad) { firstBad = form.querySelector("input[name=role]"); }
+
+    return firstBad;
+  }
+
+  function collect() {
+    var data = {};
+    new FormData(form).forEach(function (value, key) {
+      data[key] = typeof value === "string" ? value.trim() : value;
+    });
+    data.phone = data.phone ? data.phone.replace(/[\s-]/g, "") : "";
+    data.submitted_at = new Date().toISOString();
+    data.source = "landing-page";
+    return data;
+  }
+
+  function say(message, kind) {
+    statusBox.className = "status" + (kind ? " " + kind : "");
+    statusBox.textContent = message;
+  }
+
+  function whatsappFallback(data) {
+    var lines = [
+      "Waiting list signup",
+      "Role: " + (data.role || ""),
+      "Name: " + (data.name || ""),
+      "Business: " + (data.org || ""),
+      "Phone: " + (data.phone || ""),
+      "City: " + (data.city || ""),
+      "Category: " + (data.category || ""),
+      "Notes: " + (data.detail || "")
+    ].join("\n");
+
+    if (WHATSAPP_NUMBER) {
+      window.open("https://wa.me/" + WHATSAPP_NUMBER + "?text=" + encodeURIComponent(lines), "_blank", "noopener");
+      say("Thank you. Please press send in WhatsApp to complete your signup.", "ok");
+    } else {
+      say("The form is not connected yet. Set FORM_ENDPOINT or WHATSAPP_NUMBER in this page before sharing the link.", "bad");
+    }
+  }
+
+  form.addEventListener("submit", function (event) {
+    event.preventDefault();
+
+    var bad = validate();
+    if (bad) {
+      say("Please check the highlighted fields.", "bad");
+      bad.focus();
+      return;
+    }
+
+    var data = collect();
+
+    if (!FORM_ENDPOINT) {
+      whatsappFallback(data);
+      return;
+    }
+
+    submitBtn.disabled = true;
+    say("Sending, please wait.");
+
+    fetch(FORM_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(data)
+    }).then(function (response) {
+      if (!response.ok) { throw new Error("Request failed with status " + response.status); }
+      form.reset();
+      say("You are on the list. We will contact you on WhatsApp before the first sale opens.", "ok");
+    }).catch(function () {
+      say("That did not go through. Please check your connection and try again, or contact us on WhatsApp.", "bad");
+    }).then(function () {
+      submitBtn.disabled = false;
+    });
+  });
+
+  /* The two hero buttons preselect the matching role, so nobody has to
+     answer a question the page already knows the answer to. */
+  Array.prototype.forEach.call(document.querySelectorAll("[data-role]"), function (link) {
+    link.addEventListener("click", function () {
+      var input = form.querySelector('input[name=role][value="' + link.getAttribute("data-role") + '"]');
+      if (input) { input.checked = true; }
+      document.querySelector("#join-form fieldset").classList.remove("has-error");
+    });
+  });
+
+  form.addEventListener("input", function (event) {
+    var el = event.target;
+    if (el.id === "phone") {
+      if (validPhone(el.value)) { setError(el, false); }
+    } else if (el.value && el.value.trim() !== "") {
+      setError(el, false);
+    }
+    if (el.name === "role") {
+      document.querySelector("#join-form fieldset").classList.remove("has-error");
+    }
+  });
+})();
+</script>
+</body>
+</html>
