@@ -1,0 +1,20 @@
+field,value,unit,source,notes
+retail_price_per_piece,,PKR,brand website,R
+brand_accepts_per_piece,,PKR,brand interview q6,B
+reseller_pays_per_piece,,PKR,reseller interview q5,P
+lot_size,,pieces,,Q
+gmv,,PKR,calculated,Q x P
+commission_rate,,percent,brand interview q15,c
+platform_revenue,,PKR,calculated,GMV x c
+payment_gateway_fee,,PKR,gateway quote,f_pay
+cod_fee,,PKR,courier quote,f_cod
+freight,,PKR,courier quote,f_ship
+return_loss,,PKR,estimate from week 7,f_ret
+listing_cost,,PKR,own time or photographer,f_list
+support_cost,,PKR,minutes x loaded rate,f_supp
+packaging,,PKR,,f_pack
+total_cost,,PKR,calculated,sum of costs
+contribution_margin,,PKR,calculated,revenue minus cost
+contribution_margin_percent,,percent,calculated,CM / GMV
+monthly_fixed_cost,,PKR,cost sheet,F
+orders_to_break_even,,orders,calculated,F / CM per order

@@ -1,0 +1,2 @@
+brand_name,category,tier,size_estimate,outlets,has_existing_clearance,city,contact_name,contact_title,contact_route,contact_detail,status,first_contact_date,last_contact_date,dead_stock_estimate_pkr,current_disposal_method,price_received_percent,payment_speed_days,commission_acceptable_percent,main_objection,test_commitment,next_step,notes
+EXAMPLE Brand,Womenswear,A,medium,2,no,Lahore,,Supply Chain Manager,LinkedIn,,not contacted,,,,,,,,,no,find contact,delete this example row

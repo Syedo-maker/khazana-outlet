@@ -1,0 +1,12 @@
+category,c1_brand_supply,c2_reseller_demand,c3_margin_space,c4_easy_to_describe,c5_shipping_simplicity,c6_low_return_risk,c7_no_expiry_risk,c8_counterfeit_manageable,c9_repeat_purchase,c10_affordable_lot,weighted_total,notes
+weights,5,5,4,3,3,3,3,2,2,2,160,max possible total
+Womenswear stitched,,,,,,,,,,,,
+Unstitched fabric,,,,,,,,,,,,
+Menswear,,,,,,,,,,,,
+Kidswear,,,,,,,,,,,,
+Footwear,,,,,,,,,,,,
+Bags and accessories,,,,,,,,,,,,
+Stationery,,,,,,,,,,,,
+Cosmetics,,,,,,,,,,,,
+Electronics accessories,,,,,,,,,,,,
+Home textiles,,,,,,,,,,,,
