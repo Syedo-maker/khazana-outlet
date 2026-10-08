@@ -1,0 +1,58 @@
+# Secrets. Never commit a real one.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+.turbo/
+
+# Databases and local data
+*.db
+*.sqlite
+*.sqlite3
+/data/
+/uploads/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# AI gateway local artifacts
+/apps/ai/.cache/
+/apps/ai/evals/results/
+
+# Source planning material, kept locally and not part of the codebase.
+# These are saved web pages, several megabytes each, and they contain
+# formatting the repository rules do not allow.
+Dead products marketplace platform.html
+Dead products marketplace platform_files/
+Dead products marketplace platform - Claude.html
+Dead products marketplace platform - Claude_files/

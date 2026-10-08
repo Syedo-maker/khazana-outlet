@@ -1,0 +1,49 @@
+# Install once with: pre-commit install
+# These run on every commit, so bad formatting and rule breaches never reach
+# a branch in the first place.
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=512"]
+      - id: detect-private-key
+      - id: no-commit-to-branch
+        args: ["--branch", "main"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+        files: ^apps/api/
+      - id: ruff-format
+        files: ^apps/api/
+
+  - repo: local
+    hooks:
+      - id: no-em-dashes
+        name: no em dashes or en dashes
+        language: system
+        # Byte patterns, because grep -P in Windows git bash cannot take
+        # code points above 0xFF.
+        entry: bash -c 'if grep -rnIP "\xe2\x80\x93|\xe2\x80\x94" "$@"; then echo "Em or en dash found. Use a comma, colon, full stop or hyphen."; exit 1; fi' --
+        exclude: ^scripts/prepush-check\.sh$
+
+      - id: no-ai-attribution
+        name: no AI attribution
+        language: system
+        entry: bash -c 'if grep -rniE "co-authored-by|generated with claude|assisted by claude" "$@"; then echo "AI attribution found. The author is the repository owner only."; exit 1; fi' --
+
+      - id: no-env-file
+        name: no .env committed
+        language: fail
+        entry: .env must never be committed. Use .env.example.
+        files: ^\.env$
