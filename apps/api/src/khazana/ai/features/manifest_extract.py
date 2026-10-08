@@ -74,8 +74,7 @@ class ExtractionOutcome:
     def summary(self) -> str:
         if self.declared_total is None:
             return (
-                f"{len(self.lines)} lines, {self.line_total} pieces, "
-                "no total stated in the file."
+                f"{len(self.lines)} lines, {self.line_total} pieces, no total stated in the file."
             )
         if self.balanced:
             return f"{len(self.lines)} lines, {self.line_total} pieces, matching the file total."
