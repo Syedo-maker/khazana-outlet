@@ -171,4 +171,8 @@ migration, rolls it back and applies it again.
 
 ## Licence
 
-Private and unpublished.
+Copyright Muhammad Ibrahim. All rights reserved.
+
+The source is public so the work can be read and reviewed. It is not open
+source: no licence is granted to use, copy, modify or distribute it. If you
+want to use any of it, ask.

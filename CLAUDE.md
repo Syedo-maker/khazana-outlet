@@ -54,6 +54,21 @@ grep:
 - `grep -P` in Windows git bash rejects the code point spelling outright,
   so the byte form is the only portable one.
 
+## 3b. Publishing cadence
+
+Push as the work lands, not in one batch at the end.
+
+- After each meaningful piece of work, make a Conventional Commit and push it.
+  A phase, a module, a bug fix and a documentation update are each their own
+  commit. Do not accumulate a day of work into one commit.
+- Run the gate before every push: `make prepush`. A failed gate means nothing
+  is pushed until it is fixed.
+- Feature work goes on `feature/<module>-<short-name>`, merges into `develop`
+  through a pull request, and `develop` merges into `main` on release.
+- The repository is public. Anything committed can be read by anyone, so no
+  credentials, no customer data, no brand data from a real brand, and no
+  unredacted commercial terms from a signed agreement.
+
 ## 4. Project context
 
 Khazana Outlet is an AI native marketplace in Pakistan for brand surplus
