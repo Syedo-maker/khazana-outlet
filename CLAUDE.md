@@ -85,9 +85,27 @@ While that is true:
   called "formatting diff" and also uploads it as a `format-patch` artifact.
   Apply it with `git apply -p0 format.patch` from `apps/api`.
 
-The real fix is to allow `apps/api/.venv/Scripts/ruff.exe` in whatever
-security software is blocking it. Then `make lint` works again and nothing
-reaches CI unformatted.
+Confirmed cause: Windows Smart App Control is ON and enforcing on this
+machine. It blocks unsigned executables, which is what ruff, mypy and black
+ship as. It has no allowlist, so a single file cannot be excepted; it can only
+be turned off entirely, and turning it off is permanent without reinstalling
+Windows.
+
+So the practical fix is to run those tools in a Linux container instead, where
+Windows application control does not apply:
+
+```powershell
+.\scripts\lint.ps1            # lint and format check
+.\scripts\lint.ps1 -Fix       # apply the automatic fixes
+.\scripts\lint.ps1 -Types     # also run mypy
+```
+
+Start Docker Desktop first. The script pins the same ruff version as CI, so a
+pass there means a pass in CI.
+
+Note that `make` is not installed on this machine either, so the make targets
+in the README do not run here. The PowerShell script above and the raw
+commands in the Makefile are the working path.
 
 ## 4. Project context
 

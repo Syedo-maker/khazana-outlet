@@ -65,6 +65,26 @@ fix: ## Auto fix what can be auto fixed
 evals: ## Run the AI eval suites against recorded fixtures
 	$(PY) -m khazana.ai.evals.run --offline
 
+# Smart App Control blocks unsigned executables on this machine, so ruff and
+# mypy cannot run directly. These targets run the same tools inside Linux
+# containers, where Windows app control does not apply. Same ruff version as
+# CI, so the results match exactly.
+RUFF_IMAGE := ghcr.io/astral-sh/ruff:0.8.4
+
+.PHONY: lint-docker
+lint-docker: ## Lint and format check inside Docker, when ruff is blocked locally
+	docker run --rm -v "$(CURDIR)/apps/api":/io -w /io $(RUFF_IMAGE) check .
+	docker run --rm -v "$(CURDIR)/apps/api":/io -w /io $(RUFF_IMAGE) format --check .
+
+.PHONY: fix-docker
+fix-docker: ## Auto fix lint and formatting inside Docker
+	docker run --rm -v "$(CURDIR)/apps/api":/io -w /io $(RUFF_IMAGE) check --fix .
+	docker run --rm -v "$(CURDIR)/apps/api":/io -w /io $(RUFF_IMAGE) format .
+
+.PHONY: types-docker
+types-docker: ## Type check inside Docker. Slower, it installs dependencies first
+	docker run --rm -v "$(CURDIR)/apps/api":/io -w /io python:3.11-slim bash -c "pip install -q -e '.[dev]' && mypy src"
+
 .PHONY: check
 check: lint test ## What CI runs
 
