@@ -93,6 +93,17 @@ jobs:
           alembic downgrade base
           alembic upgrade head
 
+      - name: PostgreSQL only tests, meaning vector search and the triggers
+        env:
+          # The suite runs on SQLite for speed, so the cosine ranking, the
+          # visibility filter and the brand exclusion all live in SQL that
+          # SQLite never executes. This job is where they are actually proved.
+          TEST_DATABASE_URL: postgresql+psycopg://khazana:khazana@localhost:5432/khazana
+          DATABASE_URL: postgresql+psycopg://khazana:khazana@localhost:5432/khazana
+          SECRET_KEY: test-secret-not-a-real-key
+          AI_OFFLINE: "true"
+        run: pytest tests/test_search_postgres.py -v
+
   web:
     name: Web lint and build
     runs-on: ubuntu-latest
