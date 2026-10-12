@@ -69,43 +69,34 @@ Push as the work lands, not in one batch at the end.
   credentials, no customer data, no brand data from a real brand, and no
   unredacted commercial terms from a signed agreement.
 
-## 3c. When lint cannot run locally
+## 3c. Lint, format and types
 
-On this machine an Application Control policy blocks compiled executables, so
-`ruff` and `mypy` cannot run, and neither can `black`. The test suite and the
-evals still run, because they are pure Python.
-
-While that is true:
-
-- `make prepush` says so explicitly. A clean gate there does not mean the
-  formatting is right.
-- CI is the only lint, format and type gate, so a formatting slip becomes a
-  failed run and a notification email rather than a local error.
-- When the format check fails, CI prints the exact unified diff in a group
-  called "formatting diff" and also uploads it as a `format-patch` artifact.
-  Apply it with `git apply -p0 format.patch` from `apps/api`.
-
-Confirmed cause: Windows Smart App Control is ON and enforcing on this
-machine. It blocks unsigned executables, which is what ruff, mypy and black
-ship as. It has no allowlist, so a single file cannot be excepted; it can only
-be turned off entirely, and turning it off is permanent without reinstalling
-Windows.
-
-So the practical fix is to run those tools in a Linux container instead, where
-Windows application control does not apply:
+Run the full gate before pushing:
 
 ```powershell
-.\scripts\lint.ps1            # lint and format check
-.\scripts\lint.ps1 -Fix       # apply the automatic fixes
-.\scripts\lint.ps1 -Types     # also run mypy
+cd appspi
+.\.venv\Scripts\python -m ruff check .
+.\.venv\Scripts\python -m ruff format --check .
+.\.venv\Scripts\python -m mypy src
+.\.venv\Scripts\python -m pytest
 ```
 
-Start Docker Desktop first. The script pins the same ruff version as CI, so a
-pass there means a pass in CI.
+Ruff and mypy are pinned to exact versions in `apps/api/pyproject.toml`, not
+to a range. A newer ruff can format the same code differently, so a floating
+version means CI and a developer machine can disagree about a file nobody
+touched, which is a CI failure with no corresponding change. When upgrading
+either tool, change the pin, reformat, and update the image tag in
+`scripts/lint.ps1` and the Makefile in the same commit.
 
-Note that `make` is not installed on this machine either, so the make targets
-in the README do not run here. The PowerShell script above and the raw
-commands in the Makefile are the working path.
+History worth keeping: Smart App Control used to block these tools on the
+development machine, because they ship as unsigned executables. It has since
+been turned off. If they are ever blocked again, `scripts/lint.ps1` runs the
+same pinned ruff inside a Linux container, where Windows application control
+does not apply, and CI prints the exact formatting diff in a log group called
+"formatting diff" as well as uploading it as a `format-patch` artifact.
+
+Note that `make` is not installed on this machine, so the make targets in the
+README do not run here. Use the commands above or `scripts/lint.ps1`.
 
 ## 4. Project context
 

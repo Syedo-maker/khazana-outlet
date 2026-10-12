@@ -141,13 +141,12 @@ venv_python="apps/api/.venv/Scripts/python"
 
 if [ -x "$venv_python" ]; then
   if "$venv_python" -m ruff --version >/dev/null 2>&1; then
-    echo "ok: ruff is runnable, run 'make lint' before pushing"
+    echo "ok: ruff is runnable, run the lint commands in CLAUDE.md before pushing"
   else
-    echo "WARNING: ruff cannot run on this machine, so formatting and lint are"
-    echo "         NOT checked here. CI is the only gate. Expect a failed run"
-    echo "         and a notification email if the formatting is off."
-    echo "         Usually an Application Control or antivirus policy blocking"
-    echo "         apps/api/.venv/Scripts/ruff.exe. Allowing that file fixes it."
+    echo "WARNING: ruff cannot run here, so formatting and lint are NOT checked"
+    echo "         by this gate. CI is then the only check, and a formatting"
+    echo "         slip becomes a failed run and a notification email."
+    echo "         Run scripts/lint.ps1 with Docker started as a workaround."
   fi
 else
   echo "note: no virtual environment found, skipping the lint reachability check"

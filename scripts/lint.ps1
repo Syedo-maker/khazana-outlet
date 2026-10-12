@@ -40,7 +40,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # Keep this in step with .github/workflows/ci.yml and apps/api/pyproject.toml.
-$RuffImage = 'ghcr.io/astral-sh/ruff:0.8.4'
+$RuffImage = 'ghcr.io/astral-sh/ruff:0.16.10'
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $apiPath = Join-Path $repoRoot 'apps\api'

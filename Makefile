@@ -69,7 +69,7 @@ evals: ## Run the AI eval suites against recorded fixtures
 # mypy cannot run directly. These targets run the same tools inside Linux
 # containers, where Windows app control does not apply. Same ruff version as
 # CI, so the results match exactly.
-RUFF_IMAGE := ghcr.io/astral-sh/ruff:0.8.4
+RUFF_IMAGE := ghcr.io/astral-sh/ruff:0.16.10
 
 .PHONY: lint-docker
 lint-docker: ## Lint and format check inside Docker, when ruff is blocked locally
