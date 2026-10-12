@@ -2,7 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    # Feature branches are included deliberately. Without them a branch gets
+    # no checks at all until it is opened as a pull request, which is exactly
+    # when a late failure is most expensive to unpick.
+    branches: [main, develop, "feature/**"]
   pull_request:
     branches: [main, develop]
 
