@@ -13,7 +13,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from khazana.models import Lot, ManifestLine, Order
-
 from khazana.models.enums import ConditionGrade, LotStatus, OrderStatus, Visibility
 
 
