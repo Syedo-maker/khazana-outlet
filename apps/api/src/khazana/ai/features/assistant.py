@@ -180,7 +180,8 @@ def execute_plan(
             logger.info("assistant tool %s rejected its arguments: %s", call.tool, exc)
             results[label] = {"error": "That lookup could not be run with those details."}
             rejected.append(call.tool)
-        except Exception as exc:  # noqa: BLE001  one bad tool must not lose the turn
+        # One bad tool must not lose the whole turn.
+        except Exception as exc:
             logger.exception("assistant tool %s failed", call.tool)
             results[label] = {"error": f"The lookup failed: {type(exc).__name__}"}
             rejected.append(call.tool)

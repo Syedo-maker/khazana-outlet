@@ -6,12 +6,13 @@ buyer, expressed as a database constraint rather than as a comment.
 
 from __future__ import annotations
 
+from enum import StrEnum
+
 import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from khazana.models import Lot, ManifestLine, Order
-from enum import StrEnum
 
 from khazana.models.enums import ConditionGrade, LotStatus, OrderStatus, Visibility
 
@@ -327,13 +328,12 @@ class TestEnumRoundTrip:
         offenders = []
         for table in Base.metadata.tables.values():
             for column in table.columns:
-                annotation = getattr(column, "_khazana_enum", None)
-                del annotation
-                # A column whose Python type is a StrEnum must be EnumText.
+                # A column whose default is a StrEnum member is an enum
+                # column, so its type must coerce on the way back out.
                 default = column.default
-                if default is not None and isinstance(getattr(default, "arg", None), StrEnum):
-                    if not isinstance(column.type, EnumText):
-                        offenders.append(f"{table.name}.{column.name}")
+                arg = getattr(default, "arg", None) if default is not None else None
+                if isinstance(arg, StrEnum) and not isinstance(column.type, EnumText):
+                    offenders.append(f"{table.name}.{column.name}")
 
         assert not offenders, (
             "these enum columns are stored as plain strings and will come back "

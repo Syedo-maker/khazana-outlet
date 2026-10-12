@@ -58,14 +58,15 @@ def get_engine() -> Engine:
     problem into an import error in unrelated tests, which is exactly how it
     was found.
     """
-    global _engine  # noqa: PLW0603  one engine per process, built once
+    # One engine per process, built once.
+    global _engine
     if _engine is None:
         _engine = build_engine()
     return _engine
 
 
 def get_session_factory() -> sessionmaker[Session]:
-    global _session_factory  # noqa: PLW0603
+    global _session_factory
     if _session_factory is None:
         _session_factory = sessionmaker(
             bind=get_engine(), autoflush=False, expire_on_commit=False
@@ -75,7 +76,7 @@ def get_session_factory() -> sessionmaker[Session]:
 
 def reset_engine() -> None:
     """Drop the cached engine. Used by tests that change configuration."""
-    global _engine, _session_factory  # noqa: PLW0603
+    global _engine, _session_factory
     if _engine is not None:
         _engine.dispose()
     _engine = None

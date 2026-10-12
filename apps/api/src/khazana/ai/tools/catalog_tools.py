@@ -128,7 +128,8 @@ def search_lots(
     if city:
         statement = statement.where(Lot.stock_city.ilike(f"%{city.strip()}%"))
 
-    rows = db.scalars(statement.order_by(Lot.created_at.desc()).limit(min(limit, MAX_RESULTS))).all()
+    statement = statement.order_by(Lot.created_at.desc()).limit(min(limit, MAX_RESULTS))
+    rows = db.scalars(statement).all()
 
     lots = [_lot_summary(db, lot) for lot in rows]
     if max_price_per_piece_pkr is not None:
