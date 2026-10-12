@@ -279,6 +279,7 @@ class TestSeed:
             assert live
             assert all(lot.approved_at is not None for lot in live)
 
+
 class TestEnumRoundTrip:
     """Enum columns must come back as enums, not as bare strings.
 
@@ -335,6 +336,5 @@ class TestEnumRoundTrip:
                     offenders.append(f"{table.name}.{column.name}")
 
         assert not offenders, (
-            "these enum columns are stored as plain strings and will come back "
-            f"as str: {offenders}"
+            f"these enum columns are stored as plain strings and will come back as str: {offenders}"
         )

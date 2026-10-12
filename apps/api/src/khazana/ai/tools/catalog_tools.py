@@ -107,9 +107,7 @@ def search_lots(
 
     if query:
         pattern = f"%{query.strip().lower()}%"
-        statement = statement.where(
-            or_(Lot.title.ilike(pattern), Lot.description.ilike(pattern))
-        )
+        statement = statement.where(or_(Lot.title.ilike(pattern), Lot.description.ilike(pattern)))
 
     if category:
         category_row = db.scalars(

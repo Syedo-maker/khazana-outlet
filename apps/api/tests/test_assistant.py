@@ -70,11 +70,7 @@ def make_lot(
     )
     db.add(lot)
     db.flush()
-    db.add(
-        ManifestLine(
-            lot_id=lot.id, brand_id=brand.id, size="M", color="black", pieces=pieces
-        )
-    )
+    db.add(ManifestLine(lot_id=lot.id, brand_id=brand.id, size="M", color="black", pieces=pieces))
     db.commit()
     return lot
 
@@ -138,9 +134,7 @@ class TestSearchLots:
         assert found["found"] == 1
         assert found["lots"][0]["lot_code"] == "LOT-KHI"
 
-    def test_a_price_ceiling_excludes_dearer_lots(
-        self, db: Session, two_brands, category
-    ) -> None:  # type: ignore[no-untyped-def]
+    def test_a_price_ceiling_excludes_dearer_lots(self, db: Session, two_brands, category) -> None:  # type: ignore[no-untyped-def]
         (brand, _), _ = two_brands
         make_lot(db, brand, category, code="LOT-CHEAP", pieces=100, lot_price=20_000)
         make_lot(db, brand, category, code="LOT-DEAR", pieces=100, lot_price=90_000)
@@ -175,9 +169,7 @@ class TestAvailability:
         assert result["available"] is False
         assert result["minimum_order_pieces"] == 50
 
-    def test_more_than_the_lot_holds_is_refused(
-        self, db: Session, two_brands, category
-    ) -> None:  # type: ignore[no-untyped-def]
+    def test_more_than_the_lot_holds_is_refused(self, db: Session, two_brands, category) -> None:  # type: ignore[no-untyped-def]
         (brand, _), _ = two_brands
         make_lot(db, brand, category, code="LOT-1", pieces=100)
 
@@ -297,9 +289,7 @@ class TestDeliveryAndDrafts:
 
         assert remote["working_days_high"] > major["working_days_high"]
 
-    def test_a_draft_reserves_nothing_and_says_so(
-        self, db: Session, two_brands, category
-    ) -> None:  # type: ignore[no-untyped-def]
+    def test_a_draft_reserves_nothing_and_says_so(self, db: Session, two_brands, category) -> None:  # type: ignore[no-untyped-def]
         """An assistant that could place a binding order can be talked into it."""
         (brand, owner), _ = two_brands
         make_lot(db, brand, category, code="LOT-1", pieces=100, minimum=50, lot_price=50_000)
@@ -317,9 +307,7 @@ class TestDeliveryAndDrafts:
 
         assert db.query(OrderModel).count() == 0, "a draft must not create an order"
 
-    def test_a_draft_below_the_minimum_is_refused(
-        self, db: Session, two_brands, category
-    ) -> None:  # type: ignore[no-untyped-def]
+    def test_a_draft_below_the_minimum_is_refused(self, db: Session, two_brands, category) -> None:  # type: ignore[no-untyped-def]
         (brand, owner), _ = two_brands
         make_lot(db, brand, category, code="LOT-1", minimum=50)
 
@@ -334,9 +322,7 @@ class TestDeliveryAndDrafts:
 
 
 class TestExecutePlan:
-    def test_an_unknown_tool_is_dropped_rather_than_crashing(
-        self, db: Session, two_brands
-    ) -> None:  # type: ignore[no-untyped-def]
+    def test_an_unknown_tool_is_dropped_rather_than_crashing(self, db: Session, two_brands) -> None:  # type: ignore[no-untyped-def]
         """A plan is a model output, so it is validated and not trusted."""
         (_brand, owner), _ = two_brands
         plan = ToolPlan(
@@ -524,9 +510,7 @@ class TestFullTurn:
         assert turn.answer.tool_calls_made == []
         assert not turn.is_grounded
 
-    def test_an_empty_message_is_refused_before_any_cost(
-        self, db: Session, two_brands
-    ) -> None:  # type: ignore[no-untyped-def]
+    def test_an_empty_message_is_refused_before_any_cost(self, db: Session, two_brands) -> None:  # type: ignore[no-untyped-def]
         (_brand, owner), _ = two_brands
         with pytest.raises(ValidationFailed):
             assistant.ask(db, message="   ", buyer_user_id=owner.id)

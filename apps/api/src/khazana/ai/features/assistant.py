@@ -131,9 +131,7 @@ def ask(
     answer = answer.model_copy(update={"tool_calls_made": executed})
 
     if not answer.declined and not executed:
-        logger.warning(
-            "assistant answered with no tool call behind it, buyer=%s", buyer_user_id
-        )
+        logger.warning("assistant answered with no tool call behind it, buyer=%s", buyer_user_id)
 
     return AssistantTurn(
         answer=answer,
