@@ -259,9 +259,7 @@ class TestCombine:
                 findings=[{"kind": "wording", "detail": "vague description", "severity": 1}]
             )  # type: ignore[arg-type]
         )
-        structural = [
-            RiskFinding(kind="manifest_mismatch", detail="does not sum", severity=5)
-        ]
+        structural = [RiskFinding(kind="manifest_mismatch", detail="does not sum", severity=5)]
 
         combined = feature.combine(judged, structural, 90, self._facts(consistent=False))
 

@@ -131,9 +131,7 @@ class AssistantIn(BaseModel):
 
 
 def _cost(result: Any) -> CostOut:
-    return CostOut(
-        usd=str(result.cost_usd), model=result.model, from_fixture=result.from_fixture
-    )
+    return CostOut(usd=str(result.cost_usd), model=result.model, from_fixture=result.from_fixture)
 
 
 @router.post(
