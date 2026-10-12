@@ -65,7 +65,40 @@ class RiskOutcome:
         return [finding for finding in self.score.findings if finding.severity >= 4]
 
 
-def compute_facts(db: Session, lot: Lot) -> dict[str, object]:
+@dataclass(frozen=True, slots=True)
+class ListingFacts:
+    """The measurable half of a risk score.
+
+    A dataclass rather than a dict because every one of these is read as a
+    number or a flag. A dict of object forced a cast at every use, which is
+    the type system pointing at a missing type rather than being awkward.
+    """
+
+    manifest_total: int
+    declared_total: int
+    manifest_consistent: bool
+    discount_percent: int
+    photo_count: int
+    defect_count: int
+    condition_grade: str
+    category: str
+    has_description: bool
+
+    def as_prompt_values(self, lot: Lot) -> dict[str, object]:
+        return {
+            "manifest_total": self.manifest_total,
+            "declared_total": self.declared_total,
+            "discount_percent": self.discount_percent,
+            "photo_count": self.photo_count,
+            "condition_grade": self.condition_grade,
+            "defect_count": self.defect_count,
+            "title": (lot.title or "")[:200],
+            "description": (lot.description or "")[:1500],
+            "category_slug": self.category,
+        }
+
+
+def compute_facts(db: Session, lot: Lot) -> ListingFacts:
     """The things that are measured rather than judged."""
     lines = db.scalars(select(ManifestLine).where(ManifestLine.lot_id == lot.id)).all()
     defects = db.scalars(select(LotDefect).where(LotDefect.lot_id == lot.id)).all()
@@ -73,20 +106,20 @@ def compute_facts(db: Session, lot: Lot) -> dict[str, object]:
     category = db.get(Category, lot.category_id)
 
     manifest_total = sum(line.pieces for line in lines)
-    return {
-        "manifest_total": manifest_total,
-        "declared_total": lot.total_pieces,
-        "manifest_consistent": manifest_total == lot.total_pieces,
-        "discount_percent": round(lot.discount_percent),
-        "photo_count": len(photos),
-        "defect_count": len(defects),
-        "condition_grade": lot.condition_grade.value,
-        "category": category.name if category else "unknown",
-        "has_description": bool((lot.description or "").strip()),
-    }
+    return ListingFacts(
+        manifest_total=manifest_total,
+        declared_total=lot.total_pieces,
+        manifest_consistent=manifest_total == lot.total_pieces,
+        discount_percent=round(lot.discount_percent),
+        photo_count=len(photos),
+        defect_count=len(defects),
+        condition_grade=lot.condition_grade.value,
+        category=category.name if category else "unknown",
+        has_description=bool((lot.description or "").strip()),
+    )
 
 
-def computed_findings(facts: dict[str, object], lot: Lot) -> tuple[list[RiskFinding], int]:
+def computed_findings(facts: ListingFacts, lot: Lot) -> tuple[list[RiskFinding], int]:
     """Structural problems, found without asking a model.
 
     Returns the findings and a score. These are not opinions, so they are not
@@ -95,14 +128,14 @@ def computed_findings(facts: dict[str, object], lot: Lot) -> tuple[list[RiskFind
     findings: list[RiskFinding] = []
     score = 0
 
-    if not facts["manifest_consistent"]:
-        difference = int(facts["manifest_total"]) - int(facts["declared_total"])  # type: ignore[arg-type]
+    if not facts.manifest_consistent:
+        difference = facts.manifest_total - facts.declared_total
         findings.append(
             RiskFinding(
                 kind="manifest_mismatch",
                 detail=(
-                    f"The manifest sums to {facts['manifest_total']} pieces but the "
-                    f"lot declares {facts['declared_total']}, a difference of "
+                    f"The manifest sums to {facts.manifest_total} pieces but the "
+                    f"lot declares {facts.declared_total}, a difference of "
                     f"{difference:+d}."
                 ),
                 severity=5,
@@ -110,7 +143,7 @@ def computed_findings(facts: dict[str, object], lot: Lot) -> tuple[list[RiskFind
         )
         score = max(score, 90)
 
-    discount = int(facts["discount_percent"])  # type: ignore[arg-type]
+    discount = facts.discount_percent
     if discount < PLAUSIBLE_DISCOUNT_LOW:
         findings.append(
             RiskFinding(
@@ -137,7 +170,7 @@ def computed_findings(facts: dict[str, object], lot: Lot) -> tuple[list[RiskFind
         )
         score = max(score, 70)
 
-    photo_count = int(facts["photo_count"])  # type: ignore[arg-type]
+    photo_count = facts.photo_count
     if photo_count == 0:
         findings.append(
             RiskFinding(
@@ -162,7 +195,7 @@ def computed_findings(facts: dict[str, object], lot: Lot) -> tuple[list[RiskFind
 
     # Grade C exists precisely to carry defects. Claiming it without listing
     # any means the buyer cannot see what they are accepting.
-    if lot.condition_grade == ConditionGrade.C and int(facts["defect_count"]) == 0:  # type: ignore[arg-type]
+    if lot.condition_grade == ConditionGrade.C and facts.defect_count == 0:
         findings.append(
             RiskFinding(
                 kind="grade_c_without_defects",
@@ -176,20 +209,20 @@ def computed_findings(facts: dict[str, object], lot: Lot) -> tuple[list[RiskFind
         score = max(score, 65)
 
     # The reverse: defects listed on a lot claiming to be new with tags.
-    if lot.condition_grade == ConditionGrade.A and int(facts["defect_count"]) > 0:  # type: ignore[arg-type]
+    if lot.condition_grade == ConditionGrade.A and facts.defect_count > 0:
         findings.append(
             RiskFinding(
                 kind="grade_a_with_defects",
                 detail=(
                     f"Graded A, meaning new with no defects, but "
-                    f"{facts['defect_count']} defects are listed."
+                    f"{facts.defect_count} defects are listed."
                 ),
                 severity=4,
             )
         )
         score = max(score, 70)
 
-    if not facts["has_description"]:
+    if not facts.has_description:
         findings.append(
             RiskFinding(
                 kind="no_description",
@@ -221,17 +254,7 @@ def score_lot(
         db,
         AiFeature.RISK_SCORING,
         prompt_name=PROMPT,
-        prompt_values={
-            "manifest_total": facts["manifest_total"],
-            "declared_total": facts["declared_total"],
-            "discount_percent": facts["discount_percent"],
-            "photo_count": facts["photo_count"],
-            "condition_grade": facts["condition_grade"],
-            "defect_count": facts["defect_count"],
-            "title": (lot.title or "")[:200],
-            "description": (lot.description or "")[:1500],
-            "category_slug": facts["category"],
-        },
+        prompt_values=facts.as_prompt_values(lot),
         brand_id=lot.brand_id,
         user_id=user_id,
         entity_type="lot",
@@ -257,7 +280,7 @@ def combine(
     judged: RiskScore,
     structural: list[RiskFinding],
     structural_score: int,
-    facts: dict[str, object],
+    facts: ListingFacts,
 ) -> RiskScore:
     """Merge the measured findings with the judged ones.
 
@@ -270,7 +293,7 @@ def combine(
     model. A model asserting that a manifest balances when it does not is the
     one error that would let a bad lot through on its say so.
     """
-    measured_consistency = bool(facts["manifest_consistent"])
+    measured_consistency = facts.manifest_consistent
     if judged.manifest_consistent != measured_consistency:
         logger.warning(
             "risk model said manifest_consistent=%s, measurement says %s, keeping the measurement",

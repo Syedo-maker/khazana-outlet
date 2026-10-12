@@ -111,17 +111,10 @@ def stub(db: Session, lot: Lot, tmp_path, monkeypatch, content: dict) -> None:
     monkeypatch.setattr(client, "FIXTURE_DIR", tmp_path)
     facts = feature.compute_facts(db, lot)
     prompt = prompts.load(feature.PROMPT)
-    user_text = prompt.render(
-        manifest_total=facts["manifest_total"],
-        declared_total=facts["declared_total"],
-        discount_percent=facts["discount_percent"],
-        photo_count=facts["photo_count"],
-        condition_grade=facts["condition_grade"],
-        defect_count=facts["defect_count"],
-        title=(lot.title or "")[:200],
-        description=(lot.description or "")[:1500],
-        category_slug=facts["category"],
-    )
+    # The feature builds these from the dataclass, so the stub uses the same
+    # helper. Duplicating the field list here would drift silently.
+    user_text = prompt.render(**facts.as_prompt_values(lot))
+
     key = client.fixture_key(
         feature="risk_scoring",
         prompt_name=prompt.name,
@@ -153,7 +146,7 @@ class TestComputedFindings:
         facts = feature.compute_facts(db, lot)
         findings, score = feature.computed_findings(facts, lot)
 
-        assert facts["manifest_consistent"] is False
+        assert facts.manifest_consistent is False
         kinds = {finding.kind for finding in findings}
         assert "manifest_mismatch" in kinds
         assert score >= 90
@@ -169,7 +162,7 @@ class TestComputedFindings:
         facts = feature.compute_facts(db, lot)
         findings, score = feature.computed_findings(facts, lot)
 
-        assert facts["discount_percent"] == 98
+        assert facts.discount_percent == 98
         assert "discount_implausibly_large" in {finding.kind for finding in findings}
         assert score >= 70
 
@@ -220,8 +213,18 @@ class TestComputedFindings:
 
 
 class TestCombine:
-    def _facts(self, consistent: bool) -> dict[str, object]:
-        return {"manifest_consistent": consistent, "manifest_total": 100, "declared_total": 100}
+    def _facts(self, consistent: bool) -> feature.ListingFacts:
+        return feature.ListingFacts(
+            manifest_total=100 if consistent else 40,
+            declared_total=100,
+            manifest_consistent=consistent,
+            discount_percent=70,
+            photo_count=4,
+            defect_count=0,
+            condition_grade="A",
+            category="Womenswear stitched",
+            has_description=True,
+        )
 
     def test_the_measurement_beats_the_model_on_the_manifest(self) -> None:
         """The one error that would let a bad lot through on the model's say so."""
