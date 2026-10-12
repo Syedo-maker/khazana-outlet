@@ -44,13 +44,47 @@ def build_engine(url: str | None = None) -> Engine:
     )
 
 
-engine = build_engine()
-SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+_engine: Engine | None = None
+_session_factory: sessionmaker[Session] | None = None
+
+
+def get_engine() -> Engine:
+    """The process wide engine, built on first use.
+
+    Built lazily rather than at import time on purpose. Creating an engine
+    eagerly imports the database driver, so a module level engine makes
+    ``import khazana.db`` fail whenever the configured driver cannot load,
+    even for code that never touches the database. That turns a configuration
+    problem into an import error in unrelated tests, which is exactly how it
+    was found.
+    """
+    global _engine  # noqa: PLW0603  one engine per process, built once
+    if _engine is None:
+        _engine = build_engine()
+    return _engine
+
+
+def get_session_factory() -> sessionmaker[Session]:
+    global _session_factory  # noqa: PLW0603
+    if _session_factory is None:
+        _session_factory = sessionmaker(
+            bind=get_engine(), autoflush=False, expire_on_commit=False
+        )
+    return _session_factory
+
+
+def reset_engine() -> None:
+    """Drop the cached engine. Used by tests that change configuration."""
+    global _engine, _session_factory  # noqa: PLW0603
+    if _engine is not None:
+        _engine.dispose()
+    _engine = None
+    _session_factory = None
 
 
 def get_db() -> Iterator[Session]:
     """FastAPI dependency. One session per request, always closed."""
-    db = SessionLocal()
+    db = get_session_factory()()
     try:
         yield db
     finally:

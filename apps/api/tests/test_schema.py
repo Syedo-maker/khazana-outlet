@@ -11,6 +11,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from khazana.models import Lot, ManifestLine, Order
+from enum import StrEnum
+
 from khazana.models.enums import ConditionGrade, LotStatus, OrderStatus, Visibility
 
 
@@ -276,3 +278,64 @@ class TestSeed:
             live = session.scalars(select(Lot).where(Lot.status == LotStatus.LIVE)).all()
             assert live
             assert all(lot.approved_at is not None for lot in live)
+
+class TestEnumRoundTrip:
+    """Enum columns must come back as enums, not as bare strings.
+
+    This was a real bug. A ``Mapped[ConditionGrade]`` column declared with an
+    explicit ``String`` stores the value correctly and hands back a plain
+    ``str`` on the next load. Comparisons keep working, because a StrEnum
+    equals its own value, so nothing fails until some code calls ``.value``
+    and raises an AttributeError on a product page.
+
+    It survived the first hundred tests because objects were still in the
+    identity map with the Python enum attached. It only appeared once a lot
+    was committed and read back in a fresh query.
+    """
+
+    def test_a_lot_reloaded_from_the_database_keeps_its_enums(
+        self, db: Session, two_brands, category
+    ) -> None:  # type: ignore[no-untyped-def]
+        from sqlalchemy import select
+
+        from khazana.models.enums import Visibility
+
+        (brand, _), _ = two_brands
+        lot = build_lot(db, brand.id, category.id)
+        db.commit()
+        lot_id = lot.id
+
+        # A new session, so nothing is served from the identity map.
+        db.expunge_all()
+        reloaded = db.scalars(select(Lot).where(Lot.id == lot_id)).one()
+
+        assert isinstance(reloaded.condition_grade, ConditionGrade)
+        assert isinstance(reloaded.status, LotStatus)
+        assert isinstance(reloaded.visibility, Visibility)
+        # The call that used to raise.
+        assert reloaded.condition_grade.value == "A"
+
+    def test_every_enum_column_uses_the_coercing_type(self) -> None:
+        """Catch a new enum column declared with a bare String.
+
+        A future model that writes mapped_column(String(16)) for an enum
+        re-introduces exactly this bug, and nothing else would notice.
+        """
+        from khazana.models import Base
+        from khazana.models.base import EnumText
+
+        offenders = []
+        for table in Base.metadata.tables.values():
+            for column in table.columns:
+                annotation = getattr(column, "_khazana_enum", None)
+                del annotation
+                # A column whose Python type is a StrEnum must be EnumText.
+                default = column.default
+                if default is not None and isinstance(getattr(default, "arg", None), StrEnum):
+                    if not isinstance(column.type, EnumText):
+                        offenders.append(f"{table.name}.{column.name}")
+
+        assert not offenders, (
+            "these enum columns are stored as plain strings and will come back "
+            f"as str: {offenders}"
+        )

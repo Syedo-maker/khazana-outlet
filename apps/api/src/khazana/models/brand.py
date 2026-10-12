@@ -43,7 +43,7 @@ class Brand(UUIDPrimaryKey, TimestampMixin, SoftDeleteMixin, Base):
     ntn: Mapped[str | None] = mapped_column(String(32), default=None)
     city: Mapped[str] = mapped_column(String(80), nullable=False)
     status: Mapped[VerificationStatus] = mapped_column(
-        String(16), nullable=False, default=VerificationStatus.PENDING
+        nullable=False, default=VerificationStatus.PENDING
     )
     # The label shown in place of the real name on an unbranded listing, for
     # example "leading Pakistani lawn brand". Brand supplied, admin approved.
@@ -95,7 +95,7 @@ class BrandPolicy(UUIDPrimaryKey, TimestampMixin, Base):
 
     # Brand protection defaults, applied to every new lot unless overridden.
     default_visibility: Mapped[Visibility] = mapped_column(
-        String(16), nullable=False, default=Visibility.PRIVATE
+        nullable=False, default=Visibility.PRIVATE
     )
     # Mandatory in the roadmap and therefore not nullable and defaulted true.
     # A brand may not switch off its own approval gate.
@@ -144,7 +144,7 @@ class BrandMember(UUIDPrimaryKey, TimestampMixin, Base):
         String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     role_in_brand: Mapped[BrandMemberRole] = mapped_column(
-        String(16), nullable=False, default=BrandMemberRole.OWNER
+        nullable=False, default=BrandMemberRole.OWNER
     )
 
     brand: Mapped[Brand] = relationship(back_populates="members")
@@ -164,13 +164,13 @@ class VerificationDocument(UUIDPrimaryKey, TimestampMixin, Base):
     brand_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("brands.id", ondelete="CASCADE"), nullable=False
     )
-    doc_type: Mapped[DocumentType] = mapped_column(String(24), nullable=False)
+    doc_type: Mapped[DocumentType] = mapped_column(nullable=False)
     file_key: Mapped[str] = mapped_column(String(500), nullable=False)
     original_filename: Mapped[str | None] = mapped_column(String(255), default=None)
     content_type: Mapped[str | None] = mapped_column(String(100), default=None)
     size_bytes: Mapped[int | None] = mapped_column(Integer, default=None)
     status: Mapped[VerificationStatus] = mapped_column(
-        String(16), nullable=False, default=VerificationStatus.PENDING
+        nullable=False, default=VerificationStatus.PENDING
     )
     uploaded_by_user_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="SET NULL"), default=None

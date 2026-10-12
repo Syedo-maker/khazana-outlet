@@ -73,9 +73,7 @@ class Order(UUIDPrimaryKey, TimestampMixin, Base):
     commission_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
     brand_payout_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    status: Mapped[OrderStatus] = mapped_column(
-        String(20), nullable=False, default=OrderStatus.CREATED
-    )
+    status: Mapped[OrderStatus] = mapped_column(nullable=False, default=OrderStatus.CREATED)
     delivery_city: Mapped[str] = mapped_column(String(80), nullable=False)
     delivery_address: Mapped[str] = mapped_column(String(500), nullable=False)
     delivery_phone: Mapped[str] = mapped_column(String(11), nullable=False)
@@ -160,10 +158,8 @@ class Payment(UUIDPrimaryKey, TimestampMixin, Base):
     order_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("orders.id", ondelete="RESTRICT"), nullable=False
     )
-    method: Mapped[PaymentMethod] = mapped_column(String(20), nullable=False)
-    status: Mapped[PaymentStatus] = mapped_column(
-        String(16), nullable=False, default=PaymentStatus.PENDING
-    )
+    method: Mapped[PaymentMethod] = mapped_column(nullable=False)
+    status: Mapped[PaymentStatus] = mapped_column(nullable=False, default=PaymentStatus.PENDING)
     amount_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
     provider: Mapped[str | None] = mapped_column(String(40), default=None)
     provider_reference: Mapped[str | None] = mapped_column(String(120), default=None)
@@ -197,9 +193,7 @@ class Payout(UUIDPrimaryKey, TimestampMixin, Base):
         String(36), ForeignKey("brands.id", ondelete="RESTRICT"), nullable=False
     )
     amount_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
-    status: Mapped[PayoutStatus] = mapped_column(
-        String(16), nullable=False, default=PayoutStatus.PENDING
-    )
+    status: Mapped[PayoutStatus] = mapped_column(nullable=False, default=PayoutStatus.PENDING)
     scheduled_for: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     reference: Mapped[str | None] = mapped_column(String(120), default=None)
@@ -231,7 +225,7 @@ class Shipment(UUIDPrimaryKey, TimestampMixin, Base):
     courier: Mapped[str] = mapped_column(String(40), nullable=False)
     tracking_number: Mapped[str | None] = mapped_column(String(80), default=None)
     status: Mapped[ShipmentStatus] = mapped_column(
-        String(20), nullable=False, default=ShipmentStatus.PENDING_PICKUP
+        nullable=False, default=ShipmentStatus.PENDING_PICKUP
     )
     cost_pkr: Mapped[int | None] = mapped_column(Integer, default=None)
     cartons: Mapped[int | None] = mapped_column(Integer, default=None)
@@ -269,9 +263,7 @@ class Dispute(UUIDPrimaryKey, TimestampMixin, Base):
     reason: Mapped[str] = mapped_column(String(120), nullable=False)
     detail: Mapped[str | None] = mapped_column(Text, default=None)
     evidence_keys: Mapped[dict[str, object] | None] = mapped_column(default=None)
-    status: Mapped[DisputeStatus] = mapped_column(
-        String(20), nullable=False, default=DisputeStatus.OPEN
-    )
+    status: Mapped[DisputeStatus] = mapped_column(nullable=False, default=DisputeStatus.OPEN)
     resolution: Mapped[str | None] = mapped_column(Text, default=None)
     refund_pkr: Mapped[int | None] = mapped_column(Integer, default=None)
     resolved_by_user_id: Mapped[str | None] = mapped_column(
