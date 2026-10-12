@@ -2,7 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    # Feature branches are included deliberately. Without them a branch gets
+    # no checks at all until it is opened as a pull request, which is exactly
+    # when a late failure is most expensive to unpick.
+    branches: [main, develop, "feature/**"]
   pull_request:
     branches: [main, develop]
 
@@ -43,7 +46,24 @@ jobs:
       - name: Lint
         run: |
           ruff check .
-          ruff format --check .
+          ruff format --check . || {
+            # Print the unified diff inline as well as uploading it. The
+            # development machine cannot run ruff, and artifact downloads from
+            # that network have been unreliable, so the log is the fallback.
+            echo "::group::formatting diff"
+            ruff format --diff . || true
+            echo "::endgroup::"
+            ruff format --diff . > "$RUNNER_TEMP/format.patch" || true
+            exit 1
+          }
+
+      - name: Upload the formatting patch when the format check failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: format-patch
+          path: ${{ runner.temp }}/format.patch
+          if-no-files-found: ignore
 
       - name: Type check
         run: mypy src
@@ -92,6 +112,17 @@ jobs:
           alembic upgrade head
           alembic downgrade base
           alembic upgrade head
+
+      - name: PostgreSQL only tests, meaning vector search and the triggers
+        env:
+          # The suite runs on SQLite for speed, so the cosine ranking, the
+          # visibility filter and the brand exclusion all live in SQL that
+          # SQLite never executes. This job is where they are actually proved.
+          TEST_DATABASE_URL: postgresql+psycopg://khazana:khazana@localhost:5432/khazana
+          DATABASE_URL: postgresql+psycopg://khazana:khazana@localhost:5432/khazana
+          SECRET_KEY: test-secret-not-a-real-key
+          AI_OFFLINE: "true"
+        run: pytest tests/test_search_postgres.py -v
 
   web:
     name: Web lint and build

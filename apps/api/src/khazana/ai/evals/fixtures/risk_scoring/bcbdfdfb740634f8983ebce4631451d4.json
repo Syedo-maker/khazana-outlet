@@ -1,0 +1,26 @@
+{
+  "_case": "a_grade_claim_that_contradicts_the_defects_is_caught",
+  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
+  "content": {
+    "completeness": 85,
+    "counterfeit_signals": [],
+    "findings": [
+      {
+        "detail": "The listing claims grade A, meaning new with no defects, while six defects are itemised. One of the two is wrong.",
+        "kind": "condition_inconsistent",
+        "severity": 4
+      }
+    ],
+    "manifest_consistent": true,
+    "price_plausible": true,
+    "recommend_human_review": true,
+    "score": 66
+  },
+  "model": "claude-opus-5-5",
+  "usage": {
+    "cache_read_tokens": 1800,
+    "cache_write_tokens": 0,
+    "input_tokens": 2400,
+    "output_tokens": 420
+  }
+}

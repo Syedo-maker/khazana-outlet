@@ -1,0 +1,23 @@
+{
+  "_case": "english_stock_question_quotes_the_lookup",
+  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
+  "content": {
+    "answer": "Yes. LOT-00042 is printed lawn kurtis held in Lahore, 480 rupees per piece, 76 percent off retail. The minimum order is 60 pieces out of 240 in the lot.",
+    "decline_reason": null,
+    "declined": false,
+    "language": "en",
+    "lot_ids_referenced": [
+      "LOT-00042"
+    ],
+    "tool_calls_made": [
+      "search_lots"
+    ]
+  },
+  "model": "claude-opus-5-5",
+  "usage": {
+    "cache_read_tokens": 1800,
+    "cache_write_tokens": 0,
+    "input_tokens": 2400,
+    "output_tokens": 420
+  }
+}

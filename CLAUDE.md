@@ -69,6 +69,26 @@ Push as the work lands, not in one batch at the end.
   credentials, no customer data, no brand data from a real brand, and no
   unredacted commercial terms from a signed agreement.
 
+## 3c. When lint cannot run locally
+
+On this machine an Application Control policy blocks compiled executables, so
+`ruff` and `mypy` cannot run, and neither can `black`. The test suite and the
+evals still run, because they are pure Python.
+
+While that is true:
+
+- `make prepush` says so explicitly. A clean gate there does not mean the
+  formatting is right.
+- CI is the only lint, format and type gate, so a formatting slip becomes a
+  failed run and a notification email rather than a local error.
+- When the format check fails, CI prints the exact unified diff in a group
+  called "formatting diff" and also uploads it as a `format-patch` artifact.
+  Apply it with `git apply -p0 format.patch` from `apps/api`.
+
+The real fix is to allow `apps/api/.venv/Scripts/ruff.exe` in whatever
+security software is blocking it. Then `make lint` works again and nothing
+reaches CI unformatted.
+
 ## 4. Project context
 
 Khazana Outlet is an AI native marketplace in Pakistan for brand surplus

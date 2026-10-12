@@ -71,8 +71,16 @@ def run_feature(
     entity_type: str | None = None,
     entity_id: str | None = None,
     prompt_version: int | None = None,
+    output_schema: type[BaseModel] | None = None,
     record_fixture: bool = False,
 ) -> AiResult:
+    """Run one AI feature end to end.
+
+    ``output_schema`` overrides the feature's default schema. It exists for
+    features that make more than one kind of call: the assistant plans with
+    one schema and answers with another, and both are the same feature for
+    routing, cost and kill switch purposes.
+    """
     route = router.route_for(feature)
     images = images or []
 
@@ -111,7 +119,7 @@ def run_feature(
     job.attempts += 1
     db.flush()
 
-    schema_model = SCHEMA_BY_FEATURE.get(feature.value)
+    schema_model = output_schema or SCHEMA_BY_FEATURE.get(feature.value)
     if schema_model is None:
         raise ValidationFailed(
             f"No output schema registered for {feature.value}. Add one to "
