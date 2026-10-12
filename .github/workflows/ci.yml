@@ -46,7 +46,20 @@ jobs:
       - name: Lint
         run: |
           ruff check .
-          ruff format --check .
+          ruff format --check . || {
+            # Emit a real unified diff as an artifact. The development machine
+            # cannot run ruff, so this is how the formatting fix gets back.
+            ruff format --diff . > "$RUNNER_TEMP/format.patch" || true
+            exit 1
+          }
+
+      - name: Upload the formatting patch when the format check failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: format-patch
+          path: ${{ runner.temp }}/format.patch
+          if-no-files-found: ignore
 
       - name: Type check
         run: mypy src
