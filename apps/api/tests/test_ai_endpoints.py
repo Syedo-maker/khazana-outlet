@@ -99,9 +99,7 @@ class TestOwnership:
 
 
 class TestUploadValidation:
-    def test_a_file_that_is_not_an_image_is_refused(
-        self, client, db: Session, two_brands
-    ) -> None:
+    def test_a_file_that_is_not_an_image_is_refused(self, client, db: Session, two_brands) -> None:
         """The declared content type is not trusted.
 
         An HTML file uploaded as image/png and served back later is stored

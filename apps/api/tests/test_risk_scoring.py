@@ -179,9 +179,7 @@ class TestComputedFindings:
         (brand, _), _ = two_brands
         lot = make_lot(db, brand.id, category.id, retail=2_000, lot_price=190_000, pieces=100)
 
-        findings, _score = feature.computed_findings(
-            feature.compute_facts(db, lot), lot
-        )
+        findings, _score = feature.computed_findings(feature.compute_facts(db, lot), lot)
         assert "discount_implausibly_small" in {finding.kind for finding in findings}
 
     def test_no_photographs_is_severe(self, db: Session, two_brands, category) -> None:

@@ -47,8 +47,12 @@ jobs:
         run: |
           ruff check .
           ruff format --check . || {
-            # Emit a real unified diff as an artifact. The development machine
-            # cannot run ruff, so this is how the formatting fix gets back.
+            # Print the unified diff inline as well as uploading it. The
+            # development machine cannot run ruff, and artifact downloads from
+            # that network have been unreliable, so the log is the fallback.
+            echo "::group::formatting diff"
+            ruff format --diff . || true
+            echo "::endgroup::"
             ruff format --diff . > "$RUNNER_TEMP/format.patch" || true
             exit 1
           }

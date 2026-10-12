@@ -113,9 +113,7 @@ class SearchOut(BaseModel):
 class AssistantOut(BaseModel):
     answer: AssistantAnswer
     tools_used: list[str]
-    grounded: bool = Field(
-        description="False when the reply made a claim with no lookup behind it"
-    )
+    grounded: bool = Field(description="False when the reply made a claim with no lookup behind it")
     cost: CostOut
 
 

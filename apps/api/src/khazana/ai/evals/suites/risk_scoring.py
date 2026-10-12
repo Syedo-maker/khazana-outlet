@@ -46,8 +46,7 @@ def _values(**overrides: Any) -> dict[str, Any]:
         "defect_count": 0,
         "title": "Printed lawn three piece suits, summer surplus",
         "description": (
-            "Stitched three piece lawn suits from last summer. Tags attached. "
-            "Stock held in Lahore."
+            "Stitched three piece lawn suits from last summer. Tags attached. Stock held in Lahore."
         ),
         "category_slug": "womenswear-stitched",
     }
