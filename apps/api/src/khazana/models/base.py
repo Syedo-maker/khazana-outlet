@@ -71,44 +71,53 @@ class EnumText(TypeDecorator[Any]):
         return self.enum_class(value)
 
 
+#: Every StrEnum used by a model. Each one is mapped to EnumText so a column
+#: round trips back as the enum rather than as a bare string. See EnumText for
+#: what goes wrong without it.
+#:
+#: Adding an enum to the models means adding it here. A missing entry is a
+#: clear error at import time, not a silent string column.
+ENUM_TYPES: tuple[type[StrEnum], ...] = (
+    enums.AiFeature,
+    enums.AiJobStatus,
+    enums.AiMode,
+    enums.ApprovalAction,
+    enums.BrandMemberRole,
+    enums.ConditionGrade,
+    enums.DisputeStatus,
+    enums.DocumentType,
+    enums.EmbeddingOwner,
+    enums.LotStatus,
+    enums.OrderStatus,
+    enums.OtpPurpose,
+    enums.PaymentMethod,
+    enums.PaymentStatus,
+    enums.PayoutStatus,
+    enums.PhotoKind,
+    enums.ShipmentStatus,
+    enums.UserRole,
+    enums.VerificationStatus,
+    enums.Visibility,
+)
+
+# JSON on SQLite, JSONB on PostgreSQL. Both annotation spellings are mapped
+# because the models use whichever reads better locally, and an unmapped
+# annotation is a confusing startup error rather than a warning.
+#
+# Built here with an explicit annotation rather than inline in the class,
+# because a dict literal mixing these key kinds defeats type inference.
+TYPE_ANNOTATION_MAP: dict[Any, Any] = {
+    dict[str, Any]: JSON().with_variant(postgresql.JSONB(), "postgresql"),
+    dict[str, object]: JSON().with_variant(postgresql.JSONB(), "postgresql"),
+    list[float]: JSON().with_variant(postgresql.JSONB(), "postgresql"),
+}
+for _enum_class in ENUM_TYPES:
+    TYPE_ANNOTATION_MAP[_enum_class] = EnumText(_enum_class, 32)
+
+
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
-
-    # JSON on SQLite, JSONB on PostgreSQL. Both annotation spellings are
-    # mapped because the models use whichever reads better locally, and an
-    # unmapped annotation is a confusing startup error rather than a warning.
-    type_annotation_map = {
-        dict[str, Any]: JSON().with_variant(postgresql.JSONB(), "postgresql"),
-        dict[str, object]: JSON().with_variant(postgresql.JSONB(), "postgresql"),
-        list[float]: JSON().with_variant(postgresql.JSONB(), "postgresql"),
-        # Every StrEnum round trips back as the enum rather than a bare
-        # string. See EnumText above for why this matters.
-        **{
-            enum_class: EnumText(enum_class, 32)
-            for enum_class in (
-                enums.AiFeature,
-                enums.AiJobStatus,
-                enums.AiMode,
-                enums.ApprovalAction,
-                enums.BrandMemberRole,
-                enums.ConditionGrade,
-                enums.DisputeStatus,
-                enums.DocumentType,
-                enums.EmbeddingOwner,
-                enums.LotStatus,
-                enums.OrderStatus,
-                enums.OtpPurpose,
-                enums.PaymentMethod,
-                enums.PaymentStatus,
-                enums.PayoutStatus,
-                enums.PhotoKind,
-                enums.ShipmentStatus,
-                enums.UserRole,
-                enums.VerificationStatus,
-                enums.Visibility,
-            )
-        },
-    }
+    type_annotation_map = TYPE_ANNOTATION_MAP
 
 
 def utcnow() -> datetime:
