@@ -94,6 +94,11 @@ in the log.
 
 # Phase 2: AI engine (weeks 7 to 16)
 
+**Status: complete.** Six capabilities behind the gateway, six endpoints,
+three eval suites with nine mandatory rules, and 214 passing tests. See
+`docs/ai-features.md` for what each one costs and what it is allowed to
+decide.
+
 Goal: build the intelligence before the marketplace, because the marketplace
 modules in Phase 3 are written to consume it rather than to have it inserted
 later.
