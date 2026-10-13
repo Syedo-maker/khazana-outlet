@@ -71,29 +71,26 @@ scripts/                  repository rules gate, ERD generator
 
 ## Getting started
 
-Requirements: Python 3.11 or newer, Node 20 or newer, Docker for PostgreSQL
-and Redis.
+The whole stack runs in containers, so the only requirement is Docker Desktop.
+Nothing has to be installed on the machine, and nothing depends on what the
+machine's security policy allows to run.
 
-```bash
-# 1. Install everything
-make setup
-
-# 2. Start PostgreSQL and Redis
-make up
-
-# 3. Create the schema
-make migrate
-
-# 4. Load a realistic synthetic marketplace
-make seed
-
-# 5. Run the API and the web app in two terminals
-make api
-make web
+```powershell
+.\scripts\dev.ps1 build     # once, and after changing pyproject.toml or package.json
+.\scripts\dev.ps1 migrate   # create the schema
+.\scripts\dev.ps1 seed      # load a realistic synthetic marketplace
+.\scripts\dev.ps1 up        # start the API and the web app
 ```
 
 The API is on http://localhost:8000 with interactive documentation at
 http://localhost:8000/docs. The web app is on http://localhost:3000.
+
+`DEPLOYMENT.md` has every command, the troubleshooting list and what is still
+left to do before a real deployment.
+
+Running it on the host instead needs Python 3.11 or newer and Node 20 or newer,
+and the `make` targets below. Note that `make` is not installed on the
+development machine, so the containerised path above is the supported one.
 
 Copy `.env.example` to `.env` first. The defaults work for local development
 with no API keys at all, because the AI layer starts in offline mode and reads
@@ -106,6 +103,20 @@ code in the API response and prints it in the log. The login page shows it.
 Production refuses to start with that setting on.
 
 ## Everyday commands
+
+In containers:
+
+```powershell
+.\scripts\dev.ps1 check     # lint, format, types and tests, which is what CI runs
+.\scripts\dev.ps1 test      # the test suite
+.\scripts\dev.ps1 fix       # auto fix what can be auto fixed
+.\scripts\dev.ps1 evals     # AI eval suites against recorded fixtures, free
+.\scripts\dev.ps1 logs      # follow the logs
+.\scripts\dev.ps1 shell     # a shell inside the API container
+bash scripts/prepush-check.sh   # the repository rules gate
+```
+
+On the host, if the tooling is installed there:
 
 ```bash
 make test       # the test suite

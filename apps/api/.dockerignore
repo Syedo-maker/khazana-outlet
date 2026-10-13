@@ -1,0 +1,32 @@
+# The host virtual environment is Windows binaries. Copying it into a Linux
+# image would be useless and slow, and it is the single biggest folder here.
+.venv/
+venv/
+
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Local databases and scratch files from test runs.
+*.db
+*.sqlite
+*.sqlite3
+.eval-runs.db
+.local-dev.db
+.final-check.db
+
+# Secrets never go into an image layer.
+.env
+.env.*
+!.env.example
+
+.git/
+.gitignore
+Dockerfile
+.dockerignore

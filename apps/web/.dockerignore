@@ -1,0 +1,16 @@
+# node_modules is installed inside the image for the right platform. Copying
+# the host folder in would bring Windows binaries into a Linux container.
+node_modules/
+.next/
+out/
+dist/
+
+.env
+.env.*
+!.env.example
+
+.git/
+.gitignore
+Dockerfile
+.dockerignore
+npm-debug.log*
