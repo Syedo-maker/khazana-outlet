@@ -181,7 +181,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Scan the repository for vulnerable dependencies
-        uses: aquasecurity/trivy-action@0.28.0
+        # Pinned to the commit behind v0.36.0, released 2026-04-22. A third
+        # party action gets a commit, not a tag: a tag can be moved to point at
+        # new code, and this one runs with access to the checkout.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
           scan-type: fs
           scanners: vuln,secret
