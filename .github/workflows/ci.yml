@@ -113,12 +113,19 @@ jobs:
           alembic downgrade base
           alembic upgrade head
 
+      - name: Create the disposable test database
+        env:
+          PGPASSWORD: khazana
+        # A separate database, because these tests drop every table. Pointing
+        # them at the working database destroys it, which has happened once.
+        run: psql -h localhost -U khazana -d khazana -c "CREATE DATABASE khazana_test"
+
       - name: PostgreSQL only tests, meaning vector search and the triggers
         env:
           # The suite runs on SQLite for speed, so the cosine ranking, the
           # visibility filter and the brand exclusion all live in SQL that
           # SQLite never executes. This job is where they are actually proved.
-          TEST_DATABASE_URL: postgresql+psycopg://khazana:khazana@localhost:5432/khazana
+          TEST_DATABASE_URL: postgresql+psycopg://khazana:khazana@localhost:5432/khazana_test
           DATABASE_URL: postgresql+psycopg://khazana:khazana@localhost:5432/khazana
           SECRET_KEY: test-secret-not-a-real-key
           AI_OFFLINE: "true"

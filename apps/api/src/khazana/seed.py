@@ -166,12 +166,24 @@ def seed(db: Session, *, scale: int = 1, reset: bool = False) -> dict[str, int]:
 
 
 def _wipe(db: Session) -> None:
-    """Delete in dependency order. Seed data only, never run in production."""
+    """Clear seeded data. Development only, never production.
+
+    Two paths, because the append only tables behave differently.
+
+    On PostgreSQL, `listing_approvals` and `audit_log` carry a trigger that
+    rejects DELETE, which is exactly what they are for: history is not
+    editable. TRUNCATE is a different operation and is not caught by that
+    trigger, which is the right escape hatch for rebuilding a development
+    database. The guarantee is intact, because nothing in the application can
+    truncate.
+
+    On SQLite, used by the tests, there are no triggers and DELETE is fine.
+    """
     settings = get_settings()
     if settings.is_production:
         raise RuntimeError("Refusing to wipe data in production.")
 
-    for model in (
+    models = (
         OrderLine,
         Payment,
         Order,
@@ -187,7 +199,21 @@ def _wipe(db: Session) -> None:
         ResellerProfile,
         User,
         Category,
-    ):
+    )
+
+    if db.bind is not None and db.bind.dialect.name == "postgresql":
+        from sqlalchemy import text
+
+        # One statement, so foreign keys between these tables never block it.
+        # audit_log is included because seeding writes to it and a rebuilt
+        # database should not carry the previous run's history.
+        tables = [model.__tablename__ for model in models]
+        tables.append("audit_log")
+        db.execute(text(f"TRUNCATE TABLE {', '.join(tables)} RESTART IDENTITY CASCADE"))
+        db.commit()
+        return
+
+    for model in models:
         db.execute(delete(model))
     db.commit()
 

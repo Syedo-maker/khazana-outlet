@@ -31,15 +31,46 @@ from khazana.models.enums import (
 
 PG_URL = os.environ.get("TEST_DATABASE_URL", "")
 
+
+def _is_disposable(url: str) -> bool:
+    """Whether this database is safe to drop every table in.
+
+    These tests call drop_all, which is fine against a throwaway database and
+    catastrophic against a real one. It has already destroyed a development
+    database once, by being pointed at the same database the application was
+    using.
+
+    So the name has to say it is for tests. Anything else is refused rather
+    than trusted, because the cost of being wrong is somebody's data and the
+    cost of being careful is renaming a database.
+    """
+    if not url.startswith("postgresql"):
+        return False
+    name = url.rsplit("/", 1)[-1].split("?")[0].lower()
+    return "test" in name
+
+
 pytestmark = pytest.mark.skipif(
-    not PG_URL.startswith("postgresql"),
-    reason="needs PostgreSQL with pgvector, set TEST_DATABASE_URL to run",
+    not _is_disposable(PG_URL),
+    reason=(
+        "needs a disposable PostgreSQL database. Set TEST_DATABASE_URL to one "
+        "whose name contains 'test', for example khazana_test. These tests drop "
+        "every table, so they refuse to run against anything else."
+    ),
 )
 
 
 @pytest.fixture
 def pg_session():  # type: ignore[no-untyped-def]
     from khazana.db import build_engine
+
+    # Checked again here, not only in the skip mark. A mark can be removed or
+    # overridden; this cannot be reached with a non disposable database.
+    if not _is_disposable(PG_URL):
+        raise RuntimeError(
+            f"Refusing to drop tables in {PG_URL.rsplit('/', 1)[-1]!r}. "
+            "These tests need a database whose name contains 'test'."
+        )
 
     engine = build_engine(PG_URL)
     with engine.begin() as connection:
