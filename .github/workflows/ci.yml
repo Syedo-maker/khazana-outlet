@@ -168,3 +168,23 @@ jobs:
           AI_OFFLINE: "true"
           SECRET_KEY: test-secret-not-a-real-key
         run: python -m khazana.ai.evals.run --offline
+
+  scan:
+    name: Dependency vulnerability scan
+    runs-on: ubuntu-latest
+    # Advisory only. A finding here is usually a transitive dependency with no
+    # fixed version yet, which is not something the pull request that triggered
+    # the run can do anything about. It reports, it does not block.
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan the repository for vulnerable dependencies
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scanners: vuln,secret
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0"
