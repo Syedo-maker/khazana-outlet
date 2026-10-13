@@ -123,6 +123,20 @@ eval suites use.
 `.env.example` lists every variable the application reads. The repository is
 public, so `.env` is gitignored and stays that way.
 
+## The postcss override
+
+`apps/web/package.json` forces `postcss` to `^8.5.18` through an `overrides`
+block. Next pins `postcss` to exactly `8.4.31`, which carries two HIGH
+advisories, CVE-2026-45623 and CVE-2026-73646. Every Next 15 release up to
+15.5.27 pins the same version, so upgrading Next does not help and the
+override is the only way out. npm refuses an override the direct dependency
+range does not satisfy, which is why the `devDependencies` entry moved to the
+same range.
+
+The production build and the lint both pass against the overridden version,
+and the scan job is clean. Do not drop the override to silence a dependency
+warning without checking the advisories again.
+
 ## CI
 
 `.github/workflows/ci.yml` runs on `main`, `develop` and `feature/**`:
@@ -183,6 +197,17 @@ file change events to Linux, so the dev server polls instead. That is what
 volumes, which Docker seeds from the image including the ownership. The web
 Dockerfile creates and chowns them before switching to the `node` user for
 exactly this reason. If it comes back, `down` then `up` recreates the volumes.
+
+**`npm run build` fails on /404 with "`<Html>` should not be imported
+outside of pages/_document".** That is a production build running inside the
+dev container, where `NODE_ENV=development`. Next prerenders the error page
+differently and the build dies on a page nobody wrote. Pass the right
+environment, or build the image target that already sets it:
+
+```powershell
+docker compose run --rm --no-deps -e NODE_ENV=production web npm run build
+docker build --target build .pps\web      # what CI effectively does
+```
 
 **The seed fails on a second run.** It should not: `seed --reset` truncates
 with `RESTART IDENTITY CASCADE` on PostgreSQL. A plain `DELETE` cannot work
