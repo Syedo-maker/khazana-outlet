@@ -3,7 +3,7 @@
 # Dependencies are installed from the lockfile before the source is copied, so
 # editing a component does not reinstall npm packages.
 
-ARG NODE_VERSION=20.18.1
+ARG NODE_VERSION=22.23.3
 
 # ----------------------------------------------------------------- deps
 FROM node:${NODE_VERSION}-slim AS deps
