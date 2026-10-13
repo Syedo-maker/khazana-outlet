@@ -55,11 +55,13 @@ Set-Location $repoRoot
 $TestDbUrl = 'postgresql+psycopg://khazana:khazana@db:5432/khazana_test'
 
 function Assert-Docker {
-    try {
-        docker info --format '{{.ServerVersion}}' 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw 'not reachable' }
-    }
-    catch {
+    # No 2>&1 here on purpose. See the note above the switch block: redirecting
+    # a native command's stderr under ErrorActionPreference Stop turns any
+    # warning docker prints into a terminating error, and this function would
+    # then announce that Docker is not running while it is running fine. The
+    # exit code is the only thing worth reading.
+    $null = docker info --format '{{.ServerVersion}}'
+    if ($LASTEXITCODE -ne 0) {
         Write-Host ''
         Write-Host 'Docker is not running.' -ForegroundColor Yellow
         Write-Host 'Start Docker Desktop, wait for the whale icon to settle, then try again.'
@@ -84,6 +86,14 @@ function Invoke-Api {
 }
 
 Assert-Docker
+
+# Windows PowerShell 5.1 wraps a native command's stderr in error records when
+# that stream is redirected, and under ErrorActionPreference Stop the first one
+# terminates the script. docker compose writes all its progress to stderr, so
+# "dev.ps1 up 2>&1 | Select-Object -Last 4" failed with NativeCommandError
+# while every container started correctly. Nothing below depends on Stop, and
+# every step checks $LASTEXITCODE itself.
+$ErrorActionPreference = 'Continue'
 
 switch ($Command) {
     'build' {

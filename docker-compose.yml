@@ -40,11 +40,18 @@ services:
       POSTGRES_PASSWORD: khazana
       POSTGRES_DB: khazana
     ports:
-      # Bound to localhost on purpose. "5432:5432" publishes on 0.0.0.0, which
+      # 55432 on the host, not 5432. This machine runs a native PostgreSQL 17
+      # service that already listens on 5432, so publishing there fails to bind
+      # and the stack will not start. Moving the host side also removes a real
+      # trap: host tooling pointed at localhost:5432 talks to that native
+      # install, not to this container, and the two look identical until one of
+      # them is missing the data.
+      #
+      # Bound to localhost on purpose. Published bare it binds 0.0.0.0, which
       # puts a database with a known password on whatever wifi this laptop
-      # joins. The port is still published so a GUI client on this machine can
-      # connect; the api container reaches it over the compose network instead.
-      - "127.0.0.1:5432:5432"
+      # joins. It is published at all only so a GUI client on this machine can
+      # connect; the api container reaches it over the compose network.
+      - "127.0.0.1:55432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:

@@ -10,16 +10,24 @@ inside the same images that CI uses.
 
 | Service | Image or build | Port | Notes |
 | --- | --- | --- | --- |
-| `db` | `pgvector/pgvector:pg16` | 127.0.0.1:5432 | PostgreSQL 16 with the vector extension, so visual search needs no second datastore |
+| `db` | `pgvector/pgvector:pg16` | 127.0.0.1:55432 | PostgreSQL 16 with the vector extension, so visual search needs no second datastore |
 | `redis` | `redis:7-alpine` | 127.0.0.1:6379 | OTP store and job queue, append only persistence |
 | `api` | `apps/api/Dockerfile`, target `dev` | 8000 | FastAPI with reload, docs at `/docs` |
 | `web` | `apps/web/Dockerfile`, target `dev` | 3000 | Next.js dev server |
 
-Both database ports are bound to `127.0.0.1` on purpose. Publishing them as
-`5432:5432` binds `0.0.0.0`, which puts a database with a known development
-password on whatever network this machine joins. They are still published so a
-GUI client on this machine can connect. The API reaches them over the compose
+Both database ports are bound to `127.0.0.1` on purpose. Published bare they
+bind `0.0.0.0`, which puts a database with a known development password on
+whatever network this machine joins. They are published at all only so a GUI
+client on this machine can connect. The API reaches them over the compose
 network, not through the published port.
+
+The database is on host port **55432**, not 5432. This machine runs a separate
+native PostgreSQL 17 service that already listens on 5432, so publishing there
+fails to bind and the stack does not start. The move also removes a trap worth
+knowing about: host tooling pointed at `localhost:5432` talks to that native
+install rather than to the container, and the two are indistinguishable until
+one of them turns out to be missing the data. Inside the containers the
+database is `db:5432` and none of this applies.
 
 ## First run
 
@@ -184,6 +192,24 @@ Before a deployment:
 
 **"Docker is not running."** Start Docker Desktop and wait for the whale icon
 to settle. The script checks before it does anything.
+
+**"ports are not available ... An attempt was made to access a socket in a way
+forbidden by its access permissions".** Something on the host already holds
+that port. For 5432 it is the native PostgreSQL 17 service, which is why the
+container publishes 55432 instead. To find the holder:
+
+```powershell
+netstat -ano | Select-String ":5432"
+Get-Process -Id <the pid from the last column>
+```
+
+**A `dev.ps1` command prints `NativeCommandError` but everything worked.**
+Windows PowerShell 5.1 wraps a native command's stderr in error records when
+that stream is redirected, and `docker compose` writes all its progress to
+stderr. The script no longer sets `ErrorActionPreference` to `Stop` over those
+calls, so it reads the exit code instead of stopping at the first progress
+line. Piping the script's output still renders those lines in red. Trust the
+exit code.
 
 **A dependency change is not picked up.** `build` again. Dependencies are
 baked into the image on purpose, so `pyproject.toml` and `package.json` changes
