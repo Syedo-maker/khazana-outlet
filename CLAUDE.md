@@ -71,32 +71,35 @@ Push as the work lands, not in one batch at the end.
 
 ## 3c. Lint, format and types
 
-Run the full gate before pushing:
+One command, which picks the right path on its own:
 
 ```powershell
-cd appspi
-.\.venv\Scripts\python -m ruff check .
-.\.venv\Scripts\python -m ruff format --check .
-.\.venv\Scripts\python -m mypy src
-.\.venv\Scripts\python -m pytest
+.\scripts\lint.ps1              # lint and format check
+.\scripts\lint.ps1 -Fix         # apply the automatic fixes
+.\scripts\lint.ps1 -Types       # also run mypy
+.\scripts\lint.ps1 -Docker      # force the container path
 ```
+
+It runs the pinned tools natively when they work, which takes about two
+seconds and needs no network. It falls back to Linux containers when they do
+not, which is what happens if Windows Smart App Control is blocking unsigned
+executables again.
+
+The container path caches downloaded Python packages in a Docker volume named
+`khazana-pip-cache`. The first type check pulls about 70 MB and takes several
+minutes on a slow connection; later runs reuse the cache and take under a
+minute. If a run dies on a network timeout, run it again: whatever downloaded
+is cached, so each attempt gets further.
 
 Ruff and mypy are pinned to exact versions in `apps/api/pyproject.toml`, not
 to a range. A newer ruff can format the same code differently, so a floating
 version means CI and a developer machine can disagree about a file nobody
 touched, which is a CI failure with no corresponding change. When upgrading
-either tool, change the pin, reformat, and update the image tag in
+either tool, change the pin, reformat, and update the image tags in
 `scripts/lint.ps1` and the Makefile in the same commit.
 
-History worth keeping: Smart App Control used to block these tools on the
-development machine, because they ship as unsigned executables. It has since
-been turned off. If they are ever blocked again, `scripts/lint.ps1` runs the
-same pinned ruff inside a Linux container, where Windows application control
-does not apply, and CI prints the exact formatting diff in a log group called
-"formatting diff" as well as uploading it as a `format-patch` artifact.
-
 Note that `make` is not installed on this machine, so the make targets in the
-README do not run here. Use the commands above or `scripts/lint.ps1`.
+README do not run here. Use `scripts/lint.ps1`.
 
 ## 4. Project context
 
