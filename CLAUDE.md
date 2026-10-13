@@ -71,7 +71,33 @@ Push as the work lands, not in one batch at the end.
 
 ## 3c. Lint, format and types
 
-One command, which picks the right path on its own:
+The whole development environment runs in containers. One entry point:
+
+```powershell
+.\scripts\dev.ps1 check        # lint, format, types and tests, what CI runs
+.\scripts\dev.ps1 fix          # apply the automatic fixes
+.\scripts\dev.ps1 test         # tests only
+.\scripts\dev.ps1 pgtest       # the PostgreSQL only tests, disposable database
+.\scripts\dev.ps1 up           # the stack: API on 8000, web on 3000
+```
+
+`Get-Help .\scripts\dev.ps1 -Full` lists all sixteen commands, and
+`DEPLOYMENT.md` documents the environment, the troubleshooting notes and what
+is still missing before a real deployment. Run `check` before every push.
+
+Two environment facts that bite if forgotten:
+
+- The container database publishes on host port **55432**, not 5432. A native
+  PostgreSQL 17 service on this machine already holds 5432. Host tooling aimed
+  at `localhost:5432` talks to that install, not to the container, and the two
+  look identical until one turns out to have none of the data.
+- `dev.ps1` does not run its docker calls under `ErrorActionPreference = Stop`.
+  Windows PowerShell 5.1 turns a native command's redirected stderr into error
+  records, and docker compose writes all its progress there, so piping the
+  script's output used to fail on the first progress line while every container
+  started correctly. Do not add `Stop` back.
+
+For a lint only run without starting anything, `scripts/lint.ps1` still works:
 
 ```powershell
 .\scripts\lint.ps1              # lint and format check
@@ -83,7 +109,10 @@ One command, which picks the right path on its own:
 It runs the pinned tools natively when they work, which takes about two
 seconds and needs no network. It falls back to Linux containers when they do
 not, which is what happens if Windows Smart App Control is blocking unsigned
-executables again.
+executables again. Smart App Control is currently off, and since it cannot be
+re-enabled without reinstalling Windows, the native path is expected to keep
+working on this machine. The containerised path is what makes that
+irrelevant.
 
 The container path caches downloaded Python packages in a Docker volume named
 `khazana-pip-cache`. The first type check pulls about 70 MB and takes several
@@ -99,7 +128,8 @@ either tool, change the pin, reformat, and update the image tags in
 `scripts/lint.ps1` and the Makefile in the same commit.
 
 Note that `make` is not installed on this machine, so the make targets in the
-README do not run here. Use `scripts/lint.ps1`.
+README and in the older docs do not run here. Use `scripts/dev.ps1`, or
+`scripts/lint.ps1` for a lint only run.
 
 ## 4. Project context
 

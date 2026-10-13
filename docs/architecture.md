@@ -182,13 +182,26 @@ Stated so they are decisions rather than surprises.
 
 ## Running tests
 
-```bash
-make test     # SQLite, fast, every test
-make cov      # with coverage
-make evals    # AI eval suites against fixtures, free
+Everything runs in containers, so none of it depends on host tooling:
+
+```powershell
+.\scripts\dev.ps1 test      # SQLite, fast, every test
+.\scripts\dev.ps1 pgtest    # the PostgreSQL only tests, in a disposable database
+.\scripts\dev.ps1 evals     # AI eval suites against fixtures, free
+.\scripts\dev.ps1 check     # lint, format, types and tests together
 ```
 
-CI runs four jobs: the repository rules gate, API lint and types and tests,
-migrations applied then rolled back then applied again on real PostgreSQL, and
-the web lint and build. The eval job runs the suites offline so a prompt
-change cannot silently break the pipeline and cannot cost money.
+`pgtest` is separate because those tests drop every table, so they need a
+database they are allowed to destroy. The module skips itself unless
+`TEST_DATABASE_URL` names a database whose name contains "test", and the
+fixture checks again before touching a schema. Pointing them at the working
+database deletes it, which is what the guards exist to prevent.
+
+CI runs six jobs: the repository rules gate, API lint and types and tests,
+migrations applied then rolled back then applied again on real PostgreSQL
+followed by the PostgreSQL only tests, the web lint and build, the eval
+suites, and an advisory dependency vulnerability scan. The eval job runs the
+suites offline so a prompt change cannot silently break the pipeline and
+cannot cost money. The scan job is the only one that does not block a merge.
+
+See `DEPLOYMENT.md` for the full command list and the troubleshooting notes.
