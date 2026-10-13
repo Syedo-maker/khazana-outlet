@@ -41,7 +41,7 @@ class User(UUIDPrimaryKey, TimestampMixin, SoftDeleteMixin, Base):
     phone: Mapped[str] = mapped_column(String(11), unique=True, nullable=False)
     email: Mapped[str | None] = mapped_column(String(255), unique=True, default=None)
     full_name: Mapped[str] = mapped_column(String(120), nullable=False)
-    role: Mapped[UserRole] = mapped_column(String(16), nullable=False)
+    role: Mapped[UserRole] = mapped_column(nullable=False)
     password_hash: Mapped[str | None] = mapped_column(String(255), default=None)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     phone_verified_at: Mapped[datetime | None] = mapped_column(
@@ -91,7 +91,7 @@ class OtpChallenge(UUIDPrimaryKey, TimestampMixin, Base):
 
     phone: Mapped[str] = mapped_column(String(11), nullable=False)
     code_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    purpose: Mapped[OtpPurpose] = mapped_column(String(16), nullable=False)
+    purpose: Mapped[OtpPurpose] = mapped_column(nullable=False)
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
@@ -137,7 +137,7 @@ class ResellerProfile(UUIDPrimaryKey, TimestampMixin, SoftDeleteMixin, Base):
     city: Mapped[str] = mapped_column(String(80), nullable=False)
     ntn: Mapped[str | None] = mapped_column(String(32), default=None)
     status: Mapped[VerificationStatus] = mapped_column(
-        String(16), nullable=False, default=VerificationStatus.PENDING
+        nullable=False, default=VerificationStatus.PENDING
     )
     monthly_purchase_pkr: Mapped[int | None] = mapped_column(Integer, default=None)
     shop_address: Mapped[str | None] = mapped_column(String(255), default=None)

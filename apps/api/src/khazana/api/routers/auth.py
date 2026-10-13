@@ -22,7 +22,12 @@ from ..schemas import (
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/otp/request", response_model=OtpRequestOut)
+@router.post(
+    "/otp/request",
+    operation_id="auth_otp_request",
+    summary="Send a one time code to a mobile number",
+    response_model=OtpRequestOut,
+)
 def request_otp(payload: OtpRequestIn, db: Db) -> OtpRequestOut:
     settings = get_settings()
     try:
@@ -41,7 +46,12 @@ def request_otp(payload: OtpRequestIn, db: Db) -> OtpRequestOut:
     )
 
 
-@router.post("/otp/verify", response_model=TokenPair)
+@router.post(
+    "/otp/verify",
+    operation_id="auth_otp_verify",
+    summary="Exchange a one time code for tokens",
+    response_model=TokenPair,
+)
 def verify_otp(payload: OtpVerifyIn, request: Request, db: Db) -> TokenPair:
     settings = get_settings()
     try:
@@ -64,7 +74,12 @@ def verify_otp(payload: OtpVerifyIn, request: Request, db: Db) -> TokenPair:
     )
 
 
-@router.post("/refresh", response_model=TokenPair)
+@router.post(
+    "/refresh",
+    operation_id="auth_refresh",
+    summary="Rotate a refresh token",
+    response_model=TokenPair,
+)
 def refresh(payload: RefreshIn, request: Request, db: Db) -> TokenPair:
     settings = get_settings()
     try:
@@ -84,7 +99,12 @@ def refresh(payload: RefreshIn, request: Request, db: Db) -> TokenPair:
     )
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/logout",
+    operation_id="auth_logout",
+    summary="Revoke every session for this user",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
 def logout(principal: CurrentPrincipal, db: Db) -> None:
     """Revoke every session for this user, not only the current one.
 
@@ -94,7 +114,12 @@ def logout(principal: CurrentPrincipal, db: Db) -> None:
     auth_service.revoke_all_sessions(db, principal.user_id)
 
 
-@router.get("/me", response_model=MeOut)
+@router.get(
+    "/me",
+    operation_id="auth_me",
+    summary="The signed in user and their brands",
+    response_model=MeOut,
+)
 def me(principal: CurrentPrincipal, db: Db) -> MeOut:
     from ...models import User
 

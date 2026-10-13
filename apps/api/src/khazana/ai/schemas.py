@@ -8,6 +8,8 @@ the gateway rather than a strange bug three layers up.
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..models.enums import ConditionGrade
@@ -140,6 +142,40 @@ class AssistantAnswer(BaseModel):
     # available. Saying so is the correct behaviour, not a failure.
     declined: bool = False
     decline_reason: str | None = None
+
+
+class PlannedToolCall(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tool: str = Field(max_length=60)
+    # Arguments are validated against the tool's own signature when it runs,
+    # not here. A permissive shape at this layer keeps a malformed plan a
+    # recoverable error rather than a schema failure that loses the turn.
+    arguments: dict[str, Any] = Field(default_factory=dict)
+
+
+class ToolPlan(BaseModel):
+    """Which tools to run for one buyer message.
+
+    The assistant is deliberately split into a plan step and an answer step
+    rather than a native tool use loop. Both steps are single structured
+    calls, which means the existing gateway handles them unchanged, each step
+    is independently evaluable, and the cost of a turn is bounded at two calls
+    instead of however many the model decides to make.
+
+    The trade is that the model cannot react to a tool result by calling
+    another tool in the same turn. For a buyer asking about stock that is
+    rarely needed, and a follow up question gets a fresh turn. Native tool use
+    is the Phase 4 upgrade, once there is usage data showing where one round
+    is not enough.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    calls: list[PlannedToolCall] = Field(default_factory=list, max_length=6)
+    # Set when the message needs no lookup at all, for example a greeting.
+    needs_no_tools: bool = False
+    language: str = Field(description="en, ur or ur_roman")
 
 
 SCHEMA_BY_FEATURE: dict[str, type[BaseModel]] = {

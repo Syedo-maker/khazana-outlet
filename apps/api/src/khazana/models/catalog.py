@@ -81,7 +81,7 @@ class Lot(UUIDPrimaryKey, TimestampMixin, SoftDeleteMixin, Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, default=None)
     season: Mapped[str | None] = mapped_column(String(40), default=None)
-    condition_grade: Mapped[ConditionGrade] = mapped_column(String(1), nullable=False)
+    condition_grade: Mapped[ConditionGrade] = mapped_column(nullable=False)
 
     total_pieces: Mapped[int] = mapped_column(Integer, nullable=False)
     retail_price_per_piece_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -94,8 +94,8 @@ class Lot(UUIDPrimaryKey, TimestampMixin, SoftDeleteMixin, Base):
     expiry_date: Mapped[date | None] = mapped_column(Date, default=None)
     available_until: Mapped[date | None] = mapped_column(Date, default=None)
 
-    status: Mapped[LotStatus] = mapped_column(String(20), nullable=False, default=LotStatus.DRAFT)
-    visibility: Mapped[Visibility] = mapped_column(String(16), nullable=False)
+    status: Mapped[LotStatus] = mapped_column(nullable=False, default=LotStatus.DRAFT)
+    visibility: Mapped[Visibility] = mapped_column(nullable=False)
 
     # Set when the brand approves. Null means it has never been live, and the
     # listing cannot be served to a buyer. The roadmap makes this mandatory.
@@ -256,7 +256,7 @@ class LotPhoto(UUIDPrimaryKey, TimestampMixin, Base):
         String(36), ForeignKey("brands.id", ondelete="CASCADE"), nullable=False
     )
     file_key: Mapped[str] = mapped_column(String(500), nullable=False)
-    kind: Mapped[PhotoKind] = mapped_column(String(24), nullable=False)
+    kind: Mapped[PhotoKind] = mapped_column(nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     width: Mapped[int | None] = mapped_column(Integer, default=None)
     height: Mapped[int | None] = mapped_column(Integer, default=None)
@@ -304,12 +304,12 @@ class ListingApproval(UUIDPrimaryKey, TimestampMixin, Base):
     brand_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("brands.id", ondelete="CASCADE"), nullable=False
     )
-    action: Mapped[ApprovalAction] = mapped_column(String(16), nullable=False)
+    action: Mapped[ApprovalAction] = mapped_column(nullable=False)
     actor_user_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="SET NULL"), default=None
     )
     actor_role: Mapped[str] = mapped_column(String(16), nullable=False)
-    visibility_at_action: Mapped[Visibility] = mapped_column(String(16), nullable=False)
+    visibility_at_action: Mapped[Visibility] = mapped_column(nullable=False)
     note: Mapped[str | None] = mapped_column(String(500), default=None)
     # The exact listing payload at the moment of approval, so a later edit
     # cannot change what the brand actually agreed to.

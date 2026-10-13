@@ -152,11 +152,42 @@ class TestSessions:
 
 
 class TestTokens:
-    def test_a_tampered_token_is_rejected(self) -> None:
+    def test_a_tampered_signature_is_rejected(self) -> None:
+        """Flip the last character to a different one, deterministically.
+
+        An earlier version of this test replaced it with a literal "0", which
+        is a no-op whenever the signature already ends in "0". That is a one
+        in sixteen chance of the test passing while proving nothing, and it
+        showed up as a random failure in a full run.
+        """
         token = create_access_token("user-1", "reseller")
         body, signature = token.split(".")
+        flipped = "1" if signature[-1] == "0" else "0"
+
+        assert f"{signature[:-1]}{flipped}" != signature
+
         with pytest.raises(TokenError):
-            decode_access_token(f"{body}.{signature[:-1]}0")
+            decode_access_token(f"{body}.{signature[:-1]}{flipped}")
+
+    def test_a_tampered_payload_is_rejected(self) -> None:
+        """Changing the body must invalidate the signature over it."""
+        import base64
+        import json
+
+        token = create_access_token("user-1", "reseller")
+        body, signature = token.split(".")
+
+        padding = "=" * (-len(body) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(body + padding))
+        payload["role"] = "admin"
+        forged = (
+            base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode())
+            .decode()
+            .rstrip("=")
+        )
+
+        with pytest.raises(TokenError):
+            decode_access_token(f"{forged}.{signature}")
 
     def test_an_expired_token_is_rejected(self) -> None:
         from datetime import timedelta

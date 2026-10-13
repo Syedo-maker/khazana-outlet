@@ -20,7 +20,12 @@ from ..schemas import HealthOut
 router = APIRouter(tags=["ops"])
 
 
-@router.get("/health", response_model=HealthOut)
+@router.get(
+    "/health",
+    operation_id="ops_health",
+    summary="Liveness, without touching the database",
+    response_model=HealthOut,
+)
 def health() -> HealthOut:
     settings = get_settings()
     return HealthOut(
@@ -32,7 +37,11 @@ def health() -> HealthOut:
     )
 
 
-@router.get("/ready")
+@router.get(
+    "/ready",
+    operation_id="ops_ready",
+    summary="Readiness, including a database check",
+)
 def ready(db: Db) -> JSONResponse:
     settings = get_settings()
     try:

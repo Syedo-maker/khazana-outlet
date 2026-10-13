@@ -24,8 +24,12 @@ dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
     "pytest-cov>=6.0",
-    "ruff>=0.8",
-    "mypy>=1.13",
+    # Pinned exactly, not floating. A newer ruff can format the same code
+    # differently, so an unpinned range means CI and a developer machine
+    # can disagree about a file nobody touched. That is a confusing CI
+    # failure with no corresponding change.
+    "ruff==0.16.10",
+    "mypy==2.4.0",
     "faker>=33.0",
 ]
 
@@ -76,7 +80,7 @@ disallow_untyped_decorators = false
 exclude = ["alembic/versions/"]
 
 [[tool.mypy.overrides]]
-module = ["pgvector.*", "passlib.*", "jose.*"]
+module = ["pgvector.*", "boto3.*", "botocore.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

@@ -127,6 +127,31 @@ else
   fi
 fi
 
+# ---------------------------------------------- lint and format reachability
+#
+# This gate checks the repository rules, not code quality. Ruff and mypy are
+# separate, and on some machines they cannot run at all: an Application
+# Control policy blocks compiled executables, which is what ruff and mypy's
+# binaries are. When that happens the only lint gate is CI, and the honest
+# thing is to say so rather than let a clean gate imply more than it checked.
+
+echo "== Checking that lint and types can run locally =="
+venv_python="apps/api/.venv/Scripts/python"
+[ -x "$venv_python" ] || venv_python="apps/api/.venv/bin/python"
+
+if [ -x "$venv_python" ]; then
+  if "$venv_python" -m ruff --version >/dev/null 2>&1; then
+    echo "ok: ruff is runnable, run the lint commands in CLAUDE.md before pushing"
+  else
+    echo "WARNING: ruff cannot run here, so formatting and lint are NOT checked"
+    echo "         by this gate. CI is then the only check, and a formatting"
+    echo "         slip becomes a failed run and a notification email."
+    echo "         Run scripts/lint.ps1 with Docker started as a workaround."
+  fi
+else
+  echo "note: no virtual environment found, skipping the lint reachability check"
+fi
+
 if [ "$fail" -ne 0 ]; then
   echo
   echo "Pre push check FAILED. Nothing was pushed."

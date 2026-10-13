@@ -69,6 +69,35 @@ Push as the work lands, not in one batch at the end.
   credentials, no customer data, no brand data from a real brand, and no
   unredacted commercial terms from a signed agreement.
 
+## 3c. Lint, format and types
+
+Run the full gate before pushing:
+
+```powershell
+cd appspi
+.\.venv\Scripts\python -m ruff check .
+.\.venv\Scripts\python -m ruff format --check .
+.\.venv\Scripts\python -m mypy src
+.\.venv\Scripts\python -m pytest
+```
+
+Ruff and mypy are pinned to exact versions in `apps/api/pyproject.toml`, not
+to a range. A newer ruff can format the same code differently, so a floating
+version means CI and a developer machine can disagree about a file nobody
+touched, which is a CI failure with no corresponding change. When upgrading
+either tool, change the pin, reformat, and update the image tag in
+`scripts/lint.ps1` and the Makefile in the same commit.
+
+History worth keeping: Smart App Control used to block these tools on the
+development machine, because they ship as unsigned executables. It has since
+been turned off. If they are ever blocked again, `scripts/lint.ps1` runs the
+same pinned ruff inside a Linux container, where Windows application control
+does not apply, and CI prints the exact formatting diff in a log group called
+"formatting diff" as well as uploading it as a `format-patch` artifact.
+
+Note that `make` is not installed on this machine, so the make targets in the
+README do not run here. Use the commands above or `scripts/lint.ps1`.
+
 ## 4. Project context
 
 Khazana Outlet is an AI native marketplace in Pakistan for brand surplus

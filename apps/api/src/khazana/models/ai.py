@@ -42,11 +42,9 @@ class AiJob(UUIDPrimaryKey, TimestampMixin, Base):
 
     __tablename__ = "ai_jobs"
 
-    feature: Mapped[AiFeature] = mapped_column(String(32), nullable=False)
-    status: Mapped[AiJobStatus] = mapped_column(
-        String(24), nullable=False, default=AiJobStatus.QUEUED
-    )
-    mode: Mapped[AiMode] = mapped_column(String(10), nullable=False, default=AiMode.LIVE)
+    feature: Mapped[AiFeature] = mapped_column(nullable=False)
+    status: Mapped[AiJobStatus] = mapped_column(nullable=False, default=AiJobStatus.QUEUED)
+    mode: Mapped[AiMode] = mapped_column(nullable=False, default=AiMode.LIVE)
 
     # Loose coupling on purpose: a job can target a lot, a photo, an order or
     # nothing at all, and the AI layer must not need a foreign key per feature.
@@ -140,7 +138,7 @@ class AiSpend(UUIDPrimaryKey, TimestampMixin, Base):
     __tablename__ = "ai_spend"
 
     day: Mapped[date] = mapped_column(Date, nullable=False)
-    feature: Mapped[AiFeature] = mapped_column(String(32), nullable=False)
+    feature: Mapped[AiFeature] = mapped_column(nullable=False)
     brand_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("brands.id", ondelete="CASCADE"), default=None
     )
@@ -167,7 +165,7 @@ class Embedding(UUIDPrimaryKey, TimestampMixin, Base):
 
     __tablename__ = "embeddings"
 
-    owner_type: Mapped[EmbeddingOwner] = mapped_column(String(20), nullable=False)
+    owner_type: Mapped[EmbeddingOwner] = mapped_column(nullable=False)
     owner_id: Mapped[str] = mapped_column(String(36), nullable=False)
     # Denormalised for tenancy and for filtered similarity search.
     brand_id: Mapped[str | None] = mapped_column(
