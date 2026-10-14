@@ -341,6 +341,34 @@ docker volume rm khazana_api_uploads
 .\scripts\dev.ps1 up
 ```
 
+### Second pass, decisions taken 2026-10-14
+
+| Finding | State | Evidence |
+| --- | --- | --- |
+| M7 git hooks not installed | Fixed | pre-commit installed as a dev dependency and the hooks installed on the machine. The ruff hook rev now matches the exact pin in pyproject, which it did not. A commit-msg hook was added because nothing checked messages at all. Verified by attempting real commits: an em dash, an en dash range, a Co-Authored-By trailer and a generated-with footer are each refused, and a message that mentions CLAUDE.md still commits |
+| M5 seed generates no embeddings | Fixed | 30 lots seeded, 30 vectors written at 768 dimensions, and a search that returned nothing now returns hits through the vector path. Costs nothing: the provider is local. The similarity scores come back at zero, because a hash is not a model of meaning, so the mechanism is proved and the ranking quality is not |
+| H4 three features have no eval | Fixed for two of three | Fifteen cases each for manifest extraction and pricing, 11 of them mandatory. All five suites pass at zero cost. The embedding path still has no suite, see below |
+| H1 no fixtures for those two features | Fixed, with a caveat | 45 fixtures committed. The endpoints no longer 500 for a recorded input, and three new tests require every endpoint backed feature to have both a fixture and a suite. An unrecorded input still cannot be served offline, by design: the fixture key hashes the rendered prompt, so the refusal is correct and now explains itself |
+
+Cost of the above: zero. The fixtures turned out to be hand written golden
+replies rather than live recordings, which is how the three existing suites
+already worked. The estimate for recording them live was about 65 cents, and
+it was not needed.
+
+Two further defects were found while doing this work, both in the gates
+themselves:
+
+- The pre push gate scans tracked files for attribution lines and excludes the
+  few that must name what they forbid. The new message checker was not on that
+  list, so adding it broke the gate on its own documentation. Fixed, and the
+  reason is now written at the top of the script.
+- The first version of the message hook was inline in the YAML and silently
+  matched nothing, reporting Passed on a message containing an em dash. The
+  byte escapes did not survive the YAML and shlex round trip, and grep -P then
+  behaved differently under pre-commit's environment with its error hidden by
+  a stderr redirect. The logic moved into a script that tests its own
+  detection and refuses to approve anything if that self test fails.
+
 ### Still open
 
 Everything below was left alone deliberately. Each one either needs a decision,
@@ -348,15 +376,13 @@ spends money, or changes how a feature behaves.
 
 | Finding | Why it was not fixed here |
 | --- | --- |
-| H1 no fixtures for manifest extraction and pricing | Recording them means running both features against the live API with a real key, which spends money from the project budget |
 | H3 migration baseline is not frozen | Changing how the schema is created is the opposite of a small, safe fix, and week 42 already owns it |
-| H4 three AI features have no eval | Writing three graded suites is a week of work in its own right, and the roadmap rule says the eval comes first, so this is a real debt rather than a tidy up |
 | M1 `develop` and `main` diverged | Reconciling published branches changes shared history and needs a decision about which lineage wins |
 | M2 Phase 3 unmerged, 19 commits, no pull request | Opening it is a judgement about whether weeks 17 to 22 are a release boundary |
 | M4 no response cache | A new caching layer is a feature, not a repair |
-| M5 seed generates no embeddings | Needs the embedding model in the seed path and a decision about how long a seed may take |
 | M6 brand protection has no interface | Three new screens |
-| M7 pre commit hooks not installed | Installing hooks changes a developer's local git configuration, which is theirs to opt into |
+| H4, the embedding path | Still has no eval suite. Judging embedding quality needs a real embedding service, not the local hash, so the suite would currently grade the stub |
+| M4 no response cache | Moved to week 53, the AI cost pass, and logged as debt |
 | L2, L3, L4 | Cosmetic. Worth doing alongside the next change to those files rather than on their own |
 
 ## Recommended order of fixes

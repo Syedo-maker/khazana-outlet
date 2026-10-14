@@ -11,6 +11,31 @@ to match the plan would be a nicer looking lie.
 
 ### Phase 3, weeks 17 to 22: marketplace core, in progress
 
+#### Audit fixes, second pass, 2026-10-14
+
+- **Added** Eval suites for manifest extraction and pricing, 15 cases each,
+  with 11 mandatory rules between them. All five suites pass at zero cost. The
+  full suites remain scheduled for week 53.
+- **Added** 45 committed fixtures, so the two endpoints that always returned
+  500 in offline mode now serve their recorded cases. Three tests require
+  every endpoint backed feature to have a fixture and a suite.
+- **Added** Seeded lots are now indexed for semantic search. Search returned
+  nothing against seed data before; it returns hits now. The scores are zero
+  because the default provider is a local hash, so the mechanism is proved and
+  the ranking quality is not.
+- **Added** Git hooks are installed, and a commit-msg hook now checks the
+  message for em dashes and AI attribution. Nothing checked messages before:
+  every hook looked at files, and the pre push gate only sees a message after
+  it is committed.
+- **Fixed** The ruff hook was pinned to v0.8.4 while the project pins ruff
+  0.16.10, so the hook would have formatted differently from CI.
+- **Fixed** The attribution checks matched their own patterns, so they blocked
+  commits that touched the files stating the rule.
+- **Known** The embedding path still has no eval suite. Grading it needs a
+  real embedding service rather than the local hash.
+- **Debt** A response cache is deferred to week 53, the AI cost pass. Prompt
+  caching exists; nothing yet avoids a repeat call for an identical input.
+
 #### Audit fixes, 2026-10-14
 
 Findings from `docs/audits/audit-week-1-to-22.md`.
@@ -118,5 +143,5 @@ Six capabilities behind one gateway, six endpoints, three eval suites.
 - Migration 0001 builds the schema with `create_all`, so it is a moving
   baseline rather than a snapshot. An existing database never picks up a new
   column. Freezing it is scheduled for week 42.
-- Three of the six AI features have no eval suite: manifest extraction,
-  pricing and embeddings.
+- The embedding path has no eval suite. Manifest extraction and pricing got
+  theirs on 2026-10-14.
