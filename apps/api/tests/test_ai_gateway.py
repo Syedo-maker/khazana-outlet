@@ -549,3 +549,67 @@ class TestUploadsDirectoryIsOwnedByTheRunUser:
                 f"the {stage} stage creates /app/uploads after switching user, "
                 f"which is too late for the chown to help"
             )
+
+
+class TestEveryEndpointBackedFeatureHasAFixture:
+    """Regression guard from the weeks 1 to 22 audit.
+
+    Manifest extraction and pricing shipped with no committed fixture, so in
+    the default offline mode their endpoints answered every request with a
+    500. Their unit tests passed throughout, because those tests monkeypatch
+    FIXTURE_DIR to a temporary directory and write a fixture of their own. A
+    green suite therefore said nothing about whether the endpoint worked.
+
+    This checks the committed fixtures instead.
+    """
+
+    # Features reachable from an HTTP endpoint that replay a recorded reply in
+    # offline mode. Embedding is absent on purpose: vectors come from a local
+    # provider, never from a model, so there is nothing to record.
+    ENDPOINT_FEATURES = (
+        AiFeature.LISTING_FROM_PHOTOS,
+        AiFeature.MANIFEST_EXTRACT,
+        AiFeature.PRICING,
+        AiFeature.RISK_SCORING,
+        AiFeature.ASSISTANT_BUYER,
+    )
+
+    def test_each_one_has_at_least_one_committed_fixture(self) -> None:
+        for feature in self.ENDPOINT_FEATURES:
+            directory = client.FIXTURE_DIR / feature.value
+            fixtures = sorted(directory.glob("*.json")) if directory.is_dir() else []
+            assert fixtures, (
+                f"{feature.value} has no committed fixture, so its endpoint returns "
+                f"502 for every request in offline mode, which is the default. Add "
+                f"cases to its eval suite and run scripts/record-eval-fixtures.py"
+            )
+
+    def test_each_one_has_an_eval_suite(self) -> None:
+        """CLAUDE.md section 4: every AI feature ships with an eval.
+
+        Three of six features had none when the audit ran. A feature with
+        fixtures but no suite is worse than one with neither, because the
+        fixtures look like coverage.
+        """
+        from khazana.ai.evals.run import discover_suites
+
+        covered = {suite.feature for suite in discover_suites()}
+        missing = [f.value for f in self.ENDPOINT_FEATURES if f not in covered]
+        assert not missing, f"these features have no eval suite: {missing}"
+
+    def test_a_fixture_records_which_case_produced_it(self) -> None:
+        """Every fixture names its case, so an orphan is identifiable.
+
+        Fixture filenames are hashes of the rendered prompt. Without the case
+        name inside, a fixture left behind by a deleted or edited case is
+        indistinguishable from a live one and nobody can safely remove it.
+        """
+        import json
+
+        for feature in self.ENDPOINT_FEATURES:
+            directory = client.FIXTURE_DIR / feature.value
+            if not directory.is_dir():
+                continue
+            for path in directory.glob("*.json"):
+                payload = json.loads(path.read_text(encoding="utf-8"))
+                assert payload.get("_case"), f"{path.name} does not say which case wrote it"
