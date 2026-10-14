@@ -48,6 +48,19 @@ RUN mkdir -p src/khazana \
 # ------------------------------------------------------------------ dev
 FROM deps AS dev
 
+# Create the uploads directory before the chown, and own it as khazana.
+#
+# Compose mounts the named volume api_uploads here. Docker seeds a named volume
+# from whatever sits at the mount point in the image, ownership included, and
+# creates that mount point itself as root when the image has no such directory.
+# Without this line /app/uploads ends up root owned while the process runs as
+# uid 1000, and every upload dies with a permission error: lot photographs,
+# brand verification documents, and with them the photo to listing feature.
+#
+# The test suite cannot catch it, because tests point STORAGE_LOCAL_PATH at a
+# temporary directory and so never write to the volume.
+RUN mkdir -p /app/uploads
+
 # Run as a normal user. Files created by the container land on the host with
 # this ownership, and root owned files in a bind mounted folder are a nuisance
 # to clean up afterwards.
@@ -75,7 +88,10 @@ RUN mkdir -p src/khazana \
 
 COPY --chown=1000:1000 . .
 
-RUN useradd --create-home --uid 1000 khazana \
+# Same reason as the dev stage: a volume mounted here has to find a directory
+# already owned by uid 1000, or the seeded mount point comes out root owned.
+RUN mkdir -p /app/uploads \
+    && useradd --create-home --uid 1000 khazana \
     && chown -R khazana:khazana /app
 USER khazana
 

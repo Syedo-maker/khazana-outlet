@@ -456,3 +456,96 @@ class TestOutputSchemas:
 
         built = _json_schema(RiskScore)
         assert built["schema"]["additionalProperties"] is False
+
+
+class TestAiFailuresReachTheCaller:
+    """Regression guard from the weeks 1 to 22 audit.
+
+    `AiClientError` used to subclass `RuntimeError`, so nothing mapped it to a
+    status and every AI failure arrived as a bare 500 with no body: a missing
+    offline fixture, an upstream outage, an empty reply, a reply that was not
+    JSON. The message was always good and the caller never saw it.
+    """
+
+    def test_an_ai_client_error_carries_an_http_status(self) -> None:
+        from khazana.core.errors import AppError
+
+        error = client.AiClientError("no fixture for pricing")
+        assert isinstance(error, AppError), (
+            "AiClientError has to be an AppError, or the routers cannot turn it "
+            "into a response and it reaches the caller as an unhandled 500"
+        )
+        assert error.status_code == 502
+        assert error.code == "ai_unavailable"
+
+    def test_the_message_survives_into_the_response_body(self) -> None:
+        """The whole point: the caller is told what went wrong."""
+        error = client.AiClientError("No fixture for manifest_extract at abc.json.")
+        detail = error.as_http().detail
+        assert isinstance(detail, dict)
+        assert "manifest_extract" in detail["message"]
+        assert detail["code"] == "ai_unavailable"
+
+    def test_a_missing_offline_fixture_is_reported_rather_than_invented(
+        self, tmp_path, monkeypatch
+    ) -> None:  # type: ignore[no-untyped-def]
+        """Offline mode must never fabricate a reply.
+
+        A model reply invented to satisfy a cache miss would be identical in
+        shape to a real one and wrong in content, which is the worst possible
+        failure for a feature that drafts listings.
+        """
+        monkeypatch.setattr(client, "FIXTURE_DIR", tmp_path)
+        monkeypatch.setenv("AI_OFFLINE", "true")
+
+        with pytest.raises(client.AiClientError) as caught:
+            client.call_model(
+                model=OPUS_5_5,
+                system="system",
+                user_text="an input nobody has recorded",
+                output_schema={"name": "x", "schema": {"type": "object"}},
+                images=[],
+                effort="low",
+                max_tokens=256,
+                cache_prefix=None,
+                feature=AiFeature.PRICING.value,
+                prompt_name="pricing",
+                prompt_version=1,
+            )
+        assert "fixture" in str(caught.value).lower()
+        assert caught.value.status_code == 502
+
+
+class TestUploadsDirectoryIsOwnedByTheRunUser:
+    """Regression guard from the weeks 1 to 22 audit.
+
+    The api_uploads volume mounts at /app/uploads. Docker seeds a named volume
+    from the image, ownership included, and creates the mount point as root
+    when the image has no such directory. That made every upload fail with a
+    permission error in Docker: lot photographs and brand verification
+    documents both.
+
+    A static check, because the failure is in the image rather than in the
+    code. Tests point storage at a temporary directory and so can never
+    reproduce it at runtime, which is exactly why it went unnoticed.
+    """
+
+    def test_the_dockerfile_creates_uploads_before_dropping_privileges(self) -> None:
+        from pathlib import Path
+
+        dockerfile = Path(__file__).resolve().parents[1] / "Dockerfile"
+        text = dockerfile.read_text(encoding="utf-8")
+
+        for stage in ("dev", "runtime"):
+            marker = f"AS {stage}"
+            assert marker in text, f"the {stage} stage is gone"
+            body = text.split(marker, 1)[1].split("\nFROM ", 1)[0]
+            assert "mkdir -p /app/uploads" in body, (
+                f"the {stage} stage does not create /app/uploads, so the mounted "
+                f"volume will be seeded root owned and every upload will fail"
+            )
+            before_user = body.split("USER khazana", 1)[0]
+            assert "mkdir -p /app/uploads" in before_user, (
+                f"the {stage} stage creates /app/uploads after switching user, "
+                f"which is too late for the chown to help"
+            )
