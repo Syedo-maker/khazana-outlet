@@ -71,8 +71,12 @@ fi
 # docs explain that the embedding model is not Claude, so matching the bare
 # word would reject legitimate messages. Only the attribution forms are a
 # breach: a trailer crediting a tool, or a "generated with" footer.
-ai_pattern='co-authored-by:[[:space:]]*.*(claude|anthropic|copilot|chatgpt|gpt-)'
-ai_pattern+='|(generated|written|authored|created|assisted)[[:space:]]+(with|by)[[:space:]]+(claude|chatgpt|copilot|an?[[:space:]]+ai([[:space:]]|$))'
+# Anchored to the start of a line, because an attribution is a trailer or a
+# footer and never a phrase buried mid sentence. Without the anchor this
+# refused the commit that documented the rule, which said "a written by an AI
+# footer is refused". The gate has to be able to describe itself.
+ai_pattern='^[[:space:]]*co-authored-by:[[:space:]]*.*(claude|anthropic|copilot|chatgpt|gpt-)'
+ai_pattern+='|^[[:space:]]*(generated|written|authored|created|assisted)[[:space:]]+(with|by)[[:space:]]+(claude|chatgpt|copilot|an?[[:space:]]+ai([[:space:]]|$))'
 
 if printf '%s' "$body" | LC_ALL=C grep -nEi -- "$ai_pattern" >/dev/null; then
     echo ""
