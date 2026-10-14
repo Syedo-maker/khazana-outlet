@@ -1,14 +1,57 @@
+# Khazana Outlet, development environment.
+#
+# Everything runs in containers, so nothing depends on what is installed on
+# the host or on what the host's security policy allows to run.
+#
+#   docker compose up -d db redis     the databases on their own
+#   docker compose up api web         the whole stack
+#   docker compose run --rm api <cmd> one off: pytest, alembic, ruff, mypy
+#
+# The PostgreSQL only tests drop every table, so they need their own database:
+#   docker compose exec db createdb -U khazana khazana_test
+#   docker compose run --rm -e TEST_DATABASE_URL=postgresql+psycopg://khazana:khazana@db:5432/khazana_test api pytest tests/test_search_postgres.py
+#
+# Source folders are bind mounted, so edits apply immediately without a
+# rebuild. Dependencies live in the image, so starting a container downloads
+# nothing.
+
+name: khazana
+
+x-api-env: &api-env
+  DATABASE_URL: postgresql+psycopg://khazana:khazana@db:5432/khazana
+  REDIS_URL: redis://redis:6379/0
+  SECRET_KEY: development-secret-key-not-for-production-use
+  ENVIRONMENT: development
+  AI_OFFLINE: "true"
+  OTP_DEV_ECHO: "true"
+  OTP_RESEND_COOLDOWN_SECONDS: "0"
+  STORAGE_LOCAL_PATH: /app/uploads
+  # Passed through from the host when set, so a live AI run works without the
+  # key ever being written into a file.
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+
 services:
   db:
-    # pgvector image: Postgres plus the vector extension, so visual search in
-    # Phase 2 needs no second datastore.
+    # pgvector image: PostgreSQL plus the vector extension, so visual search
+    # needs no second datastore.
     image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: khazana
       POSTGRES_PASSWORD: khazana
       POSTGRES_DB: khazana
     ports:
-      - "5432:5432"
+      # 55432 on the host, not 5432. This machine runs a native PostgreSQL 17
+      # service that already listens on 5432, so publishing there fails to bind
+      # and the stack will not start. Moving the host side also removes a real
+      # trap: host tooling pointed at localhost:5432 talks to that native
+      # install, not to this container, and the two look identical until one of
+      # them is missing the data.
+      #
+      # Bound to localhost on purpose. Published bare it binds 0.0.0.0, which
+      # puts a database with a known password on whatever wifi this laptop
+      # joins. It is published at all only so a GUI client on this machine can
+      # connect; the api container reaches it over the compose network.
+      - "127.0.0.1:55432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
@@ -16,12 +59,18 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 1g
 
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "6379:6379"
+      # Localhost only, same reason as the database. Redis has no password at
+      # all here, so an open port would be worse.
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -29,7 +78,68 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  api:
+    build:
+      context: ./apps/api
+      target: dev
+    environment: *api-env
+    ports:
+      - "8000:8000"
+    volumes:
+      # Source is mounted so edits are live. The editable install inside the
+      # image points at /app/src, which this fills with the real code.
+      - ./apps/api:/app
+      # Anonymous volumes so host artifacts never shadow the container's own.
+      - /app/.venv
+      - /app/__pycache__
+      - api_uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  web:
+    build:
+      context: ./apps/web
+      target: dev
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+      NEXT_TELEMETRY_DISABLED: "1"
+      # Bind mounts on Windows do not deliver file change events to Linux, so
+      # the dev server has to poll to notice an edit.
+      WATCHPACK_POLLING: "true"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web:/app
+      # The container's own node_modules must win: the host copy is Windows
+      # binaries and would break immediately inside Linux.
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - api
+    deploy:
+      resources:
+        limits:
+          memory: 2g
 
 volumes:
   db_data:
   redis_data:
+  api_uploads:

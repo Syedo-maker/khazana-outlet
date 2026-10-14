@@ -456,3 +456,160 @@ class TestOutputSchemas:
 
         built = _json_schema(RiskScore)
         assert built["schema"]["additionalProperties"] is False
+
+
+class TestAiFailuresReachTheCaller:
+    """Regression guard from the weeks 1 to 22 audit.
+
+    `AiClientError` used to subclass `RuntimeError`, so nothing mapped it to a
+    status and every AI failure arrived as a bare 500 with no body: a missing
+    offline fixture, an upstream outage, an empty reply, a reply that was not
+    JSON. The message was always good and the caller never saw it.
+    """
+
+    def test_an_ai_client_error_carries_an_http_status(self) -> None:
+        from khazana.core.errors import AppError
+
+        error = client.AiClientError("no fixture for pricing")
+        assert isinstance(error, AppError), (
+            "AiClientError has to be an AppError, or the routers cannot turn it "
+            "into a response and it reaches the caller as an unhandled 500"
+        )
+        assert error.status_code == 502
+        assert error.code == "ai_unavailable"
+
+    def test_the_message_survives_into_the_response_body(self) -> None:
+        """The whole point: the caller is told what went wrong."""
+        error = client.AiClientError("No fixture for manifest_extract at abc.json.")
+        detail = error.as_http().detail
+        assert isinstance(detail, dict)
+        assert "manifest_extract" in detail["message"]
+        assert detail["code"] == "ai_unavailable"
+
+    def test_a_missing_offline_fixture_is_reported_rather_than_invented(
+        self, tmp_path, monkeypatch
+    ) -> None:  # type: ignore[no-untyped-def]
+        """Offline mode must never fabricate a reply.
+
+        A model reply invented to satisfy a cache miss would be identical in
+        shape to a real one and wrong in content, which is the worst possible
+        failure for a feature that drafts listings.
+        """
+        monkeypatch.setattr(client, "FIXTURE_DIR", tmp_path)
+        monkeypatch.setenv("AI_OFFLINE", "true")
+
+        with pytest.raises(client.AiClientError) as caught:
+            client.call_model(
+                model=OPUS_5_5,
+                system="system",
+                user_text="an input nobody has recorded",
+                output_schema={"name": "x", "schema": {"type": "object"}},
+                images=[],
+                effort="low",
+                max_tokens=256,
+                cache_prefix=None,
+                feature=AiFeature.PRICING.value,
+                prompt_name="pricing",
+                prompt_version=1,
+            )
+        assert "fixture" in str(caught.value).lower()
+        assert caught.value.status_code == 502
+
+
+class TestUploadsDirectoryIsOwnedByTheRunUser:
+    """Regression guard from the weeks 1 to 22 audit.
+
+    The api_uploads volume mounts at /app/uploads. Docker seeds a named volume
+    from the image, ownership included, and creates the mount point as root
+    when the image has no such directory. That made every upload fail with a
+    permission error in Docker: lot photographs and brand verification
+    documents both.
+
+    A static check, because the failure is in the image rather than in the
+    code. Tests point storage at a temporary directory and so can never
+    reproduce it at runtime, which is exactly why it went unnoticed.
+    """
+
+    def test_the_dockerfile_creates_uploads_before_dropping_privileges(self) -> None:
+        from pathlib import Path
+
+        dockerfile = Path(__file__).resolve().parents[1] / "Dockerfile"
+        text = dockerfile.read_text(encoding="utf-8")
+
+        for stage in ("dev", "runtime"):
+            marker = f"AS {stage}"
+            assert marker in text, f"the {stage} stage is gone"
+            body = text.split(marker, 1)[1].split("\nFROM ", 1)[0]
+            assert "mkdir -p /app/uploads" in body, (
+                f"the {stage} stage does not create /app/uploads, so the mounted "
+                f"volume will be seeded root owned and every upload will fail"
+            )
+            before_user = body.split("USER khazana", 1)[0]
+            assert "mkdir -p /app/uploads" in before_user, (
+                f"the {stage} stage creates /app/uploads after switching user, "
+                f"which is too late for the chown to help"
+            )
+
+
+class TestEveryEndpointBackedFeatureHasAFixture:
+    """Regression guard from the weeks 1 to 22 audit.
+
+    Manifest extraction and pricing shipped with no committed fixture, so in
+    the default offline mode their endpoints answered every request with a
+    500. Their unit tests passed throughout, because those tests monkeypatch
+    FIXTURE_DIR to a temporary directory and write a fixture of their own. A
+    green suite therefore said nothing about whether the endpoint worked.
+
+    This checks the committed fixtures instead.
+    """
+
+    # Features reachable from an HTTP endpoint that replay a recorded reply in
+    # offline mode. Embedding is absent on purpose: vectors come from a local
+    # provider, never from a model, so there is nothing to record.
+    ENDPOINT_FEATURES = (
+        AiFeature.LISTING_FROM_PHOTOS,
+        AiFeature.MANIFEST_EXTRACT,
+        AiFeature.PRICING,
+        AiFeature.RISK_SCORING,
+        AiFeature.ASSISTANT_BUYER,
+    )
+
+    def test_each_one_has_at_least_one_committed_fixture(self) -> None:
+        for feature in self.ENDPOINT_FEATURES:
+            directory = client.FIXTURE_DIR / feature.value
+            fixtures = sorted(directory.glob("*.json")) if directory.is_dir() else []
+            assert fixtures, (
+                f"{feature.value} has no committed fixture, so its endpoint returns "
+                f"502 for every request in offline mode, which is the default. Add "
+                f"cases to its eval suite and run scripts/record-eval-fixtures.py"
+            )
+
+    def test_each_one_has_an_eval_suite(self) -> None:
+        """CLAUDE.md section 4: every AI feature ships with an eval.
+
+        Three of six features had none when the audit ran. A feature with
+        fixtures but no suite is worse than one with neither, because the
+        fixtures look like coverage.
+        """
+        from khazana.ai.evals.run import discover_suites
+
+        covered = {suite.feature for suite in discover_suites()}
+        missing = [f.value for f in self.ENDPOINT_FEATURES if f not in covered]
+        assert not missing, f"these features have no eval suite: {missing}"
+
+    def test_a_fixture_records_which_case_produced_it(self) -> None:
+        """Every fixture names its case, so an orphan is identifiable.
+
+        Fixture filenames are hashes of the rendered prompt. Without the case
+        name inside, a fixture left behind by a deleted or edited case is
+        indistinguishable from a live one and nobody can safely remove it.
+        """
+        import json
+
+        for feature in self.ENDPOINT_FEATURES:
+            directory = client.FIXTURE_DIR / feature.value
+            if not directory.is_dir():
+                continue
+            for path in directory.glob("*.json"):
+                payload = json.loads(path.read_text(encoding="utf-8"))
+                assert payload.get("_case"), f"{path.name} does not say which case wrote it"

@@ -263,10 +263,21 @@ class LotPhoto(UUIDPrimaryKey, TimestampMixin, Base):
     bytes_stored: Mapped[int | None] = mapped_column(Integer, default=None)
     # True once the compressed, model ready derivative has been generated.
     is_optimised: Mapped[bool] = mapped_column(nullable=False, default=False)
+    # SHA-256 of the bytes as uploaded, so the same photograph submitted twice
+    # is caught before it is stored. Brands re-upload constantly when a phone
+    # upload looks like it failed, and every duplicate otherwise gets paid for
+    # twice: once in storage and again in vision tokens.
+    checksum: Mapped[str | None] = mapped_column(String(64), default=None)
 
     lot: Mapped[Lot] = relationship(back_populates="photos")
 
-    __table_args__ = (Index("ix_photos_lot_order", "lot_id", "sort_order"),)
+    __table_args__ = (
+        Index("ix_photos_lot_order", "lot_id", "sort_order"),
+        # Not unique across the table. The same product shot legitimately
+        # appears on two lots of the same garment in different sizes, and the
+        # duplicate check is per lot.
+        Index("ix_photos_lot_checksum", "lot_id", "checksum"),
+    )
 
 
 class LotExcludedCity(UUIDPrimaryKey, TimestampMixin, Base):

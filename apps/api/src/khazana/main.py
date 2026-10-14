@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 
 from . import __version__
 from .ai.gateway.limits import feature_switches
-from .api.routers import ai, auth, health
+from .api.routers import ai, auth, brands, catalog, health
 from .config import get_settings
 from .core.errors import AppError, CrossTenant
 
@@ -77,6 +77,8 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(ai.router)
+    app.include_router(brands.router)
+    app.include_router(catalog.router)
 
     @app.get(
         "/ai/status",

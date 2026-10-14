@@ -33,13 +33,21 @@ keep that cost low, and they are binding on every phase below.
 | --- | --- | --- | --- |
 | 1 | 1 to 6 | Foundation | Repository, schema, auth, UI shell, AI gateway, eval harness, seed data |
 | 2 | 7 to 16 | AI engine | The six AI capabilities that make this platform different |
-| 3 | 17 to 30 | Marketplace core | Catalog, search, orders, payments, logistics, admin |
-| 4 | 31 to 40 | Intelligence layer | Assistant, demand prediction, fraud, analytics, brand agent |
-| 5 | 41 to 48 | Hardening and release | Tests, security, performance, full documentation, deployment, v1.0.0 |
-| 6 | 49 onward | Brands and launch | Brand recruitment, pilot sales, public launch |
+| 3 | 17 to 31 | Marketplace core | Brand portal, catalog, approvals, search, orders, payments, logistics, admin |
+| 4 | 32 to 49 | Intelligence layer | Assistants, voice ordering, pooling, negotiation, markdown, prediction, analytics |
+| 5 | 50 to 57 | Hardening and release | Tests, security, performance, AI cost, full documentation, deployment, v1.0.0 |
+| 6 | 58 onward | Brands and launch | Brand recruitment, pilot sales, public launch |
+| Later | After launch | Pay after sale credit | Gated on legal advice, see the end of this file |
 
-48 weeks of computer work, then launch. Inside a 2 to 3 year window that
+57 weeks of computer work, then launch. Inside a 2 to 3 year window that
 leaves real slack, which you will need.
+
+This plan was expanded on 2026-10-14. Phase 4 grew from 10 weeks to 18 with
+ten new features, and everything after it moved later. Week numbers quoted in
+older commits, documents and the audit report follow the previous numbering,
+where Phase 3 ended at week 30 and Phase 5 began at week 41. The phase names
+did not change, so a reference to "the AI cost pass" is unambiguous even when
+the week number beside it is stale.
 
 ## Default stack
 
@@ -121,21 +129,41 @@ seed data.
 
 ---
 
-# Phase 3: Marketplace core (weeks 17 to 30)
+# Phase 3: Marketplace core (weeks 17 to 31)
+
+**Status: in progress, weeks 17 to 22 complete.** 356 passing tests, six CI
+jobs.
+
+- **M2 brand portal, weeks 17 to 18.** Registration, document upload, the
+  verification workflow, the brand dashboard, per brand policy settings and an
+  append only audit trail, over nine endpoints.
+- **M3 catalog and manifests, weeks 19 to 21.** Lot creation, the manifest
+  editor with the sum must match total rule, spreadsheet import through the
+  Phase 2 extractor as a two step accept, the photo pipeline with compression
+  and ordering, condition grading, and the draft to live state machine as a
+  single transition table.
+- **Approvals and protection, week 22.** The brand approval gate with an
+  append only snapshot of the listing as approved, public, unbranded and
+  private protection levels, the region lock per brand and per lot, and
+  withdraw. All buyer visibility goes through one function.
+
+The development environment also moved into containers during this phase, so
+lint, types, tests, migrations and seeding all run in the same images CI uses.
+See `DEPLOYMENT.md`.
 
 Goal: the marketplace, built on top of the AI engine. Every module below
 calls Phase 2 rather than duplicating it.
 
 | Weeks | Module | Scope |
 | --- | --- | --- |
-| 17 to 18 | M2 Brand portal | Registration, NTN and document upload, verification workflow, brand dashboard, per brand policy settings |
-| 19 to 21 | M3 Catalog and manifests | Lot creation driven by photo upload, the manifest editor with the sum must match total rule, bulk upload through the Phase 2 extractor, photo pipeline with compression and ordering, condition grading, draft, pending, approved and live states |
-| 22 | Approvals and protection | The brand approval gate with a full audit record, private listings, unbranded listings, region lock, withdraw |
-| 23 to 24 | M4 Search and discovery | Filters, sort, text search, semantic search and photo search wired to Phase 2, saved searches |
-| 25 to 26 | M5 Cart and orders | Lot and part lot ordering, minimum order value, order lifecycle, buyer confirmation, dispute window, returns recorded |
-| 27 | M6 Payments | Bank transfer, JazzCash, Easypaisa, COD, held funds and brand payout records. Integration kept behind one interface so a sandbox implementation works until merchant accounts exist |
-| 28 | M7 Logistics | One courier integration behind a provider interface, label and tracking, shipping cost rules, pickup scheduling |
-| 29 to 30 | M8 Admin panel | Verification queue, listing moderation with the Phase 2 risk score shown, orders, disputes, commission settings, payout runs, audit log viewer |
+| 17 to 18 | M2 Brand portal | Done. Registration, NTN and document upload, verification workflow, brand dashboard, per brand policy settings |
+| 19 to 21 | M3 Catalog and manifests | Done. Lot creation from photo upload, the manifest editor with the sum must match total rule, bulk upload through the Phase 2 extractor, photo pipeline with compression and ordering, condition grading, draft to pending to approved to live states |
+| 22 to 23 | Approvals and protection | Week 22 done. Brand approval gate with full audit record, private listings, unbranded listings, region lock, withdraw. Week 23 is new work: automatic logo blur on unbranded listings, and brand reviews before publish |
+| 24 to 25 | M4 Search and discovery | Filters, sort, text search, semantic and photo search wired to Phase 2, saved searches |
+| 26 to 27 | M5 Cart and orders | Lot and part lot ordering, minimum order value, order lifecycle, buyer confirmation, dispute window, returns recorded |
+| 28 | M6 Payments | Bank transfer, JazzCash, Easypaisa, COD, held funds and brand payout records. Integration kept behind one interface so a sandbox implementation works until merchant accounts exist |
+| 29 | M7 Logistics | One courier integration behind a provider interface, label and tracking, shipping cost rules, pickup scheduling |
+| 30 to 31 | M8 Admin panel | Verification queue, listing moderation with the Phase 2 risk score shown, orders, disputes, commission settings, payout runs, audit log viewer |
 
 Two deliberate constraints in this phase. Payments and logistics sit behind
 interfaces with sandbox implementations, so no week is blocked waiting for a
@@ -149,47 +177,80 @@ seed data.
 
 ---
 
-# Phase 4: Intelligence layer (weeks 31 to 40)
+# Phase 4: Intelligence layer (weeks 32 to 49)
 
 Goal: the features that make the platform feel like it is run by software
 rather than by a person with a spreadsheet.
 
+Ten of these eighteen weeks are new work added on 2026-10-14, and most of the
+new items are the ones that fit this market rather than a generic
+marketplace: voice notes because many buyers would rather talk than type,
+pooling and mixed lots because a single shop cannot absorb a whole lot, and a
+resell kit because the buyer's next problem after buying is selling.
+
 | Weeks | Feature | What it does |
 | --- | --- | --- |
-| 31 to 32 | Buyer assistant in the product | The Phase 2 assistant exposed in the web UI and on WhatsApp, with conversation history, catalogue tools, and an explicit refusal to quote a price or stock level it has not read from the database |
-| 33 to 34 | Brand assistant | A brand can ask which of my stock is slow, what should I discount, what sold in Karachi last month, answered from that brand's own data only, with the access boundary tested |
-| 35 | Recommendations | Lot recommendations for resellers from purchase history and embeddings |
-| 36 | Reseller profit helper | Estimates resale value and margin for a lot in the buyer's own city |
-| 37 to 38 | Demand and dead stock prediction | Scheduled batch jobs over sales history that predict what will sell where, flag lots heading nowhere, and give brands an over production warning |
-| 39 | Fraud and counterfeit detection | Risk scoring for accounts, listings and orders, with human review for anything consequential |
-| 40 | M10 Analytics | Brand reporting on what sold, where and at what price, admin reporting on GMV, users and growth, plus an AI cost dashboard per feature |
+| 32 to 33 | Buyer assistant in the product | The Phase 2 assistant exposed in the web UI and on WhatsApp, with conversation history, catalogue tools, and an explicit refusal to quote a price or stock level it has not read from the database |
+| 34 | Voice note ordering | New. WhatsApp voice notes in Urdu, Punjabi, Sindhi and Pashto, built on the buyer assistant |
+| 35 to 36 | Brand assistant | A brand can ask which of my stock is slow, what should I discount, what sold in Karachi last month, answered from that brand's own data only, with the access boundary tested |
+| 37 | Recommendations | Lot recommendations for resellers from purchase history and embeddings |
+| 38 | Reseller profit helper | Estimates resale value and margin for a lot in the buyer's own city |
+| 39 | Mixed lot builder | New. Combines slow stock from several brands into one lot matched to a reseller's shop and city |
+| 40 | Resell kit generator | New. Social posts, cleaned photos, Urdu and Roman Urdu captions, price tags and a WhatsApp catalogue for every purchased lot |
+| 41 | Committee lot pooling | New. Matches 3 to 4 resellers in one city to buy a large lot together and splits it by their needs |
+| 42 | Bargaining bot | New. Negotiates in Urdu, never below the brand's floor price, every deal logged |
+| 43 | Smart markdown agent | New. Lowers unsold lot prices on a schedule, never below the brand's floor price |
+| 44 to 45 | Demand and dead stock prediction | Scheduled batch jobs over sales history that predict what will sell where, flag lots heading nowhere, and give brands an over production warning. New: a season and event calendar covering Eid, Ramzan, wedding season, school opening and monsoon |
+| 46 | Size translator | New. Maps sizes across brands to cut returns |
+| 47 | Upcycle and donation route | New. Matches unsellable stock with tailors, artisans and NGOs |
+| 48 | Fraud and counterfeit detection | Risk scoring for accounts, listings and orders, with human review for anything consequential |
+| 49 | M10 Analytics | Brand reporting on what sold, where and at what price, admin reporting on GMV, users and growth, plus an AI cost dashboard per feature. New: an impact report per brand covering waste, water and CO2 saved |
+
+Two of the new features need a decision before they are built, because they
+sit against the rule in `CLAUDE.md` section 4 and
+`docs/ai-architecture.md` section 2 that AI never decides money:
+
+- The **bargaining bot** in week 42 negotiates a price with a buyer.
+- The **smart markdown agent** in week 43 changes a listing price on a
+  schedule with nobody watching.
+
+Both descriptions already carry the right instinct, "never below the brand's
+floor price" and "every deal logged". The way to keep them inside the rule is
+to make the floor a thing the code enforces rather than a thing the model is
+asked to respect: the floor and the step size are brand policy rows, the
+service clamps every proposal to them before it is ever shown or applied, and
+every move is written to the append only audit trail with the brand able to
+switch the agent off per lot. Then the model is choosing within a band the
+brand set, which is the same authority the pricing feature already has, rather
+than deciding what a thing is worth. That needs confirming before week 42
+rather than discovered during it.
 
 Phase 4 exit: every AI surface is behind an eval and a cost budget, and the
 AI cost dashboard shows what the platform spends per listing and per order.
 
 ---
 
-# Phase 5: Hardening, documentation and release (weeks 41 to 48)
+# Phase 5: Hardening, documentation and release (weeks 50 to 57)
 
 Goal: stop building and make it real. Most student and solo projects skip
 this phase and it is the one that separates a demo from a platform.
 
 | Weeks | Work |
 | --- | --- |
-| 41 | Test coverage pass: unit, integration and end to end on the money path and the access boundaries. Load test the catalogue and search |
-| 42 | Security pass: authentication and session handling, rate limits, file upload validation, prompt injection defences on every user text that reaches a model, secret handling, dependency audit, backup and tested restore |
-| 43 | Performance pass on a throttled 3G profile and a mid range Android device. Image sizes, bundle size, query plans, N plus 1 queries, cache hit rates |
-| 44 | AI cost and quality pass: re run every eval, tune model choice and effort per feature, verify prompt caching is actually being hit, move everything that can wait to the Batch API |
-| 45 to 46 | Documentation, written to match the code as it is: `README.md`, `docs/architecture.md`, `docs/database-schema.md`, `docs/api-reference.md` with an OpenAPI spec, `docs/ai-features.md` with prompts, models, costs, limits and eval results, `docs/setup-guide.md`, `docs/deployment.md`, `docs/user-guides/` for brand, reseller and admin, `docs/decisions/` for the architecture decision records, `CHANGELOG.md`, `CONTRIBUTING.md` |
-| 47 | Deployment: production environment, domain, HTTPS, monitoring, error tracking, log aggregation, database backups, a staging environment that mirrors production |
-| 48 | Release `v1.0.0`, tagged, with a seeded public demo, a recorded walkthrough, and a demo mode that shows the platform working without exposing real brand data |
+| 50 | Test coverage pass: unit, integration and end to end on the money path and the access boundaries. Load test the catalogue and search. Also the new money adjacent paths: pooling splits, the bargaining floor and the markdown floor |
+| 51 | Security pass: authentication and session handling, rate limits, file upload validation including voice notes, prompt injection defences on every user text that reaches a model and on the bargaining bot in particular, secret handling, dependency audit, backup and tested restore |
+| 52 | Performance pass on a throttled 3G profile and a mid range Android device. Image sizes, bundle size, query plans, N plus 1 queries, cache hit rates |
+| 53 | AI cost and quality pass: re run every eval including the new features, tune model choice and effort per feature, verify prompt caching is actually being hit, add the response cache, move everything that can wait to the Batch API |
+| 54 to 55 | Documentation, written to match the code as it is: `README.md`, `docs/architecture.md`, `docs/database-schema.md`, `docs/api-reference.md` with an OpenAPI spec, `docs/ai-features.md` with prompts, models, costs, limits and eval results, `docs/setup-guide.md`, `docs/deployment.md`, `docs/user-guides/` for brand, reseller and admin, `docs/decisions/` for the architecture decision records, `CHANGELOG.md`, `CONTRIBUTING.md` |
+| 56 | Deployment: production environment, domain, HTTPS, monitoring, error tracking, log aggregation, database backups, a staging environment that mirrors production |
+| 57 | Release `v1.0.0`, tagged, with a seeded public demo, a recorded walkthrough, and a demo mode that shows the platform working without exposing real brand data |
 
 Phase 5 exit: someone who has never seen the project can clone it, follow
 `docs/setup-guide.md`, and have it running locally in under 30 minutes.
 
 ---
 
-# Phase 6: Brands and launch (weeks 49 onward)
+# Phase 6: Brands and launch (weeks 58 onward)
 
 Goal: now put real brands and real buyers on a platform that already works.
 
@@ -209,14 +270,40 @@ benefit of this build first order.
 
 | Weeks | Work |
 | --- | --- |
-| 49 to 50 | Register the company, NTN, bank account, merchant account applications, publish the landing page |
-| 51 to 52 | Brand outreach, demonstrate the live platform, target 10 brands committed in writing |
-| 53 to 54 | Reseller recruitment, target 100 on the waiting list, verification of the first 20 |
-| 55 to 56 | Pilot: the first real lots listed by real brands, the first real orders, swap the payment and courier sandbox implementations for live credentials |
-| 57 to 60 | Fix what the pilot breaks, then public launch |
+| 58 to 59 | Register the company, NTN, bank account, merchant account applications, publish the landing page |
+| 60 to 61 | Brand outreach, demonstrate the live platform, target 10 brands committed in writing |
+| 62 to 63 | Reseller recruitment, target 100 on the waiting list, verification of the first 20 |
+| 64 to 65 | Pilot: the first real lots listed by real brands, the first real orders, swap the payment and courier sandbox implementations for live credentials |
+| 66 to 69 | Fix what the pilot breaks, then public launch |
 
 Phase 6 exit: real brands, real buyers, real money, and the pricing and demand
 models finally training on your own data instead of on rules.
+
+---
+
+# After launch: pay after sale credit
+
+Added to the plan on 2026-10-14 and deliberately placed outside the numbered
+weeks.
+
+An AI trust score that lets a trusted reseller take stock now and pay after
+they sell it.
+
+**This one has a legal gate before any build work starts.** Lending money, or
+anything a regulator would read as lending money, is governed by State Bank of
+Pakistan rules, and a lawyer has to confirm what is permitted before a line of
+code is written. Not after a prototype exists, because a prototype creates
+pressure to ship it.
+
+Two further notes worth writing down now while it is still cheap to say:
+
+- An AI trust score that decides who gets credit is the furthest thing in this
+  whole plan from the rule that AI never decides money. If it is built, the
+  score belongs in front of a human approving a credit limit, with the reasons
+  shown and recorded.
+- Credit turns a marketplace into a lender, which changes the capital the
+  company needs and the risk it carries. That is a business decision rather
+  than a feature decision.
 
 ---
 

@@ -31,6 +31,9 @@ dev = [
     "ruff==0.16.10",
     "mypy==2.4.0",
     "faker>=33.0",
+    # The hook runner. The config existed from week 1 and the tool was never
+    # installed, so no hook had ever run on this machine.
+    "pre-commit>=4.0",
 ]
 
 [build-system]

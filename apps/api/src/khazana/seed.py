@@ -26,6 +26,7 @@ from datetime import timedelta
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from .ai import embeddings
 from .config import get_settings
 from .db import build_engine
 from .models import (
@@ -161,17 +162,62 @@ def seed(db: Session, *, scale: int = 1, reset: bool = False) -> dict[str, int]:
     orders = _seed_orders(db, rng, lots=lots, resellers=resellers, count=8 * scale)
     counts["orders"] = len(orders)
 
+    counts["embeddings"] = _index_lots(db, lots, categories)
+
     db.commit()
     return counts
 
 
+def _index_lots(db: Session, lots: list[Lot], categories: dict[str, Category]) -> int:
+    """Build the text vector for every seeded lot.
+
+    Without this the embeddings table is empty after a seed, so semantic
+    search answers every query with no hits and weeks 12 and 13 cannot be
+    sense checked against anything. The audit found exactly that.
+
+    Costs nothing and calls nothing external. Vectors come from the configured
+    embedding provider, which is a local deterministic hash unless
+    EMBEDDING_SERVICE_URL points at a self hosted model. Neither path touches
+    the Anthropic API, which has no embeddings endpoint at all.
+
+    Be clear about what this does and does not buy. With the default hashing
+    provider the pipeline, the dimensions, the pgvector index and the ranking
+    query are all exercised end to end, which is what makes the feature
+    testable. The ordering is not semantically meaningful, because a hash of
+    the words is not a model of their meaning. Judging result quality needs a
+    real embedding service, and the provider interface is there so that is a
+    setting rather than a rewrite.
+
+    Text only. Photo vectors need the image bytes, and seeded photographs are
+    file keys pointing at objects that were never written.
+    """
+    by_id = {category.id: category.name for category in categories.values()}
+    indexed = 0
+    for lot in lots:
+        embeddings.index_lot(db, lot, category_name=by_id.get(lot.category_id))
+        indexed += 1
+    return indexed
+
+
 def _wipe(db: Session) -> None:
-    """Delete in dependency order. Seed data only, never run in production."""
+    """Clear seeded data. Development only, never production.
+
+    Two paths, because the append only tables behave differently.
+
+    On PostgreSQL, `listing_approvals` and `audit_log` carry a trigger that
+    rejects DELETE, which is exactly what they are for: history is not
+    editable. TRUNCATE is a different operation and is not caught by that
+    trigger, which is the right escape hatch for rebuilding a development
+    database. The guarantee is intact, because nothing in the application can
+    truncate.
+
+    On SQLite, used by the tests, there are no triggers and DELETE is fine.
+    """
     settings = get_settings()
     if settings.is_production:
         raise RuntimeError("Refusing to wipe data in production.")
 
-    for model in (
+    models = (
         OrderLine,
         Payment,
         Order,
@@ -187,7 +233,21 @@ def _wipe(db: Session) -> None:
         ResellerProfile,
         User,
         Category,
-    ):
+    )
+
+    if db.bind is not None and db.bind.dialect.name == "postgresql":
+        from sqlalchemy import text
+
+        # One statement, so foreign keys between these tables never block it.
+        # audit_log is included because seeding writes to it and a rebuilt
+        # database should not carry the previous run's history.
+        tables = [model.__tablename__ for model in models]
+        tables.append("audit_log")
+        db.execute(text(f"TRUNCATE TABLE {', '.join(tables)} RESTART IDENTITY CASCADE"))
+        db.commit()
+        return
+
+    for model in models:
         db.execute(delete(model))
     db.commit()
 

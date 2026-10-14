@@ -17,6 +17,22 @@ the things SQLAlchemy models cannot express:
 Subsequent migrations should use `alembic revision --autogenerate`, which
 compares the models against the live database. Only this first one is built
 from metadata.
+
+One consequence of that, which costs an hour if nobody says it: because this
+migration calls `create_all` rather than listing columns, it is not a frozen
+snapshot. It builds whatever the models currently describe. So adding a column
+to a model needs no migration at all for a database created from scratch, and
+writing one anyway makes `alembic upgrade head` fail on a fresh database with
+"duplicate column". It does mean an already migrated database does not pick
+the column up, so a developer whose database predates the change recreates it:
+
+    .\\scripts\\dev.ps1 reset
+    .\\scripts\\dev.ps1 migrate
+    .\\scripts\\dev.ps1 seed
+
+Freezing this baseline into explicit `op.create_table` calls belongs in
+Phase 5 week 42, with the backup and restore work. Until then, a schema change
+is a model change, and the migration job in CI is what proves it applies.
 """
 
 from __future__ import annotations

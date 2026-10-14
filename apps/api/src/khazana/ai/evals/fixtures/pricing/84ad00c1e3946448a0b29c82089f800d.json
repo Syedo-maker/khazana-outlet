@@ -1,0 +1,21 @@
+{
+  "_case": "offers_a_range_rather_than_a_single_number",
+  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
+  "content": {
+    "based_on_rules_only": true,
+    "comparable_lot_ids": [],
+    "confidence": 0.42,
+    "expected_days_to_sell_high": 50,
+    "expected_days_to_sell_low": 21,
+    "reasoning": "A range rather than one figure, because there is no past sales data to support a single number and a point estimate would imply precision that does not exist. The eight point spread reflects how much the outcome depends on which buyers are active this month.",
+    "suggested_discount_percent_high": 74.0,
+    "suggested_discount_percent_low": 66.0
+  },
+  "model": "claude-opus-5-5",
+  "usage": {
+    "cache_read_tokens": 1800,
+    "cache_write_tokens": 0,
+    "input_tokens": 2400,
+    "output_tokens": 420
+  }
+}

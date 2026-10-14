@@ -1,0 +1,21 @@
+{
+  "_case": "old_stock_discounts_deeper",
+  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
+  "content": {
+    "based_on_rules_only": true,
+    "comparable_lot_ids": [],
+    "confidence": 0.42,
+    "expected_days_to_sell_high": 90,
+    "expected_days_to_sell_low": 30,
+    "reasoning": "At 540 days this is a year and a half of warehouse cost already spent, and the stock is two seasons behind. Holding for a better price is itself expensive, which argues for the deeper end of the band the brand permits.",
+    "suggested_discount_percent_high": 84.0,
+    "suggested_discount_percent_low": 74.0
+  },
+  "model": "claude-opus-5-5",
+  "usage": {
+    "cache_read_tokens": 1800,
+    "cache_write_tokens": 0,
+    "input_tokens": 2400,
+    "output_tokens": 420
+  }
+}

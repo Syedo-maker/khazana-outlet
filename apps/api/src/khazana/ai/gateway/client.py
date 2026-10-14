@@ -21,7 +21,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from fastapi import status
+
 from ...config import get_settings
+from ...core.errors import AppError
 from .cost import Usage
 from .models import spec_for
 
@@ -42,8 +45,23 @@ class ModelReply:
     raw_text: str | None = None
 
 
-class AiClientError(RuntimeError):
-    pass
+class AiClientError(AppError):
+    """The AI layer could not produce a usable reply.
+
+    An AppError rather than a bare RuntimeError, because every one of these
+    used to reach the caller as an unhandled 500 with no message: a missing
+    offline fixture, an upstream API failure, an empty reply, a reply that was
+    not JSON. The routers already convert an AppError into a response, so this
+    one line is what turns "Internal Server Error" into a sentence that says
+    what went wrong.
+
+    502 rather than 500, because none of these are the caller's fault and none
+    of them mean the request was malformed. 503 is reserved for a feature that
+    has been switched off deliberately, which is a different answer.
+    """
+
+    status_code = status.HTTP_502_BAD_GATEWAY
+    code = "ai_unavailable"
 
 
 def fixture_key(
