@@ -131,7 +131,13 @@ class ResellerProfile(UUIDPrimaryKey, TimestampMixin, SoftDeleteMixin, Base):
     __tablename__ = "reseller_profiles"
 
     user_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False
+        # Uniqueness lives in __table_args__ as one_profile_per_user, not here.
+        # Declaring it in both places meant the models asked for the same
+        # constraint under two names, so autogenerate reported a phantom
+        # change on every run and a real diff became impossible to read.
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
     )
     business_name: Mapped[str] = mapped_column(String(160), nullable=False)
     city: Mapped[str] = mapped_column(String(80), nullable=False)
