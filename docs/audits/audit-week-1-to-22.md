@@ -369,6 +369,18 @@ themselves:
   a stderr redirect. The logic moved into a script that tests its own
   detection and refuses to approve anything if that self test fails.
 
+### Third pass, 2026-10-14
+
+| Finding | State | Evidence |
+| --- | --- | --- |
+| M1 and M2 branches | Fixed | Pull requests 3, 4 and 5 merged with normal merges. `develop` has nothing `main` lacks, Phase 3 is on `develop`, the stale Phase 2 branch is deleted. No history rewritten |
+| H3 migration baseline | Fixed | All 27 tables written out. Verified five ways: 600 lines of schema identical to what create_all produced, a downgrade and upgrade round trip, a SQLite run, a drift check reporting nothing, and a column added to a model reaching an existing database |
+
+Two sources of permanent autogenerate noise were fixed while proving the
+freeze, because a tool that always reports phantom changes is one nobody
+reads: a duplicated uniqueness declaration on `reseller_profiles.user_id`, and
+the hand written pgvector index being proposed for deletion on every run.
+
 ### Still open
 
 Everything below was left alone deliberately. Each one either needs a decision,
@@ -376,7 +388,6 @@ spends money, or changes how a feature behaves.
 
 | Finding | Why it was not fixed here |
 | --- | --- |
-| H3 migration baseline is not frozen | Changing how the schema is created is the opposite of a small, safe fix, and week 42 already owns it |
 | M1 `develop` and `main` diverged | Reconciling published branches changes shared history and needs a decision about which lineage wins |
 | M2 Phase 3 unmerged, 19 commits, no pull request | Opening it is a judgement about whether weeks 17 to 22 are a release boundary |
 | M4 no response cache | A new caching layer is a feature, not a repair |
