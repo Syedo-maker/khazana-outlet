@@ -9,6 +9,16 @@ to match the plan would be a nicer looking lie.
 
 ## Unreleased
 
+### Plan change, 2026-10-14
+
+The roadmap was expanded and renumbered. Phase 4 grew from 10 weeks to 18 with
+ten new features, so Phase 3 now ends at week 31, Phase 5 starts at week 50
+and Phase 6 at week 58. `ROADMAP.md` holds the new plan and is authoritative.
+
+Week numbers in entries below this line, and in
+`docs/audits/audit-week-1-to-22.md`, follow the old numbering. The phase names
+did not change, so a reference by name is still unambiguous.
+
 ### Phase 3, weeks 17 to 22: marketplace core, in progress
 
 #### Audit fixes, second pass, 2026-10-14
