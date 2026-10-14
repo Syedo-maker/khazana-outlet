@@ -15,6 +15,13 @@
 #     file scan pipes `git ls-files` into real grep instead of using git grep.
 #   - The byte form is used rather than `\x{2014}` because grep -P in Windows
 #     git bash rejects code points above 0xFF outright.
+#
+# Some files have to name the thing they forbid: this script, the commit
+# message checker, the hook config, the rules file, the changelog and the audit
+# reports. They are excluded from the attribution scan by path. A new file that
+# states the rule has to be added there too, or the gate fails on its own
+# documentation, which is exactly how it failed when check-commit-msg.sh was
+# first committed.
 
 set -uo pipefail
 
@@ -58,7 +65,7 @@ echo "== Checking tracked files for AI attribution =="
 attr_hits=$(
   git ls-files -z \
     | tr '\0' '\n' \
-    | grep -vE '^(scripts/prepush-check\.sh|\.pre-commit-config\.yaml|CLAUDE\.md)$' \
+    | grep -vE '^(scripts/prepush-check\.sh|scripts/check-commit-msg\.sh|\.pre-commit-config\.yaml|CLAUDE\.md|CHANGELOG\.md|docs/audits/.*)$' \
     | while IFS= read -r file; do
         [ -f "$file" ] || continue
         grep -nIHiE "$ATTRIBUTION" -- "$file" 2>/dev/null
