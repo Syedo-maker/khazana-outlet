@@ -156,6 +156,23 @@ Standing build rules that follow from the roadmap:
   courier choice are configuration in the database, never hard coded.
 - AI never decides money, approvals, bans or quoted stock levels. It drafts,
   suggests, scores and flags. See `docs/ai-architecture.md` section 2.
+- One narrow exception, added 2026-10-14 for the week 42 bargaining bot and
+  the week 43 markdown agent: **AI may choose a value only inside a band the
+  brand set, and only where the code enforces that band.** Four conditions,
+  all four required:
+  1. The floor and the step size are brand policy rows, not constants and not
+     anything the model is asked to respect.
+  2. The service clamps every proposal to the band before it is shown or
+     applied. The model never sets a price; it picks within what the clamp
+     already permits.
+  3. Every move is written to the append only audit trail.
+  4. The agent is off by default. The brand turns it on per lot and can turn
+     it off at any time.
+
+  This is the authority the pricing feature already has: choosing inside a
+  brand's discount band is not deciding what something is worth. Anything
+  outside those four conditions is still forbidden. See
+  `docs/decisions/0001-ai-value-bands.md`.
 - Build decisions match the Pakistani market: COD, JazzCash and Easypaisa,
   WhatsApp, Android first, Urdu and English in the product UI.
 

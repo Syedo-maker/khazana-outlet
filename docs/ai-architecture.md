@@ -40,6 +40,38 @@ from tool calls against real data. It is instructed and tested to say it does
 not know rather than to produce a plausible number. A hallucinated stock
 level or price in a B2B negotiation costs you the brand.
 
+### The one exception, added 2026-10-14
+
+The week 42 bargaining bot and the week 43 markdown agent both change a price,
+so the boundary above needed stating more precisely rather than being quietly
+broken.
+
+**AI may choose a value inside a band the brand set, where the code enforces
+the band.** It may not set the band, and it may not decide what something is
+worth.
+
+The distinction is between a request and arithmetic. A prompt telling a model
+to stay above a floor is a request, and the pricing eval has six mandatory
+cases precisely because a model that is merely asked will sometimes not
+comply. A clamp in the service is arithmetic, and it makes that
+non compliance harmless instead of expensive.
+
+This is not new behaviour. `catalog_service._validate_commercials` has refused
+any lot price outside the brand's own discount band since week 19. The
+exception writes down a line the code was already holding.
+
+Four conditions, all four required: the floor and step size are brand policy
+rows; the service clamps every proposal before it is shown or applied; every
+move goes to the append only audit trail; and the agent is off until the brand
+turns it on per lot. The full reasoning, the rejected alternatives and the
+schema this implies are in
+[docs/decisions/0001-ai-value-bands.md](decisions/0001-ai-value-bands.md).
+
+Pay after sale credit is deliberately outside this exception. Deciding who may
+borrow is not choosing inside a band. A human approves every credit limit, AI
+only suggests, and the State Bank of Pakistan position is settled by a lawyer
+before any code is written.
+
 ## 3. The AI gateway, built in Phase 1 week 5
 
 Every model call in the platform goes through one service. No module calls
