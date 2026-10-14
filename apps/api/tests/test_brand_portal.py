@@ -50,21 +50,6 @@ def admin(db: Session) -> User:
     return user
 
 
-@pytest.fixture
-def local_storage(tmp_path, monkeypatch):
-    """Point object storage at a temporary folder for the whole test."""
-    from khazana import storage
-
-    monkeypatch.setenv("STORAGE_LOCAL_PATH", str(tmp_path))
-    from khazana.config import get_settings
-
-    get_settings.cache_clear()
-    storage.reset_backend()
-    yield tmp_path
-    storage.reset_backend()
-    get_settings.cache_clear()
-
-
 def register(db: Session, owner: User, name: str = "Meher Textiles") -> Brand:
     brand = brand_service.register_brand(db, owner=owner, name=name, city="Lahore")
     db.commit()

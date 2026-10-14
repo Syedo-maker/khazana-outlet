@@ -32,7 +32,9 @@ build/
 *.sqlite
 *.sqlite3
 /data/
-/uploads/
+# Any depth, not just the repository root. The API writes uploads under
+# apps/api/uploads when it runs there.
+uploads/
 
 # Editors and OS
 .vscode/

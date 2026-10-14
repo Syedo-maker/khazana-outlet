@@ -27,7 +27,7 @@ index, are created in migration 0001 and verified by the migration job in CI.
 | `listing_approvals` | 11 | yes | Append only record of every approval decision. |
 | `lot_defects` | 8 | yes | Itemised defects, required for grade C. |
 | `lot_excluded_cities` | 6 | yes | Per lot region lock, overriding the brand default. |
-| `lot_photos` | 12 | yes | Photographs, and the input to the AI listing feature. |
+| `lot_photos` | 13 | yes | Photographs, and the input to the AI listing feature. |
 | `lots` | 26 | yes | A quantity of one product sold as a single unit. |
 | `manifest_lines` | 8 | yes | Size and colour breakdown. Must sum to total pieces. |
 | `order_lines` | 9 | yes | What was actually bought, by size and colour. |
@@ -279,6 +279,7 @@ erDiagram
         int height
         int bytes_stored
         bool is_optimised "required"
+        string checksum
         string id "PK"
         datetime created_at "required"
         datetime updated_at "required"
