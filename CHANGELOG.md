@@ -9,6 +9,23 @@ to match the plan would be a nicer looking lie.
 
 ## Unreleased
 
+### Decisions, 2026-10-14
+
+- **Decided** AI may choose a value only inside a band the brand set, and only
+  where the code enforces that band. Recorded as
+  `docs/decisions/0001-ai-value-bands.md`, the first decision record in the
+  repository, and carried into `CLAUDE.md` section 4 and
+  `docs/ai-architecture.md` section 2. It narrows the absolute rule rather
+  than loosening it: the pricing feature has enforced exactly this line in
+  code since week 19 without it being written down. Four conditions are
+  required, and the schema weeks 42 and 43 will need is recorded now.
+- **Decided** Pay after sale credit stays outside that exception. Deciding who
+  may borrow is not choosing inside a band. A human approves every credit
+  limit and AI only suggests.
+- **Merged** `develop` into `main`, closing the divergence from audit finding
+  M1, and Phase 3 into `develop`. Normal merges, no history rewritten. `main`
+  stays at the Phase 2 level until the week 57 release.
+
 ### Plan change, 2026-10-14
 
 The roadmap was expanded and renumbered. Phase 4 grew from 10 weeks to 18 with
