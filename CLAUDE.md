@@ -147,8 +147,10 @@ Authoritative plan documents, in this order:
 
 Standing build rules that follow from the roadmap:
 
-- Every model call goes through the AI gateway in `apps/ai`. No module
-  constructs the Anthropic client directly.
+- Every model call goes through the AI gateway in
+  `apps/api/src/khazana/ai/gateway`. No module constructs the Anthropic client
+  directly. The roadmap called this `apps/ai`; that directory was never
+  created and the gateway lives inside the API package instead.
 - Every AI feature ships with an eval, and the eval is written first.
 - Commission rates, discount bands, brand protection rules, lot minimums and
   courier choice are configuration in the database, never hard coded.
