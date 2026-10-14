@@ -35,12 +35,15 @@ invisible to the test suite because the tests never touch the paths that fail.
 One of them stops every file upload in Docker. The other makes two of the six
 AI endpoints return a bare 500 in the default development mode.
 
-| | Count |
-| --- | --- |
-| Critical | 1 |
-| High | 4 |
-| Medium | 7 |
-| Low | 5 |
+| | Found | Fixed |
+| --- | --- | --- |
+| Critical | 1 | 1 |
+| High | 4 | 1 |
+| Medium | 7 | 1 |
+| Low | 5 | 1 |
+
+Plus the missing changelog. See "Fixes applied" below for what was repaired
+and "Still open" for what was deliberately left.
 
 ## Step 1: work against the plan
 
@@ -310,6 +313,51 @@ and 46. They are not overdue, they are not yet started. The two that are
 genuinely worth having now are `CHANGELOG.md`, because it is cheap and the
 history to fill it exists, and moving `DEPLOYMENT.md` to the path the plan
 names so the later work does not have to find it.
+
+## Fixes applied, 2026-10-14
+
+Verified against a running stack, not just a passing test.
+
+| Finding | State | Evidence |
+| --- | --- | --- |
+| C1 uploads volume root owned | Fixed | Both image stages create `/app/uploads` before dropping privileges. On the real volume path a photograph uploads with 201 and stores at 4895 bytes, and an NTN document uploads with 201 |
+| H2 `AiClientError` unmapped | Fixed | Now an `AppError` carrying 502 and `ai_unavailable`. A manifest import with no fixture answers 502 with "No fixture for manifest_extract ... Offline mode cannot invent a reply" instead of a blank 500 |
+| M3 wrong default database port | Fixed | `config.py` now defaults to 55432, matching `.env.example` and what compose publishes |
+| L1 stale `apps/ai` references | Fixed | `CLAUDE.md` and `.gitignore` name the real paths. The eval results directory was previously not ignored at all |
+| Missing `CHANGELOG.md` | Fixed | Added, grouped by roadmap week, including the known deviations from the plan |
+
+Four regression tests were added, and the suite is 353 passing. Two of them
+guard C1 by reading the Dockerfile, because the runtime failure is in the
+image and tests point storage at a temporary directory, which is precisely why
+the bug survived this long.
+
+**One manual step is needed on any machine that ran the stack before this.**
+Docker seeds a named volume only once, so the existing volume is still root
+owned:
+
+```powershell
+.\scripts\dev.ps1 down
+docker volume rm khazana_api_uploads
+.\scripts\dev.ps1 up
+```
+
+### Still open
+
+Everything below was left alone deliberately. Each one either needs a decision,
+spends money, or changes how a feature behaves.
+
+| Finding | Why it was not fixed here |
+| --- | --- |
+| H1 no fixtures for manifest extraction and pricing | Recording them means running both features against the live API with a real key, which spends money from the project budget |
+| H3 migration baseline is not frozen | Changing how the schema is created is the opposite of a small, safe fix, and week 42 already owns it |
+| H4 three AI features have no eval | Writing three graded suites is a week of work in its own right, and the roadmap rule says the eval comes first, so this is a real debt rather than a tidy up |
+| M1 `develop` and `main` diverged | Reconciling published branches changes shared history and needs a decision about which lineage wins |
+| M2 Phase 3 unmerged, 19 commits, no pull request | Opening it is a judgement about whether weeks 17 to 22 are a release boundary |
+| M4 no response cache | A new caching layer is a feature, not a repair |
+| M5 seed generates no embeddings | Needs the embedding model in the seed path and a decision about how long a seed may take |
+| M6 brand protection has no interface | Three new screens |
+| M7 pre commit hooks not installed | Installing hooks changes a developer's local git configuration, which is theirs to opt into |
+| L2, L3, L4 | Cosmetic. Worth doing alongside the next change to those files rather than on their own |
 
 ## Recommended order of fixes
 
