@@ -123,15 +123,29 @@ seed data.
 
 # Phase 3: Marketplace core (weeks 17 to 30)
 
-**Status: in progress, weeks 17 to 18 complete.** M2 the brand portal is done:
-registration, document upload, the verification workflow, the brand dashboard,
-per brand policy settings and an append only audit trail, over nine endpoints
-and 260 passing tests. The development environment also moved into containers
-this phase, so lint, types, tests, migrations and seeding all run in the same
-images CI uses. See `DEPLOYMENT.md`.
+**Status: in progress, weeks 17 to 22 complete.** 349 passing tests, six CI
+jobs.
 
-Remaining: weeks 19 to 30, seven modules, starting with M3 catalog and
-manifests.
+- **M2 brand portal, weeks 17 to 18.** Registration, document upload, the
+  verification workflow, the brand dashboard, per brand policy settings and an
+  append only audit trail, over nine endpoints.
+- **M3 catalog and manifests, weeks 19 to 21.** Lot creation, the manifest
+  editor with the sum must match total rule, spreadsheet import through the
+  Phase 2 extractor as a two step accept, the photo pipeline with compression
+  and ordering, condition grading, and the draft to live state machine as a
+  single transition table.
+- **Approvals and protection, week 22.** The brand approval gate with an
+  append only snapshot of the listing as approved, public, unbranded and
+  private protection levels, the region lock per brand and per lot, and
+  withdraw. All buyer visibility goes through one function, so a future search
+  endpoint cannot write its own copy of those rules.
+
+The development environment also moved into containers during this phase, so
+lint, types, tests, migrations and seeding all run in the same images CI uses.
+See `DEPLOYMENT.md`.
+
+Remaining: weeks 23 to 30, five modules, starting with M4 search and
+discovery.
 
 Goal: the marketplace, built on top of the AI engine. Every module below
 calls Phase 2 rather than duplicating it.
