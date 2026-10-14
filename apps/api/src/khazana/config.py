@@ -29,7 +29,13 @@ class Settings(BaseSettings):
     web_base_url: str = "http://localhost:3000"
 
     # ---------- Database ----------
-    database_url: str = "postgresql+psycopg://khazana:khazana@localhost:5432/khazana"
+    # 55432 to match .env.example and what compose publishes, not 5432.
+    # Inside the containers compose sets this to db:5432 and none of it
+    # applies. It matters for a native run: a developer with no .env would
+    # otherwise reach whatever else is listening on 5432, which on at least
+    # one development machine is a separate PostgreSQL install holding none of
+    # this data and looking identical.
+    database_url: str = "postgresql+psycopg://khazana:khazana@localhost:55432/khazana"
 
     # ---------- Redis ----------
     redis_url: str = "redis://localhost:6379/0"
