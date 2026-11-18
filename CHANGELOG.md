@@ -19,11 +19,13 @@ to match the plan would be a nicer looking lie.
   arithmetic the blur will share with the eval.
 - **Changed** An eval case can now supply a real image instead of placeholder
   bytes.
-- **Fixed** The gateway no longer sends schema keywords the structured output
-  API does not support.
+- **Fixed** The gateway no longer sends schema keywords or an output format
+  field that the structured output API does not support.
 
 The offline run replays hand written replies, so it proves the pipeline and
-the graders, not the model. The model has not been measured yet.
+the graders, not the model. One live run on Claude Opus 5.5 passed all 14 cases,
+10 of 10 mandatory, for $0.23. Those photographs are synthetic, so real brand
+photographs still have to be tested.
 
 ### Migration baseline frozen, 2026-10-14
 
