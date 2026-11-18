@@ -263,11 +263,20 @@ def _record(
 def _json_schema(model: type[BaseModel]) -> dict[str, Any]:
     """Build the output schema the API constrains the reply to.
 
-    ``additionalProperties: false`` plus a full ``required`` list is what makes
-    a strict schema actually strict, and Pydantic does not add the former by
-    default for every nested object.
+    The API rejects numeric, length and item count limits in this schema, and
+    Pydantic emits all three from ``Field``. ``transform_schema`` moves them
+    into the field descriptions, so the model still reads them, and the
+    Pydantic model enforces them when the reply comes back.
+
+    It also closes every object, which would silently turn a free form
+    ``dict`` field into one that can only ever be empty. A schema with such a
+    field is therefore sent as it is, so the API refuses it with an error
+    instead of the feature losing its data without one.
     """
-    schema = model.model_json_schema()
+    from anthropic import transform_schema
+
+    raw = model.model_json_schema()
+    schema = raw if _has_open_object(raw) else transform_schema(model)
 
     def _tighten(node: Any) -> None:
         if isinstance(node, dict):
@@ -281,3 +290,14 @@ def _json_schema(model: type[BaseModel]) -> dict[str, Any]:
 
     _tighten(schema)
     return {"type": "json_schema", "schema": schema, "name": model.__name__}
+
+
+def _has_open_object(node: Any) -> bool:
+    """Whether any object in a JSON schema accepts arbitrary keys."""
+    if isinstance(node, dict):
+        if node.get("additionalProperties") not in (None, False):
+            return True
+        return any(_has_open_object(value) for value in node.values())
+    if isinstance(node, list):
+        return any(_has_open_object(item) for item in node)
+    return False

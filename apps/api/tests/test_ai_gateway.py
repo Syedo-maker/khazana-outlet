@@ -457,6 +457,65 @@ class TestOutputSchemas:
         built = _json_schema(RiskScore)
         assert built["schema"]["additionalProperties"] is False
 
+    def test_the_schema_sent_to_the_api_has_no_keyword_it_rejects(self) -> None:
+        """Offline runs never reach the API, so only this catches a rejected schema."""
+        from khazana.ai.gateway.service import _has_open_object, _json_schema
+        from khazana.ai.schemas import SCHEMA_BY_FEATURE
+
+        rejected = {
+            "minimum",
+            "maximum",
+            "exclusiveMinimum",
+            "exclusiveMaximum",
+            "minLength",
+            "maxLength",
+            "maxItems",
+        }
+
+        def keywords(node: object) -> set[str]:
+            if isinstance(node, dict):
+                found = rejected & set(node)
+                for key, value in node.items():
+                    # Under "properties" the keys are field names, not keywords.
+                    if key == "properties" and isinstance(value, dict):
+                        found.update(k for v in value.values() for k in keywords(v))
+                    else:
+                        found |= keywords(value)
+                return found
+            if isinstance(node, list):
+                return {k for item in node for k in keywords(item)}
+            return set()
+
+        for name, model in SCHEMA_BY_FEATURE.items():
+            built = _json_schema(model)["schema"]
+            assert not _has_open_object(built), f"{name} has an open object"
+            assert not keywords(built), f"{name} sends {sorted(keywords(built))}"
+
+    def test_a_limit_removed_from_the_schema_is_still_enforced(self) -> None:
+        from pydantic import ValidationError
+
+        from khazana.ai.schemas import RiskScore
+
+        with pytest.raises(ValidationError):
+            RiskScore.model_validate(
+                {
+                    "score": 101,
+                    "completeness": 50,
+                    "manifest_consistent": True,
+                    "price_plausible": True,
+                    "recommend_human_review": False,
+                }
+            )
+
+    def test_a_free_form_field_is_not_silently_closed(self) -> None:
+        """Closing it would make every planned tool call lose its arguments."""
+        from khazana.ai.gateway.service import _json_schema
+        from khazana.ai.schemas import ToolPlan
+
+        built = _json_schema(ToolPlan)["schema"]
+        arguments = built["$defs"]["PlannedToolCall"]["properties"]["arguments"]
+        assert arguments["additionalProperties"] is True
+
 
 class TestAiFailuresReachTheCaller:
     """Regression guard from the weeks 1 to 22 audit.
