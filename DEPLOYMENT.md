@@ -187,6 +187,20 @@ Before a deployment:
 - Decide on backups for the `db_data` volume. There are none at the moment.
 - Set the AI spend guards for real. `AI_DAILY_SPEND_LIMIT_USD` and
   `AI_BRAND_MONTHLY_SPEND_LIMIT_USD` default to development sized numbers.
+- Connect real payment and courier providers. Only sandbox implementations
+  exist, and production refuses them. Each real one needs the provider's
+  merchant documents, and implements the interface in
+  `services/payment_providers.py` or `services/courier_providers.py`.
+- Set `BANK_ACCOUNT_TITLE` and `BANK_ACCOUNT_IBAN`. Production refuses to start
+  with the sandbox IBAN.
+- Schedule `POST /admin/jobs/close-dispute-windows`. Until something calls it,
+  delivered orders stay open after their window ends unless the buyer confirms.
+- Point `EMBEDDING_SERVICE_URL` at a real model. The stand in only finds an
+  identical photograph.
+- Add row level policies for buyers before connecting as a non owner database
+  role. The current policies cover brand staff and admins, so a reseller would
+  see no lots or orders. The application connects as the table owner today, and
+  its own access checks are what protect this data.
 
 ## When something is wrong
 

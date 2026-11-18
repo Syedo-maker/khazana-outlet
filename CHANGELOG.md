@@ -9,6 +9,31 @@ to match the plan would be a nicer looking lie.
 
 ## Unreleased
 
+### Weeks 23 to 31: the marketplace, 2026-11-19
+
+- **Added** Logo protection for unbranded listings. Marks are found by the
+  model, blurred by code and reviewed by the brand, and unreviewed photographs
+  are withheld from buyers.
+- **Added** Buyer search with filters, sorting, keyword, meaning and photo
+  search, and saved searches.
+- **Added** Cart, whole and part lot orders, stock reservation, the order
+  lifecycle, the dispute window and recorded returns.
+- **Added** Held funds with sandbox JazzCash and Easypaisa, bank transfer, cash
+  on delivery, refunds, payout records and reconciliation.
+- **Added** Configurable shipping rates, sandbox courier booking, labels, pickup
+  scheduling and tracking.
+- **Added** The admin panel, and web screens for buyers, brands and admins.
+- **Added** A seed that builds a working marketplace with orders at every stage.
+- **Fixed** The catalogue exposed brand identifiers, and any brand account could
+  see the real name on another brand's unbranded lot.
+- **Fixed** A brand could change its own commission through its policy settings.
+- **Fixed** The web origin was not allowed to send PUT requests.
+- **Fixed** The category list never reached the photo to listing prompt, and
+  live calls on batch routes were recorded at half their real cost.
+
+Payments and delivery run on sandbox providers. Search by meaning and by
+photograph use the development stand in until an embedding service is connected.
+
 ### Week 23: logo detection eval, 2026-11-18
 
 - **Added** The eval for logo detection, written before the feature. Fourteen
