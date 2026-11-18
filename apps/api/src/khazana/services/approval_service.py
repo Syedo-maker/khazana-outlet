@@ -61,7 +61,7 @@ from ..models.enums import (
     VerificationStatus,
     Visibility,
 )
-from . import audit_service, catalog_service, photo_protection_service
+from . import audit_service, catalog_service, photo_protection_service, search_index
 
 # The listing payload captured at approval. Chosen so that the snapshot
 # answers the only question that matters in a dispute: was the buyer shown
@@ -172,6 +172,7 @@ def approve(
 
     if publish:
         catalog_service.transition(db, lot=lot, to=LotStatus.LIVE, actor=actor, ip=ip)
+        search_index.index_live_lot(db, lot)
     return lot
 
 
@@ -199,7 +200,9 @@ def publish(db: Session, *, lot: Lot, actor: User, ip: str | None = None) -> Lot
     if lot.approved_at is None:
         raise Conflict("This lot has never been approved, so it cannot go live.")
     photo_protection_service.assert_ready(db, lot)
-    return catalog_service.transition(db, lot=lot, to=LotStatus.LIVE, actor=actor, ip=ip)
+    lot = catalog_service.transition(db, lot=lot, to=LotStatus.LIVE, actor=actor, ip=ip)
+    search_index.index_live_lot(db, lot)
+    return lot
 
 
 def pause(

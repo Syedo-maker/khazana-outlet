@@ -24,6 +24,7 @@ from .catalog import (
     LotExcludedCity,
     LotPhoto,
     ManifestLine,
+    SavedSearch,
 )
 from .commerce import Dispute, Order, OrderLine, Payment, Payout, Shipment
 from .identity import OtpChallenge, ResellerProfile, Session, User
@@ -75,6 +76,7 @@ __all__ = [
     "Payment",
     "Payout",
     "ResellerProfile",
+    "SavedSearch",
     "Session",
     "Shipment",
     "User",

@@ -306,6 +306,21 @@ class LotPhoto(UUIDPrimaryKey, TimestampMixin, Base):
     )
 
 
+class SavedSearch(UUIDPrimaryKey, TimestampMixin, Base):
+    """A buyer's search, kept so new matching stock is easy to find again."""
+
+    __tablename__ = "saved_searches"
+
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    filters: Mapped[dict[str, object]] = mapped_column(nullable=False)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+
+    __table_args__ = (UniqueConstraint("user_id", "name", name="one_saved_search_name_per_user"),)
+
+
 class LotExcludedCity(UUIDPrimaryKey, TimestampMixin, Base):
     """Per lot region lock, overriding the brand default."""
 
