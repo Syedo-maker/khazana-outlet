@@ -89,6 +89,8 @@ class BrandPolicy(UUIDPrimaryKey, TimestampMixin, Base):
     # Commercial terms.
     commission_percent: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False, default=15.00)
     payout_terms_days: Mapped[int] = mapped_column(Integer, nullable=False, default=7)
+    # How long a buyer has after delivery to report a problem.
+    dispute_window_days: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
     min_lot_value_pkr: Mapped[int] = mapped_column(Integer, nullable=False, default=25_000)
     min_discount_percent: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False, default=50)
     max_discount_percent: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False, default=85)
@@ -123,6 +125,7 @@ class BrandPolicy(UUIDPrimaryKey, TimestampMixin, Base):
         ),
         CheckConstraint("min_lot_value_pkr >= 0", name="min_lot_value_non_negative"),
         CheckConstraint("payout_terms_days >= 0", name="payout_terms_non_negative"),
+        CheckConstraint("dispute_window_days >= 0", name="dispute_window_non_negative"),
         CheckConstraint("require_brand_approval = true", name="approval_gate_mandatory"),
     )
 

@@ -91,6 +91,9 @@ class Lot(UUIDPrimaryKey, TimestampMixin, SoftDeleteMixin, Base):
     condition_grade: Mapped[ConditionGrade] = mapped_column(nullable=False)
 
     total_pieces: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Pieces held by orders that have not been cancelled or refunded. Changed
+    # only under a row lock, so the same stock cannot be sold twice.
+    reserved_pieces: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     retail_price_per_piece_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
     lot_price_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
     min_order_pieces: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -146,6 +149,10 @@ class Lot(UUIDPrimaryKey, TimestampMixin, SoftDeleteMixin, Base):
         return round((1 - self.lot_price_pkr / retail_total) * 100, 2)
 
     @property
+    def available_pieces(self) -> int:
+        return self.total_pieces - self.reserved_pieces
+
+    @property
     def manifest_total(self) -> int:
         return sum(line.pieces for line in self.manifest_lines)
 
@@ -160,6 +167,10 @@ class Lot(UUIDPrimaryKey, TimestampMixin, SoftDeleteMixin, Base):
 
     __table_args__ = (
         CheckConstraint("total_pieces > 0", name="total_pieces_positive"),
+        CheckConstraint(
+            "reserved_pieces >= 0 and reserved_pieces <= total_pieces",
+            name="reserved_within_lot",
+        ),
         CheckConstraint("lot_price_pkr > 0", name="lot_price_positive"),
         CheckConstraint("retail_price_per_piece_pkr > 0", name="retail_price_positive"),
         CheckConstraint(

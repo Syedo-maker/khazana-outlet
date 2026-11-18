@@ -26,7 +26,19 @@ from .catalog import (
     ManifestLine,
     SavedSearch,
 )
-from .commerce import Dispute, Order, OrderLine, Payment, Payout, Shipment
+from .commerce import (
+    CartItem,
+    Courier,
+    Dispute,
+    Order,
+    OrderEvent,
+    OrderLine,
+    OrderReturn,
+    Payment,
+    Payout,
+    Shipment,
+    ShippingRate,
+)
 from .identity import OtpChallenge, ResellerProfile, Session, User
 
 # Tables that carry a brand_id and are therefore subject to tenant isolation.
@@ -45,6 +57,8 @@ BRAND_SCOPED_TABLES: tuple[str, ...] = (
     "listing_approvals",
     "orders",
     "order_lines",
+    "order_events",
+    "order_returns",
     "payouts",
     "shipments",
     "disputes",
@@ -61,7 +75,9 @@ __all__ = [
     "BrandExcludedCity",
     "BrandMember",
     "BrandPolicy",
+    "CartItem",
     "Category",
+    "Courier",
     "Dispute",
     "Embedding",
     "ListingApproval",
@@ -71,7 +87,9 @@ __all__ = [
     "LotPhoto",
     "ManifestLine",
     "Order",
+    "OrderEvent",
     "OrderLine",
+    "OrderReturn",
     "OtpChallenge",
     "Payment",
     "Payout",
@@ -79,6 +97,7 @@ __all__ = [
     "SavedSearch",
     "Session",
     "Shipment",
+    "ShippingRate",
     "User",
     "Vector",
     "VerificationDocument",

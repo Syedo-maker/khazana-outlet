@@ -24,12 +24,13 @@ from typing import Annotated, Any, Literal, cast
 
 from fastapi import APIRouter, File, Form, Query, Request, Response, UploadFile, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ...ai.logo_regions import Box
 from ...core.errors import NotFound, ValidationFailed
 from ...core.tenancy import assert_owns
-from ...models import Lot, LotPhoto, User
+from ...models import BrandPolicy, Lot, LotPhoto, User
 from ...models.enums import (
     ConditionGrade,
     LotStatus,
@@ -38,7 +39,12 @@ from ...models.enums import (
     VerificationStatus,
     Visibility,
 )
-from ...services import approval_service, catalog_service, photo_protection_service
+from ...services import (
+    approval_service,
+    catalog_service,
+    order_service,
+    photo_protection_service,
+)
 from ...storage import read_object
 from ..deps import CurrentBrand, CurrentPrincipal, Db, Principal, client_ip
 
@@ -234,6 +240,8 @@ class LotOut(BaseModel):
     season: str | None = None
     condition_grade: ConditionGrade
     total_pieces: int
+    reserved_pieces: int
+    available_pieces: int
     retail_price_per_piece_pkr: int
     lot_price_pkr: int
     min_order_pieces: int
@@ -343,6 +351,7 @@ class CatalogLotOut(BaseModel):
     season: str | None = None
     condition_grade: ConditionGrade
     total_pieces: int
+    available_pieces: int
     retail_price_per_piece_pkr: int
     lot_price_pkr: int
     min_order_pieces: int
@@ -379,6 +388,12 @@ class CatalogManifestLineOut(BaseModel):
     pieces: int
 
 
+class CatalogAvailableLineOut(BaseModel):
+    size: str
+    color: str
+    pieces: int
+
+
 class BrowseItemOut(BaseModel):
     """A listing as one viewer may see it.
 
@@ -397,6 +412,9 @@ class BrowseItemOut(BaseModel):
 class CatalogDetailOut(BrowseItemOut):
     photos: list[CatalogPhotoOut]
     manifest_lines: list[CatalogManifestLineOut]
+    available_lines: list[CatalogAvailableLineOut]
+    allows_part_lot: bool
+    allows_cod: bool
     defects: list[CatalogDefectOut]
 
 
@@ -1152,10 +1170,17 @@ def catalog_detail(
     item = _browse_item(db, principal, lot)
     photos = photo_protection_service.buyer_photos(lot)
     shown_ids = {photo.id for photo in photos}
+    policy = db.scalars(select(BrandPolicy).where(BrandPolicy.brand_id == lot.brand_id)).first()
     return CatalogDetailOut(
         **item.model_dump(),
         photos=[CatalogPhotoOut.model_validate(photo) for photo in photos],
         manifest_lines=[CatalogManifestLineOut.model_validate(x) for x in lot.manifest_lines],
+        available_lines=[
+            CatalogAvailableLineOut(size=line.size, color=line.color, pieces=line.pieces)
+            for line in order_service.available_lines(db, lot)
+        ],
+        allows_part_lot=bool(policy and policy.allow_part_lot_orders),
+        allows_cod=bool(policy and policy.allow_cod),
         defects=[
             CatalogDefectOut(
                 issue=defect.issue,

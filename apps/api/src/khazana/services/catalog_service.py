@@ -1068,10 +1068,15 @@ def _guard_material_change(lot: Lot, changes: dict[str, Any]) -> None:
     order, so the brand pauses first. Everything else is closed.
     """
     status = LotStatus(lot.status)
+    material = sorted(set(changes) & MATERIAL_FIELDS)
+    if material and lot.reserved_pieces > 0:
+        raise Conflict(
+            f"Buyers have already ordered from this lot, so {', '.join(material)} "
+            f"cannot be changed."
+        )
+
     if status in EDITABLE_STATUSES or status in RESETTABLE_STATUSES:
         return
-
-    material = sorted(set(changes) & MATERIAL_FIELDS)
     if not material:
         return
     if status == LotStatus.LIVE:

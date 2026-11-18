@@ -85,6 +85,7 @@ BRAND_AUDIT_FIELDS = (
 POLICY_AUDIT_FIELDS = (
     "commission_percent",
     "payout_terms_days",
+    "dispute_window_days",
     "min_lot_value_pkr",
     "min_discount_percent",
     "max_discount_percent",
@@ -464,6 +465,7 @@ def update_policy(
     editable = {
         "commission_percent",
         "payout_terms_days",
+        "dispute_window_days",
         "min_lot_value_pkr",
         "min_discount_percent",
         "max_discount_percent",

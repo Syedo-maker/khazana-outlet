@@ -57,6 +57,7 @@ class PolicyOut(BaseModel):
 
     commission_percent: float
     payout_terms_days: int
+    dispute_window_days: int
     min_lot_value_pkr: int
     min_discount_percent: float
     max_discount_percent: float
@@ -79,6 +80,7 @@ class PolicyUpdateIn(BaseModel):
 
     commission_percent: float | None = Field(default=None, ge=0, le=50)
     payout_terms_days: int | None = Field(default=None, ge=0, le=90)
+    dispute_window_days: int | None = Field(default=None, ge=0, le=30)
     min_lot_value_pkr: int | None = Field(default=None, ge=0)
     min_discount_percent: float | None = Field(default=None, ge=0, le=95)
     max_discount_percent: float | None = Field(default=None, ge=0, le=95)

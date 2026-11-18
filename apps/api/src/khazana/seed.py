@@ -35,6 +35,7 @@ from .models import (
     BrandExcludedCity,
     BrandMember,
     BrandPolicy,
+    CartItem,
     Category,
     ListingApproval,
     Lot,
@@ -42,7 +43,9 @@ from .models import (
     LotPhoto,
     ManifestLine,
     Order,
+    OrderEvent,
     OrderLine,
+    OrderReturn,
     Payment,
     ResellerProfile,
     User,
@@ -218,6 +221,9 @@ def _wipe(db: Session) -> None:
         raise RuntimeError("Refusing to wipe data in production.")
 
     models = (
+        CartItem,
+        OrderEvent,
+        OrderReturn,
         OrderLine,
         Payment,
         Order,
@@ -464,6 +470,7 @@ def _seed_lots(
                 cartons=max(1, total_pieces // 60),
                 available_until=(utcnow() + timedelta(days=rng.randint(14, 120))).date(),
                 status=status,
+                reserved_pieces=total_pieces if status == LotStatus.SOLD else 0,
                 visibility=policy.default_visibility,
                 approved_at=utcnow() if approved else None,
                 created_by_user_id=None,
@@ -561,11 +568,16 @@ def _seed_orders(
         reseller = rng.choice([r for r in resellers if r.status == VerificationStatus.VERIFIED])
         policy = db.scalars(select(BrandPolicy).where(BrandPolicy.brand_id == lot.brand_id)).one()
 
+        is_sold = lot.status == LotStatus.SOLD
+        if not is_sold and lot.available_pieces < lot.min_order_pieces:
+            continue
         pieces = (
             lot.total_pieces
-            if lot.min_order_pieces == lot.total_pieces
-            else rng.randint(lot.min_order_pieces, lot.total_pieces)
+            if is_sold or lot.min_order_pieces == lot.total_pieces
+            else rng.randint(lot.min_order_pieces, lot.available_pieces)
         )
+        if not is_sold:
+            lot.reserved_pieces += pieces
         unit_price = max(1, lot.lot_price_pkr // lot.total_pieces)
         subtotal = pieces * unit_price
         shipping = rng.choice([0, 1_200, 2_400, 3_600])

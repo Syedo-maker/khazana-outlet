@@ -422,6 +422,8 @@ def visibility_filter(
         # Belt and braces against the CHECK constraint. A live lot without an
         # approval should be impossible; if one exists, it stays hidden.
         Lot.approved_at.is_not(None),
+        # Fully reserved stock has nothing left to offer.
+        Lot.reserved_pieces < Lot.total_pieces,
     )
 
     if role == UserRole.ADMIN:

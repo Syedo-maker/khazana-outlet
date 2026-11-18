@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 
 from . import __version__
 from .ai.gateway.limits import feature_switches
-from .api.routers import ai, auth, brands, catalog, health, search
+from .api.routers import ai, auth, brands, catalog, health, orders, search
 from .config import get_settings
 from .core.errors import AppError, CrossTenant
 
@@ -81,6 +81,7 @@ def create_app() -> FastAPI:
     # Before catalog, whose /catalog/{lot_id} would otherwise match these paths.
     app.include_router(search.router)
     app.include_router(catalog.router)
+    app.include_router(orders.router)
 
     @app.get(
         "/ai/status",
