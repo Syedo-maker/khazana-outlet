@@ -26,6 +26,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -286,6 +287,7 @@ class Payment(UUIDPrimaryKey, TimestampMixin, Base):
     method: Mapped[PaymentMethod] = mapped_column(nullable=False)
     status: Mapped[PaymentStatus] = mapped_column(nullable=False, default=PaymentStatus.PENDING)
     amount_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
+    refunded_pkr: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     provider: Mapped[str | None] = mapped_column(String(40), default=None)
     provider_reference: Mapped[str | None] = mapped_column(String(120), default=None)
     held_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
@@ -299,10 +301,66 @@ class Payment(UUIDPrimaryKey, TimestampMixin, Base):
 
     __table_args__ = (
         CheckConstraint("amount_pkr > 0", name="payment_amount_positive"),
+        CheckConstraint(
+            "refunded_pkr >= 0 and refunded_pkr <= amount_pkr",
+            name="payment_refund_within_amount",
+        ),
         UniqueConstraint(
             "provider", "provider_reference", name="one_payment_per_provider_reference"
         ),
         Index("ix_payments_order_status", "order_id", "status"),
+        # An order can be paid only once at a time, whatever the callers do.
+        Index(
+            "uq_payments_one_open_per_order",
+            "order_id",
+            unique=True,
+            postgresql_where=text("status in ('pending', 'held')"),
+            sqlite_where=text("status in ('pending', 'held')"),
+        ),
+    )
+
+
+class PaymentEvent(UUIDPrimaryKey, TimestampMixin, Base):
+    """A provider callback, exactly as received. Append only.
+
+    The unique pair is what makes a repeated callback harmless.
+    """
+
+    __tablename__ = "payment_events"
+
+    provider: Mapped[str] = mapped_column(String(40), nullable=False)
+    event_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    payment_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("payments.id", ondelete="RESTRICT"), default=None
+    )
+    outcome: Mapped[str] = mapped_column(String(32), nullable=False)
+    payload: Mapped[dict[str, object]] = mapped_column(nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("provider", "event_id", name="one_payment_event_per_provider_id"),
+        Index("ix_payment_events_payment", "payment_id"),
+    )
+
+
+class PayoutRun(UUIDPrimaryKey, TimestampMixin, Base):
+    """A batch of brand payouts an admin released together."""
+
+    __tablename__ = "payout_runs"
+
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), default=None
+    )
+    status: Mapped[PayoutStatus] = mapped_column(nullable=False, default=PayoutStatus.SCHEDULED)
+    payout_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    total_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
+    reference: Mapped[str | None] = mapped_column(String(120), default=None)
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+
+    payouts: Mapped[list[Payout]] = relationship(back_populates="run")
+
+    __table_args__ = (
+        CheckConstraint("payout_count > 0", name="payout_run_not_empty"),
+        CheckConstraint("total_pkr >= 0", name="payout_run_total_non_negative"),
     )
 
 
@@ -327,8 +385,12 @@ class Payout(UUIDPrimaryKey, TimestampMixin, Base):
     approved_by_user_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="SET NULL"), default=None
     )
+    run_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("payout_runs.id", ondelete="SET NULL"), default=None
+    )
 
     order: Mapped[Order] = relationship(back_populates="payout")
+    run: Mapped[PayoutRun | None] = relationship(back_populates="payouts")
 
     __table_args__ = (
         CheckConstraint("amount_pkr >= 0", name="payout_amount_non_negative"),

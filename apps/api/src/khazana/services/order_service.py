@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from math import ceil
+from types import ModuleType
 from typing import Any
 
 from sqlalchemy import delete, select
@@ -416,7 +417,9 @@ def mark_delivered(db: Session, order: Order, *, note: str | None = None) -> Ord
     policy = _policy(db, order.brand_id)
     order.delivered_at = now
     order.dispute_window_ends_at = now + timedelta(days=policy.dispute_window_days)
-    return _move(db, order, OrderStatus.DELIVERED, actor=None, note=note)
+    _move(db, order, OrderStatus.DELIVERED, actor=None, note=note)
+    _payments().record_cod_collection(db, order)
+    return order
 
 
 def cancel(
@@ -438,7 +441,9 @@ def cancel(
         raise ValidationFailed("Say why this order is being cancelled.")
     order.cancelled_at = utcnow()
     order.cancellation_reason = cleaned[:500]
-    return _move(db, order, OrderStatus.CANCELLED, actor=actor, note=cleaned, ip=ip)
+    _move(db, order, OrderStatus.CANCELLED, actor=actor, note=cleaned, ip=ip)
+    _payments().on_order_cancelled(db, order)
+    return order
 
 
 def confirm_delivery(db: Session, order: Order, *, actor: User, ip: str | None = None) -> Order:
@@ -600,8 +605,16 @@ def _complete(
 ) -> Order:
     order.confirmed_at = utcnow()
     _move(db, order, OrderStatus.CONFIRMED, actor=actor, note=note, ip=ip)
+    _payments().release_for_order(db, order)
     _mark_lot_sold_if_finished(db, order.lot_id, actor=actor)
     return order
+
+
+def _payments() -> ModuleType:
+    """The payment service, which itself depends on this module."""
+    from . import payment_service
+
+    return payment_service
 
 
 def _mark_lot_sold_if_finished(db: Session, lot_id: str, *, actor: User | None) -> None:

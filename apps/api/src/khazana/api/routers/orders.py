@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from ...core.errors import AppError, NotFound, ValidationFailed
 from ...models import Dispute, Lot, Order, OrderEvent, OrderReturn, ResellerProfile, User
 from ...models.enums import DisputeStatus, OrderStatus, PaymentMethod, UserRole
-from ...services import approval_service, order_service
+from ...services import approval_service, order_service, payment_service
 from ...services.order_service import Delivery, LineChoice, Purchase
 from ..deps import CurrentPrincipal, Db, Principal, client_ip
 
@@ -418,6 +418,8 @@ def checkout(
         method=body.payment_method,
         ip=client_ip(request),
     )
+    for order in orders:
+        payment_service.ensure_payment(db, order)
     db.commit()
     return [OrderOut.model_validate(order_payload(db, principal, order)) for order in orders]
 
@@ -463,6 +465,7 @@ def create_order(
         method=body.payment_method,
         ip=client_ip(request),
     )
+    payment_service.ensure_payment(db, orders[0])
     db.commit()
     return _detail(db, principal, order_service.get_order(db, orders[0].id))
 

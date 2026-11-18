@@ -76,6 +76,12 @@ class Settings(BaseSettings):
     default_min_lot_value_pkr: int = 25_000
     dispute_window_days: int = 3
 
+    # ---------- Payments ----------
+    # Shown to buyers paying by bank transfer. The defaults are obviously fake,
+    # and production refuses to start with them.
+    bank_account_title: str = "Khazana Outlet Sandbox"
+    bank_account_iban: str = "PK00SANDBOX0000000000000"
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
@@ -110,6 +116,8 @@ class Settings(BaseSettings):
             problems.append("ANTHROPIC_API_KEY is not set")
         if self.database_url.startswith("sqlite"):
             problems.append("DATABASE_URL points at SQLite")
+        if "SANDBOX" in self.bank_account_iban.upper():
+            problems.append("BANK_ACCOUNT_IBAN is still the sandbox value")
         if problems:
             raise RuntimeError("Unsafe production configuration: " + "; ".join(problems))
 
