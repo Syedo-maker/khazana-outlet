@@ -64,7 +64,7 @@ def upgrade() -> None:
     )
     with op.batch_alter_table("lots") as batch:
         batch.create_check_constraint(
-            "ck_lots_reserved_within_lot",
+            op.f("ck_lots_reserved_within_lot"),
             "reserved_pieces >= 0 and reserved_pieces <= total_pieces",
         )
         batch.alter_column("reserved_pieces", server_default=None)
@@ -74,7 +74,7 @@ def upgrade() -> None:
             sa.Column("dispute_window_days", sa.Integer(), nullable=False, server_default="3")
         )
         batch.create_check_constraint(
-            "ck_brand_policies_dispute_window_non_negative", "dispute_window_days >= 0"
+            op.f("ck_brand_policies_dispute_window_non_negative"), "dispute_window_days >= 0"
         )
         batch.alter_column("dispute_window_days", server_default=None)
 
@@ -91,9 +91,9 @@ def upgrade() -> None:
             )
         )
         batch.add_column(sa.Column("delivered_at", sa.DateTime(timezone=True), nullable=True))
-        batch.drop_constraint("ck_orders_order_subtotal_consistent", type_="check")
+        batch.drop_constraint(op.f("ck_orders_order_subtotal_consistent"), type_="check")
         batch.create_check_constraint(
-            "ck_orders_order_subtotal_consistent",
+            op.f("ck_orders_order_subtotal_consistent"),
             "subtotal_pkr = pieces * unit_price_pkr + rounding_adjustment_pkr",
         )
         batch.alter_column("rounding_adjustment_pkr", server_default=None)
@@ -284,18 +284,18 @@ def downgrade() -> None:
     op.drop_table("order_events")
 
     with op.batch_alter_table("orders") as batch:
-        batch.drop_constraint("ck_orders_order_subtotal_consistent", type_="check")
+        batch.drop_constraint(op.f("ck_orders_order_subtotal_consistent"), type_="check")
         batch.create_check_constraint(
-            "ck_orders_order_subtotal_consistent", "subtotal_pkr = pieces * unit_price_pkr"
+            op.f("ck_orders_order_subtotal_consistent"), "subtotal_pkr = pieces * unit_price_pkr"
         )
         batch.drop_column("delivered_at")
         batch.drop_column("payment_method")
         batch.drop_column("rounding_adjustment_pkr")
 
     with op.batch_alter_table("brand_policies") as batch:
-        batch.drop_constraint("ck_brand_policies_dispute_window_non_negative", type_="check")
+        batch.drop_constraint(op.f("ck_brand_policies_dispute_window_non_negative"), type_="check")
         batch.drop_column("dispute_window_days")
 
     with op.batch_alter_table("lots") as batch:
-        batch.drop_constraint("ck_lots_reserved_within_lot", type_="check")
+        batch.drop_constraint(op.f("ck_lots_reserved_within_lot"), type_="check")
         batch.drop_column("reserved_pieces")

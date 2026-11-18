@@ -50,7 +50,7 @@ def upgrade() -> None:
             ondelete="SET NULL",
         )
         batch.create_check_constraint(
-            "ck_lot_photos_protection_status_valid",
+            op.f("ck_lot_photos_protection_status_valid"),
             "protection_status in ('pending', 'clear', 'blurred', 'needs_review', 'failed')",
         )
         # The default only exists to fill the rows already in the table.
@@ -59,7 +59,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     with op.batch_alter_table("lot_photos") as batch:
-        batch.drop_constraint("ck_lot_photos_protection_status_valid", type_="check")
+        batch.drop_constraint(op.f("ck_lot_photos_protection_status_valid"), type_="check")
         batch.drop_constraint(
             "fk_lot_photos_protection_reviewed_by_user_id_users", type_="foreignkey"
         )
