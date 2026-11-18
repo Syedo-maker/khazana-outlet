@@ -53,6 +53,7 @@ from .models import (
     OrderEvent,
     OrderLine,
     OrderReturn,
+    OtpChallenge,
     Payment,
     PaymentEvent,
     Payout,
@@ -251,6 +252,7 @@ def _wipe(db: Session) -> None:
         raise RuntimeError("Refusing to wipe data in production.")
 
     models = (
+        OtpChallenge,
         CartItem,
         SavedSearch,
         Embedding,
@@ -486,6 +488,12 @@ def _seed_lots(
                 ],
                 weights=[0.4, 0.15, 0.1, 0.15, 0.1, 0.1],
             )[0]
+            # A brand still awaiting verification cannot have approved stock.
+            if brand.status != VerificationStatus.VERIFIED and status in {
+                LotStatus.LIVE,
+                LotStatus.SOLD,
+            }:
+                status = LotStatus.PENDING_APPROVAL
             approved = status in {LotStatus.LIVE, LotStatus.SOLD}
 
             lot = Lot(
