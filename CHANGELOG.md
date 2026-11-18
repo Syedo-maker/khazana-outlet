@@ -9,6 +9,22 @@ to match the plan would be a nicer looking lie.
 
 ## Unreleased
 
+### Week 23: logo detection eval, 2026-11-18
+
+- **Added** The eval for logo detection, written before the feature. Fourteen
+  synthetic photographs with invented brand names and exactly known mark
+  positions. Ten cases are mandatory: every mark must end up under the padded
+  blur, or the photograph must go to a person.
+- **Added** The feature's prompt, output schema and model route, and the region
+  arithmetic the blur will share with the eval.
+- **Changed** An eval case can now supply a real image instead of placeholder
+  bytes.
+- **Fixed** The gateway no longer sends schema keywords the structured output
+  API does not support.
+
+The offline run replays hand written replies, so it proves the pipeline and
+the graders, not the model. The model has not been measured yet.
+
 ### Migration baseline frozen, 2026-10-14
 
 - **Changed** Migration 0001 now writes out all 27 tables explicitly instead
