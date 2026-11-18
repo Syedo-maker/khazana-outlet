@@ -20,23 +20,26 @@ as a lot identifier.
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated, Any, cast
+from typing import Annotated, Any, Literal, cast
 
-from fastapi import APIRouter, File, Form, Query, Request, UploadFile, status
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from fastapi import APIRouter, File, Form, Query, Request, Response, UploadFile, status
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy.orm import Session
 
+from ...ai.logo_regions import Box
 from ...core.errors import NotFound, ValidationFailed
 from ...core.tenancy import assert_owns
-from ...models import Lot, User
+from ...models import Lot, LotPhoto, User
 from ...models.enums import (
     ConditionGrade,
     LotStatus,
     PhotoKind,
+    PhotoProtectionStatus,
     VerificationStatus,
     Visibility,
 )
-from ...services import approval_service, catalog_service
+from ...services import approval_service, catalog_service, photo_protection_service
+from ...storage import read_object
 from ..deps import CurrentBrand, CurrentPrincipal, Db, Principal, client_ip
 
 router = APIRouter(tags=["catalog"])
@@ -157,6 +160,25 @@ class ApproveIn(BaseModel):
     publish: bool = True
 
 
+class ProtectionRegionIn(BaseModel):
+    """An area to hide, as fractions of the image."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+    width: float = Field(gt=0, le=1)
+    height: float = Field(gt=0, le=1)
+
+
+class PhotoReviewIn(BaseModel):
+    """Null accepts the current result. An empty list means no brand mark."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    regions: list[ProtectionRegionIn] | None = Field(default=None, max_length=24)
+
+
 class ManifestLineOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -176,6 +198,19 @@ class PhotoOut(BaseModel):
     width: int | None = None
     height: int | None = None
     bytes_stored: int | None = None
+    protection_status: PhotoProtectionStatus
+    has_protected_copy: bool = False
+    protection_reviewed: bool = False
+    protection_detail: dict[str, Any] | None = None
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _protection_flags(cls, value: Any, handler: Any) -> PhotoOut:
+        photo: PhotoOut = handler(value)
+        if isinstance(value, LotPhoto):
+            photo.has_protected_copy = value.blurred_file_key is not None
+            photo.protection_reviewed = value.protection_reviewed_at is not None
+        return photo
 
 
 class DefectOut(BaseModel):
@@ -291,6 +326,59 @@ class ApprovalOut(BaseModel):
     created_at: Any
 
 
+class CatalogLotOut(BaseModel):
+    """A listing for buyers.
+
+    It has no brand identifier. Even an opaque id would let a buyer group an
+    unbranded brand's lots together and match them to its named ones.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    lot_code: str
+    category_id: str
+    title: str
+    description: str | None = None
+    season: str | None = None
+    condition_grade: ConditionGrade
+    total_pieces: int
+    retail_price_per_piece_pkr: int
+    lot_price_pkr: int
+    min_order_pieces: int
+    stock_city: str
+    status: LotStatus
+    visibility: Visibility
+    expiry_date: date | None = None
+    available_until: date | None = None
+    price_per_piece_pkr: float
+    discount_percent: float
+
+
+class CatalogPhotoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    kind: PhotoKind
+    sort_order: int
+    width: int | None = None
+    height: int | None = None
+
+
+class CatalogDefectOut(BaseModel):
+    issue: str
+    pieces_affected: int
+    photo_id: str | None = None
+
+
+class CatalogManifestLineOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    size: str
+    color: str
+    pieces: int
+
+
 class BrowseItemOut(BaseModel):
     """A listing as one viewer may see it.
 
@@ -300,9 +388,16 @@ class BrowseItemOut(BaseModel):
     to the client first.
     """
 
-    lot: LotOut
+    lot: CatalogLotOut
     brand_name: str
     brand_is_hidden: bool
+    cover_photo_id: str | None = None
+
+
+class CatalogDetailOut(BrowseItemOut):
+    photos: list[CatalogPhotoOut]
+    manifest_lines: list[CatalogManifestLineOut]
+    defects: list[CatalogDefectOut]
 
 
 class BrowseOut(BaseModel):
@@ -338,6 +433,51 @@ def _detail(db: Session, lot: Lot) -> LotDetailOut:
     payload = LotDetailOut.model_validate(lot)
     payload.excluded_cities = approval_service.excluded_cities_for(db, lot)
     return payload
+
+
+def _photo_on(lot: Lot, photo_id: str) -> LotPhoto:
+    photo = next((item for item in lot.photos if item.id == photo_id), None)
+    if photo is None:
+        raise NotFound("That photograph is not on this lot.")
+    return photo
+
+
+def _image_response(key: str) -> Response:
+    try:
+        data = read_object(key)
+    except FileNotFoundError:
+        raise NotFound("That photograph is not available.") from None
+    return Response(
+        content=data,
+        media_type="image/jpeg",
+        # Private, because every one of these sits behind a sign in.
+        headers={"Cache-Control": "private, max-age=300"},
+    )
+
+
+def _buyer_view(db: Session, principal: Principal, city: str | None) -> tuple[bool, str | None]:
+    """Whether this viewer counts as verified, and the city being bought for."""
+    user = db.get(User, principal.user_id)
+    profile = user.reseller_profile if user is not None else None
+    verified = (
+        profile is not None and VerificationStatus(profile.status) == VerificationStatus.VERIFIED
+    )
+    if city is None and profile is not None:
+        city = profile.city
+    return verified or principal.is_admin, city
+
+
+def _browse_item(db: Session, principal: Principal, lot: Lot) -> BrowseItemOut:
+    shown = approval_service.present(
+        db, lot, viewer_role=principal.role, viewer_brand_ids=principal.brand_ids
+    )
+    photos = photo_protection_service.buyer_photos(lot)
+    return BrowseItemOut(
+        lot=CatalogLotOut.model_validate(lot),
+        brand_name=shown.brand_name,
+        brand_is_hidden=shown.brand_is_hidden,
+        cover_photo_id=photos[0].id if photos else None,
+    )
 
 
 # ---------------------------------------------------------------------- lots
@@ -685,6 +825,71 @@ def remove_photo(
     db.commit()
 
 
+@router.get(
+    "/lots/{lot_id}/photos/{photo_id}/image",
+    operation_id="lots_photo_image",
+    response_class=Response,
+)
+def owner_photo_image(
+    lot_id: str,
+    photo_id: str,
+    principal: CurrentBrand,
+    db: Db,
+    variant: Annotated[Literal["original", "protected"], Query()] = "original",
+) -> Response:
+    """A photograph for its owner, either as uploaded or as buyers would see it."""
+    photo = _photo_on(_owned(db, principal, lot_id), photo_id)
+    key = photo.file_key if variant == "original" else photo.blurred_file_key
+    if key is None:
+        raise NotFound("This photograph has no protected copy.")
+    return _image_response(key)
+
+
+@router.post(
+    "/lots/{lot_id}/photos/protection/scan",
+    response_model=list[PhotoOut],
+    operation_id="lots_scan_photos_for_marks",
+)
+def scan_photos(lot_id: str, principal: CurrentBrand, db: Db, request: Request) -> list[PhotoOut]:
+    """Look for brand marks on an unbranded lot. One paid model call per new photo."""
+    lot = _owned(db, principal, lot_id)
+    photos = photo_protection_service.scan_lot(
+        db, lot=lot, actor=_actor(db, principal), ip=client_ip(request)
+    )
+    db.commit()
+    return [PhotoOut.model_validate(photo) for photo in photos]
+
+
+@router.put(
+    "/lots/{lot_id}/photos/{photo_id}/protection",
+    response_model=PhotoOut,
+    operation_id="lots_review_photo_protection",
+)
+def review_photo_protection(
+    lot_id: str,
+    photo_id: str,
+    body: PhotoReviewIn,
+    principal: CurrentBrand,
+    db: Db,
+    request: Request,
+) -> PhotoOut:
+    """Accept a result, or choose exactly which areas buyers must not see."""
+    lot = _owned(db, principal, lot_id)
+    regions = (
+        None if body.regions is None else [Box(r.x, r.y, r.width, r.height) for r in body.regions]
+    )
+    photo = photo_protection_service.review_photo(
+        db,
+        lot=lot,
+        photo_id=photo_id,
+        actor=_actor(db, principal),
+        regions=regions,
+        ip=client_ip(request),
+    )
+    db.commit()
+    return PhotoOut.model_validate(photo)
+
+
 # ----------------------------------------------------- approvals and protection
 
 
@@ -906,32 +1111,78 @@ def browse_catalog(
     lock applies to whichever city is being bought for, which is the thing the
     brand is protecting.
     """
-    user = db.get(User, principal.user_id)
-    profile = user.reseller_profile if user is not None else None
-    verified = (
-        profile is not None and VerificationStatus(profile.status) == VerificationStatus.VERIFIED
-    )
-    if city is None and profile is not None:
-        city = profile.city
-
+    verified, city = _buyer_view(db, principal, city)
     rows, total = approval_service.browse(
         db,
         role=principal.role,
-        reseller_is_verified=verified or principal.is_admin,
+        reseller_is_verified=verified,
         city=city,
         category_id=category_id,
         limit=limit,
         offset=offset,
     )
-
-    items: list[BrowseItemOut] = []
-    for lot in rows:
-        shown = approval_service.present(db, lot, viewer_role=principal.role)
-        items.append(
-            BrowseItemOut(
-                lot=LotOut.model_validate(lot),
-                brand_name=shown.brand_name,
-                brand_is_hidden=shown.brand_is_hidden,
-            )
-        )
+    items = [_browse_item(db, principal, lot) for lot in rows]
     return BrowseOut(items=items, total=total, limit=limit, offset=offset)
+
+
+def _catalog_lot(db: Session, principal: Principal, lot_id: str, city: str | None) -> Lot:
+    verified, city = _buyer_view(db, principal, city)
+    return approval_service.visible_lot(
+        db,
+        lot_id=lot_id,
+        role=principal.role,
+        reseller_is_verified=verified,
+        city=city,
+    )
+
+
+@router.get(
+    "/catalog/{lot_id}",
+    response_model=CatalogDetailOut,
+    operation_id="catalog_detail",
+)
+def catalog_detail(
+    lot_id: str,
+    principal: CurrentPrincipal,
+    db: Db,
+    city: Annotated[str | None, Query(max_length=80)] = None,
+) -> CatalogDetailOut:
+    """One listing, under the same rules as the catalogue."""
+    lot = _catalog_lot(db, principal, lot_id, city)
+    item = _browse_item(db, principal, lot)
+    photos = photo_protection_service.buyer_photos(lot)
+    shown_ids = {photo.id for photo in photos}
+    return CatalogDetailOut(
+        **item.model_dump(),
+        photos=[CatalogPhotoOut.model_validate(photo) for photo in photos],
+        manifest_lines=[CatalogManifestLineOut.model_validate(x) for x in lot.manifest_lines],
+        defects=[
+            CatalogDefectOut(
+                issue=defect.issue,
+                pieces_affected=defect.pieces_affected,
+                # A defect must not point at a photograph being withheld.
+                photo_id=defect.photo_id if defect.photo_id in shown_ids else None,
+            )
+            for defect in lot.defects
+        ],
+    )
+
+
+@router.get(
+    "/catalog/{lot_id}/photos/{photo_id}",
+    operation_id="catalog_photo_image",
+    response_class=Response,
+)
+def catalog_photo_image(
+    lot_id: str,
+    photo_id: str,
+    principal: CurrentPrincipal,
+    db: Db,
+    city: Annotated[str | None, Query(max_length=80)] = None,
+) -> Response:
+    """A photograph as buyers may see it, and never the original of a protected one."""
+    lot = _catalog_lot(db, principal, lot_id, city)
+    key = photo_protection_service.buyer_file_key(lot, _photo_on(lot, photo_id))
+    if key is None:
+        raise NotFound("That photograph is not available.")
+    return _image_response(key)

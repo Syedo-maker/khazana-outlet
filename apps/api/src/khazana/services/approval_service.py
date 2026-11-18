@@ -61,7 +61,7 @@ from ..models.enums import (
     VerificationStatus,
     Visibility,
 )
-from . import audit_service, catalog_service
+from . import audit_service, catalog_service, photo_protection_service
 
 # The listing payload captured at approval. Chosen so that the snapshot
 # answers the only question that matters in a dispute: was the buyer shown
@@ -161,6 +161,7 @@ def approve(
 
     if visibility is not None:
         lot.visibility = visibility
+    photo_protection_service.assert_ready(db, lot)
 
     lot.approved_at = datetime.now(UTC)
     lot.approved_by_user_id = actor.id
@@ -197,6 +198,7 @@ def publish(db: Session, *, lot: Lot, actor: User, ip: str | None = None) -> Lot
     """Put an approved lot into the catalogue."""
     if lot.approved_at is None:
         raise Conflict("This lot has never been approved, so it cannot go live.")
+    photo_protection_service.assert_ready(db, lot)
     return catalog_service.transition(db, lot=lot, to=LotStatus.LIVE, actor=actor, ip=ip)
 
 
@@ -227,6 +229,7 @@ def resume(db: Session, *, lot: Lot, actor: User, ip: str | None = None) -> Lot:
             "This lot lost its approval while it was paused, so it needs to be "
             "approved again before it can go live."
         )
+    photo_protection_service.assert_ready(db, lot)
     lot = catalog_service.transition(db, lot=lot, to=LotStatus.LIVE, actor=actor, ip=ip)
     _record_decision(db, lot=lot, actor=actor, action=ApprovalAction.RESUMED, ip=ip)
     return lot
@@ -519,16 +522,48 @@ def browse(
     return rows, int(total)
 
 
-def present(db: Session, lot: Lot, *, viewer_role: UserRole | None) -> Presentation:
+def visible_lot(
+    db: Session,
+    *,
+    lot_id: str,
+    role: UserRole | None,
+    reseller_is_verified: bool,
+    city: str | None,
+) -> Lot:
+    """One lot through the buyer rules, or the same 404 as a missing lot."""
+    lot = db.scalars(
+        select(Lot)
+        .where(
+            Lot.id == lot_id,
+            visibility_filter(role=role, reseller_is_verified=reseller_is_verified, city=city),
+        )
+        .options(
+            selectinload(Lot.photos),
+            selectinload(Lot.manifest_lines),
+            selectinload(Lot.defects),
+        )
+    ).first()
+    if lot is None:
+        raise NotFound("That lot is not available.")
+    return lot
+
+
+def present(
+    db: Session,
+    lot: Lot,
+    *,
+    viewer_role: UserRole | None,
+    viewer_brand_ids: list[str] | None = None,
+) -> Presentation:
     """Decide what name this viewer sees on this lot.
 
     The brand's own staff and an admin always see the real name: hiding it
-    from the owner would be a bug dressed as a feature. For everyone else an
-    unbranded lot shows the label instead, and that is the whole of the
-    unbranded promise.
+    from the owner would be a bug dressed as a feature. Every other viewer,
+    including staff of a competing brand, sees the label on an unbranded lot,
+    and that is the whole of the unbranded promise.
     """
     brand = _require_brand(db, lot.brand_id)
-    privileged = viewer_role in (UserRole.ADMIN, UserRole.BRAND)
+    privileged = viewer_role == UserRole.ADMIN or lot.brand_id in (viewer_brand_ids or [])
 
     if Visibility(lot.visibility) == Visibility.UNBRANDED and not privileged:
         return Presentation(
@@ -634,6 +669,10 @@ def _record_decision(
     snapshot["manifest_pieces"] = lot.manifest_total
     snapshot["manifest_lines"] = len(lot.manifest_lines)
     snapshot["photo_keys"] = [photo.file_key for photo in lot.photos]
+    snapshot["buyer_photo_keys"] = [
+        photo_protection_service.buyer_file_key(lot, photo)
+        for photo in photo_protection_service.buyer_photos(lot)
+    ]
     snapshot["defects"] = [
         {"issue": defect.issue, "pieces_affected": defect.pieces_affected} for defect in lot.defects
     ]

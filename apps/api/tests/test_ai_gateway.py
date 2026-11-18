@@ -634,6 +634,7 @@ class TestEveryEndpointBackedFeatureHasAFixture:
     # provider, never from a model, so there is nothing to record.
     ENDPOINT_FEATURES = (
         AiFeature.LISTING_FROM_PHOTOS,
+        AiFeature.LOGO_DETECTION,
         AiFeature.MANIFEST_EXTRACT,
         AiFeature.PRICING,
         AiFeature.RISK_SCORING,

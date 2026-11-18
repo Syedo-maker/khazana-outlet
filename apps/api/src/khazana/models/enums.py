@@ -101,6 +101,23 @@ class PhotoKind(StrEnum):
     PACKAGING = "packaging"
 
 
+class PhotoProtectionStatus(StrEnum):
+    """Where one photograph stands on the way to an unbranded listing.
+
+    PENDING: not inspected yet.
+    CLEAR: no brand mark to hide.
+    BLURRED: a protected copy exists with the marks hidden.
+    NEEDS_REVIEW: a person has to decide before a buyer can see it.
+    FAILED: inspection did not complete, so nothing is known about it.
+    """
+
+    PENDING = "pending"
+    CLEAR = "clear"
+    BLURRED = "blurred"
+    NEEDS_REVIEW = "needs_review"
+    FAILED = "failed"
+
+
 class OrderStatus(StrEnum):
     CREATED = "created"
     AWAITING_PAYMENT = "awaiting_payment"
