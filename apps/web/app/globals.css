@@ -46,6 +46,9 @@
 
 @layer components {
   .skip-link {
-    @apply absolute left-[-9999px] top-0 z-50 bg-brand px-4 py-3 text-white focus:left-0;
+    /* Moved up rather than far to the left, because in a right to left page a
+       large left offset becomes thousands of pixels of sideways scroll. */
+    @apply absolute top-0 z-50 -translate-y-full bg-brand px-4 py-3 text-white focus:translate-y-0;
+    inset-inline-start: 0;
   }
 }

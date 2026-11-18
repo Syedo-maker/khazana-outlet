@@ -7,7 +7,8 @@ import { AppShell, BRAND_NAV } from "@/components/AppShell";
 import { Badge, Card, CardBody } from "@/components/ui/Card";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/States";
 import { ApiError, catalog, type Lot, type LotStatus } from "@/lib/api";
-import { DEFAULT_LOCALE, type Locale, t } from "@/lib/i18n";
+import { useLocale } from "@/lib/hooks";
+import { t } from "@/lib/i18n";
 import { getAccessToken } from "@/lib/session";
 
 /** Status to badge tone. Never the only signal: the label always says it too. */
@@ -36,7 +37,7 @@ function pkr(amount: number): string {
  * which one is blocking from here, not after opening each.
  */
 export default function LotsPage() {
-  const locale: Locale = DEFAULT_LOCALE;
+  const locale = useLocale();
   const [lots, setLots] = useState<Lot[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,9 +62,17 @@ export default function LotsPage() {
 
   return (
     <AppShell nav={BRAND_NAV} locale={locale}>
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">{t(locale, "lots.title")}</h1>
-        <p className="mt-1 text-sm text-ink-soft">{t(locale, "lots.subtitle")}</p>
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">{t(locale, "lots.title")}</h1>
+          <p className="mt-1 text-sm text-ink-soft">{t(locale, "lots.subtitle")}</p>
+        </div>
+        <Link
+          href="/lots/new"
+          className="inline-flex min-h-touch items-center rounded bg-brand px-4 text-sm font-semibold text-white hover:bg-brand-hover"
+        >
+          {t(locale, "lots.new")}
+        </Link>
       </header>
 
       {error ? (

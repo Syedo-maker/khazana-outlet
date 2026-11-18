@@ -5,7 +5,7 @@
  * network failure message are handled once. A component never calls `fetch`.
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 /** The error shape the API returns from its own handler. */
 export type ApiErrorBody = { code: string; message: string };
@@ -48,7 +48,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
   let response: Response;
   try {
-    response = await fetch(`${BASE_URL}${path}`, {
+    response = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers,
       body: requestBody(body, isForm),
@@ -225,6 +225,14 @@ export type LotPhoto = {
   width: number | null;
   height: number | null;
   bytes_stored: number | null;
+  protection_status: "pending" | "clear" | "blurred" | "needs_review" | "failed";
+  has_protected_copy: boolean;
+  protection_reviewed: boolean;
+  protection_detail: {
+    source?: string;
+    review_reasons?: string[];
+    error?: string;
+  } | null;
 };
 
 export type LotDefect = {
@@ -244,6 +252,8 @@ export type Lot = {
   season: string | null;
   condition_grade: ConditionGrade;
   total_pieces: number;
+  reserved_pieces: number;
+  available_pieces: number;
   retail_price_per_piece_pkr: number;
   lot_price_pkr: number;
   min_order_pieces: number;

@@ -1,4 +1,26 @@
-import type { InputHTMLAttributes, ReactNode, Ref } from "react";
+import type {
+  InputHTMLAttributes,
+  ReactNode,
+  Ref,
+  SelectHTMLAttributes,
+  TextareaHTMLAttributes,
+} from "react";
+
+const CONTROL = "min-h-touch w-full rounded border border-line bg-surface px-3 py-2 text-base";
+
+export function SelectInput({
+  className = "",
+  ...rest
+}: SelectHTMLAttributes<HTMLSelectElement> & { id: string }) {
+  return <select className={`${CONTROL} ${className}`} {...rest} />;
+}
+
+export function TextArea({
+  className = "",
+  ...rest
+}: TextareaHTMLAttributes<HTMLTextAreaElement> & { id: string }) {
+  return <textarea rows={3} className={`${CONTROL} ${className}`} {...rest} />;
+}
 
 type FieldProps = {
   /** Required: an input without a label is not usable with a screen reader. */

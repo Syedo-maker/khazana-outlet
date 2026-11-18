@@ -1,32 +1,57 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
-import { type Locale, t } from "@/lib/i18n";
+import { api } from "@/lib/api";
+import { setLocale } from "@/lib/hooks";
+import { LOCALES, type Locale, t } from "@/lib/i18n";
+import { clearTokens, getAccessToken } from "@/lib/session";
 
 type NavItem = { href: string; labelKey: string };
+
+const LANGUAGE_NAMES: Record<Locale, string> = {
+  en: "English",
+  ur: "اردو",
+  ur_roman: "Roman Urdu",
+};
 
 /**
  * The application frame: header, navigation, main region.
  *
  * Mobile first. The navigation is a horizontally scrolling row on a phone and
- * a inline row from the small breakpoint upward. No hamburger menu for four
- * links, because a menu that hides four items costs a tap and gains nothing.
+ * an inline row from the small breakpoint upward.
  */
 export function AppShell({
   locale,
   children,
   nav = [],
-  onSignOut,
   userLabel,
 }: {
   locale: Locale;
   children: ReactNode;
   nav?: NavItem[];
-  onSignOut?: () => void;
   userLabel?: string;
 }) {
+  const [signedIn, setSignedIn] = useState(false);
+
+  useEffect(() => {
+    setSignedIn(Boolean(getAccessToken()));
+  }, []);
+
+  const signOut = async () => {
+    const token = getAccessToken();
+    if (token) {
+      try {
+        await api.signOut(token);
+      } catch {
+        // The local sign out below matters more than this request.
+      }
+    }
+    clearTokens();
+    window.location.href = "/login";
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b border-line bg-surface">
@@ -42,13 +67,28 @@ export function AppShell({
           </Link>
 
           <div className="flex items-center gap-3">
+            <label className="sr-only" htmlFor="language">
+              {t(locale, "nav.language")}
+            </label>
+            <select
+              id="language"
+              value={locale}
+              onChange={(event) => setLocale(event.target.value as Locale)}
+              className="min-h-touch rounded border border-line bg-surface px-2 text-sm"
+            >
+              {LOCALES.map((option) => (
+                <option key={option} value={option}>
+                  {LANGUAGE_NAMES[option]}
+                </option>
+              ))}
+            </select>
             {userLabel ? (
               <span className="hidden text-sm text-ink-soft sm:inline">{userLabel}</span>
             ) : null}
-            {onSignOut ? (
+            {signedIn ? (
               <button
                 type="button"
-                onClick={onSignOut}
+                onClick={() => void signOut()}
                 className="min-h-touch rounded px-3 text-sm font-semibold text-ink-soft hover:bg-surface-alt hover:text-ink"
               >
                 {t(locale, "nav.signOut")}
@@ -92,5 +132,26 @@ export function AppShell({
 export const BRAND_NAV: NavItem[] = [
   { href: "/dashboard", labelKey: "nav.dashboard" },
   { href: "/lots", labelKey: "nav.lots" },
+  { href: "/lots/queue", labelKey: "nav.approvals" },
   { href: "/orders", labelKey: "nav.orders" },
+  { href: "/payouts", labelKey: "nav.payouts" },
+];
+
+export const RESELLER_NAV: NavItem[] = [
+  { href: "/catalog", labelKey: "nav.catalog" },
+  { href: "/cart", labelKey: "nav.cart" },
+  { href: "/orders", labelKey: "nav.orders" },
+  { href: "/account", labelKey: "nav.account" },
+];
+
+export const ADMIN_NAV: NavItem[] = [
+  { href: "/admin", labelKey: "nav.overview" },
+  { href: "/admin/verification", labelKey: "nav.verification" },
+  { href: "/admin/listings", labelKey: "nav.listings" },
+  { href: "/orders", labelKey: "nav.orders" },
+  { href: "/admin/payments", labelKey: "nav.payments" },
+  { href: "/admin/disputes", labelKey: "nav.disputes" },
+  { href: "/admin/payouts", labelKey: "nav.payouts" },
+  { href: "/admin/settings", labelKey: "nav.settings" },
+  { href: "/admin/audit", labelKey: "nav.audit" },
 ];

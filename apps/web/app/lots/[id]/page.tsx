@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { AppShell, BRAND_NAV } from "@/components/AppShell";
 import { ManifestEditor } from "@/components/ManifestEditor";
+import { ProtectionPanel } from "@/components/ProtectionPanel";
 import { Badge, Card, CardBody, CardHeader, CardTitle, Stat } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Field, TextInput } from "@/components/ui/Field";
@@ -19,7 +20,8 @@ import {
   type PhotoKind,
   type Readiness,
 } from "@/lib/api";
-import { DEFAULT_LOCALE, type Locale, t } from "@/lib/i18n";
+import { useLocale } from "@/lib/hooks";
+import { t } from "@/lib/i18n";
 import { getAccessToken } from "@/lib/session";
 
 const TONES: Record<LotStatus, "neutral" | "ok" | "warn" | "danger" | "accent"> = {
@@ -60,7 +62,7 @@ function pkr(amount: number): string {
  * worse way to find that out.
  */
 export default function LotPage() {
-  const locale: Locale = DEFAULT_LOCALE;
+  const locale = useLocale();
   const params = useParams<{ id: string }>();
   const lotId = params.id;
 
@@ -299,6 +301,8 @@ export default function LotPage() {
           ) : null}
         </CardBody>
       </Card>
+
+      <ProtectionPanel lot={lot} token={token} locale={locale} onChanged={load} />
 
       <Card className="mb-6">
         <CardHeader>
