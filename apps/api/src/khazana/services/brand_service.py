@@ -528,6 +528,41 @@ def update_policy(
     return policy
 
 
+def set_unbranded_label(
+    db: Session,
+    *,
+    brand_id: str,
+    label: str,
+    actor: User,
+    ip: str | None = None,
+) -> Brand:
+    """Set what buyers read in place of the brand's name.
+
+    A label containing the name would defeat the point of having one.
+    """
+    brand = _get_brand(db, brand_id)
+    cleaned = " ".join(label.split())
+    if brand.name.casefold() in cleaned.casefold():
+        raise ValidationFailed("The label must not contain your brand name.")
+
+    before = {"unbranded_label": brand.unbranded_label}
+    brand.unbranded_label = cleaned[:160]
+    db.flush()
+    audit_service.record(
+        db,
+        action="brand.unbranded_label_set",
+        entity_type="brand",
+        entity_id=brand.id,
+        brand_id=brand.id,
+        actor_user_id=actor.id,
+        actor_role=actor.role,
+        before=before,
+        after={"unbranded_label": brand.unbranded_label},
+        ip=ip,
+    )
+    return brand
+
+
 def set_excluded_cities(
     db: Session, *, brand_id: str, cities: list[str], actor: User, ip: str | None = None
 ) -> list[str]:

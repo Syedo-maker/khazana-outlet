@@ -115,6 +115,12 @@ class DashboardOut(BaseModel):
     awaiting_payout_pkr: int
 
 
+class BrandProfileIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    unbranded_label: str = Field(min_length=3, max_length=160)
+
+
 class ReviewIn(BaseModel):
     approve: bool
     note: str | None = Field(default=None, max_length=500)
@@ -274,6 +280,37 @@ def request_verification(
     except AppError as exc:
         raise exc.as_http() from exc
 
+    db.commit()
+    return BrandOut.model_validate(brand)
+
+
+@router.patch(
+    "/{brand_id}/profile",
+    operation_id="brands_update_profile",
+    summary="Set the label buyers see on unbranded listings",
+    response_model=BrandOut,
+)
+def update_profile(
+    brand_id: str,
+    payload: BrandProfileIn,
+    principal: CurrentBrand,
+    db: Db,
+    request: Request,
+) -> BrandOut:
+    assert_owns(principal, brand_id)
+    user = db.get(User, principal.user_id)
+    if user is None:
+        raise NotFound("That account no longer exists.").as_http()
+    try:
+        brand = brand_service.set_unbranded_label(
+            db,
+            brand_id=brand_id,
+            label=payload.unbranded_label,
+            actor=user,
+            ip=client_ip(request),
+        )
+    except AppError as exc:
+        raise exc.as_http() from exc
     db.commit()
     return BrandOut.model_validate(brand)
 

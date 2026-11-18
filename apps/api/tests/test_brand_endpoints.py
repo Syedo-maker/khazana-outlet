@@ -161,6 +161,23 @@ class TestPolicyEndpoint:
         assert response.json()["allow_part_lot_orders"] is True
         assert response.json()["allow_cod"] is True
 
+    def test_the_unbranded_label_cannot_contain_the_brand_name(
+        self, client, db: Session, buyer
+    ) -> None:
+        brand = client.post(
+            "/brands",
+            headers=token_for(db, buyer),
+            json={"name": "Meher", "city": "Lahore"},
+        ).json()
+        url = f"/brands/{brand['id']}/profile"
+        headers = token_for(db, buyer)
+
+        refused = client.patch(url, headers=headers, json={"unbranded_label": "Meher surplus"})
+        assert refused.status_code == 422
+
+        saved = client.patch(url, headers=headers, json={"unbranded_label": "Leading lawn label"})
+        assert saved.json()["unbranded_label"] == "Leading lawn label"
+
     def test_a_brand_cannot_set_its_own_commission(self, client, db: Session, buyer) -> None:
         headers = token_for(db, buyer)
         brand = client.post(
