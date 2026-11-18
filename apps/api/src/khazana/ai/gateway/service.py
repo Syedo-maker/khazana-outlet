@@ -289,7 +289,7 @@ def _json_schema(model: type[BaseModel]) -> dict[str, Any]:
                 _tighten(item)
 
     _tighten(schema)
-    return {"type": "json_schema", "schema": schema, "name": model.__name__}
+    return {"type": "json_schema", "schema": schema}
 
 
 def _has_open_object(node: Any) -> bool:

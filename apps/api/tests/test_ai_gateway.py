@@ -457,6 +457,13 @@ class TestOutputSchemas:
         built = _json_schema(RiskScore)
         assert built["schema"]["additionalProperties"] is False
 
+    def test_the_output_format_has_only_the_fields_the_api_accepts(self) -> None:
+        """A live call answered 400 when this also carried a name."""
+        from khazana.ai.gateway.service import _json_schema
+        from khazana.ai.schemas import RiskScore
+
+        assert set(_json_schema(RiskScore)) == {"type", "schema"}
+
     def test_the_schema_sent_to_the_api_has_no_keyword_it_rejects(self) -> None:
         """Offline runs never reach the API, so only this catches a rejected schema."""
         from khazana.ai.gateway.service import _has_open_object, _json_schema
