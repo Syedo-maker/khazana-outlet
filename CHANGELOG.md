@@ -9,6 +9,25 @@ to match the plan would be a nicer looking lie.
 
 ## Unreleased
 
+### Migration baseline frozen, 2026-10-14
+
+- **Changed** Migration 0001 now writes out all 27 tables explicitly instead
+  of calling `create_all`. A schema change is a real migration from here, and
+  it applies to databases that already exist. Before this, a new column
+  reached a fresh database automatically and an existing one never, which is
+  why the development database was found missing `lot_photos.checksum`.
+- **Fixed** `reseller_profiles.user_id` declared uniqueness twice, so
+  autogenerate proposed a phantom constraint on every run.
+- **Fixed** The hand written pgvector index is excluded from autogenerate
+  comparison, so it is no longer proposed for deletion every run.
+- **Added** `alembic/env.py` renders the two custom column types correctly, so
+  the next autogenerate does not produce a migration that cannot run.
+
+Verified by comparing 600 lines of schema against what `create_all` produced,
+a downgrade and upgrade round trip, a SQLite run, a drift check that now
+reports nothing, and adding a column to a model to confirm it reaches an
+existing database.
+
 ### Decisions, 2026-10-14
 
 - **Decided** AI may choose a value only inside a band the brand set, and only
