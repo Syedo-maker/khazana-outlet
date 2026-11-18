@@ -627,7 +627,7 @@ def pending_queue(db: Session, *, brand_ids: list[str] | None, limit: int = 50) 
             QueueItem(
                 lot=lot,
                 risk_score=score,
-                risk_band=_band(score),
+                risk_band=risk_band(score),
                 findings=[finding.detail for finding in findings],
             )
         )
@@ -717,7 +717,7 @@ def _require_brand(db: Session, brand_id: str) -> Brand:
     return brand
 
 
-def _band(score: int) -> str:
+def risk_band(score: int) -> str:
     """Three buckets, because a queue sorted by a number nobody can interpret
     gets ignored. The thresholds are configuration in M8, where the admin
     moderation queue needs to tune them against real listings."""

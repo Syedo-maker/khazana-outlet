@@ -82,6 +82,7 @@ BRAND_AUDIT_FIELDS = (
     "contact_phone",
     "contact_email",
 )
+ADMIN_ONLY_POLICY_FIELDS = frozenset({"commission_percent", "payout_terms_days"})
 POLICY_AUDIT_FIELDS = (
     "commission_percent",
     "payout_terms_days",
@@ -475,6 +476,12 @@ def update_policy(
         "auto_apply_ai_draft",
         "ai_monthly_budget_usd",
     }
+
+    # The platform's own commercial terms are agreed with the brand and entered
+    # by an admin. A brand setting its own commission would be setting what it
+    # pays the platform.
+    if actor.role != UserRole.ADMIN and set(changes) & ADMIN_ONLY_POLICY_FIELDS:
+        raise Forbidden("Commission and payout terms are changed by Khazana Outlet.")
 
     rejected = set(changes) - editable
     if rejected:

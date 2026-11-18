@@ -20,6 +20,15 @@ from khazana.models.enums import PaymentMethod, UserRole, VerificationStatus, Vi
 from khazana.services import approval_service, order_service
 from khazana.services.order_service import Delivery, LineChoice, Purchase
 
+BASE_LOT_JSON = {
+    "title": "Printed lawn suits, mixed sizes",
+    "condition_grade": "A",
+    "total_pieces": 100,
+    "retail_price_per_piece_pkr": 1000,
+    "lot_price_pkr": 30_000,
+    "min_order_pieces": 10,
+    "stock_city": "Lahore",
+}
 DELIVERY = Delivery(city="Multan", address="Shop 12, Hussain Agahi", phone="03001234567")
 DELIVERY_JSON = {
     "delivery_city": "Multan",
