@@ -259,20 +259,25 @@ def search_by_photo(
     except images.ImageError as exc:
         raise ValidationFailed(str(exc)) from exc
 
-    hits = embeddings.search_by_image(
-        db,
-        prepared,
-        limit=VECTOR_CANDIDATES,
-        exclude_private=not viewer.verified,
-        exclude_unbranded=True,
-    )
+    # The stand in hashes exact bytes. A stored photograph that is uploaded again
+    # only matches as it is, because preparing it a second time changes them.
+    stand_in = isinstance(embeddings.get_provider(), embeddings.HashingProvider)
+    queries = [prepared, data] if stand_in and data != prepared else [prepared]
+
     ranked: dict[str, float] = {}
-    for hit in hits:
-        if hit.similarity >= MIN_PHOTO_SIMILARITY:
-            ranked[hit.lot.id] = max(hit.similarity, ranked.get(hit.lot.id, 0.0))
+    for query_image in queries:
+        hits = embeddings.search_by_image(
+            db,
+            query_image,
+            limit=VECTOR_CANDIDATES,
+            exclude_private=not viewer.verified,
+            exclude_unbranded=True,
+        )
+        for hit in hits:
+            if hit.similarity >= MIN_PHOTO_SIMILARITY:
+                ranked[hit.lot.id] = max(hit.similarity, ranked.get(hit.lot.id, 0.0))
 
     lots = _ranked_visible(db, ranked, filters, viewer)
-    stand_in = isinstance(embeddings.get_provider(), embeddings.HashingProvider)
     return SearchResult(
         lots=lots[offset : offset + limit],
         total=len(lots),
