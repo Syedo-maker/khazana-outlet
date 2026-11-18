@@ -11,7 +11,7 @@ inside the same images that CI uses.
 | Service | Image or build | Port | Notes |
 | --- | --- | --- | --- |
 | `db` | `pgvector/pgvector:pg16` | 127.0.0.1:55432 | PostgreSQL 16 with the vector extension, so visual search needs no second datastore |
-| `redis` | `redis:7-alpine` | 127.0.0.1:6379 | OTP store and job queue, append only persistence |
+| `redis` | `redis:7-alpine` | 127.0.0.1:56379 | OTP store and job queue, append only persistence |
 | `api` | `apps/api/Dockerfile`, target `dev` | 8000 | FastAPI with reload, docs at `/docs` |
 | `web` | `apps/web/Dockerfile`, target `dev` | 3000 | Next.js dev server |
 

@@ -68,9 +68,13 @@ services:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
     ports:
+      # 56379 on the host, not 6379, because a native Redis on this machine can
+      # already hold that port and would stop the whole stack from starting.
+      # Containers reach this one at redis:6379 over the compose network.
+      #
       # Localhost only, same reason as the database. Redis has no password at
       # all here, so an open port would be worse.
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:56379:6379"
     volumes:
       - redis_data:/data
     healthcheck:

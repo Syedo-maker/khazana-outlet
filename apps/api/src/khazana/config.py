@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://khazana:khazana@localhost:55432/khazana"
 
     # ---------- Redis ----------
-    redis_url: str = "redis://localhost:6379/0"
+    redis_url: str = "redis://localhost:56379/0"
 
     # ---------- Auth ----------
     access_token_ttl_minutes: int = 60
