@@ -181,6 +181,12 @@ class TestPrompts:
         with pytest.raises(prompts.PromptNotFound):
             prompts.load("no_such_prompt")
 
+    def test_the_category_list_reaches_the_system_prompt(self) -> None:
+        prompt = prompts.load("listing_from_photos")
+        system = prompt.render_system(category_list="- lawn: Lawn")
+        assert "- lawn: Lawn" in system
+        assert "{category_list}" not in system
+
     def test_all_prompts_are_discoverable(self) -> None:
         found = prompts.all_prompts()
         assert "listing_from_photos" in found

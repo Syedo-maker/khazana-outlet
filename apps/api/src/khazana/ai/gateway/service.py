@@ -129,7 +129,7 @@ def run_feature(
     try:
         reply = client.call_model(
             model=route.model_id,
-            system=prompt.system,
+            system=prompt.render_system(**prompt_values),
             user_text=user_text,
             output_schema=_json_schema(schema_model),
             images=images,
@@ -149,8 +149,10 @@ def run_feature(
         logger.exception("ai feature failed feature=%s job=%s", feature.value, job.id)
         raise
 
+    # Every call today goes through the live endpoint, including routes marked
+    # for batch, so none of them earn the batch discount yet.
     call_cost = cost.price_call(
-        reply.model, reply.usage, AiMode.OFFLINE if reply.from_fixture else route.mode
+        reply.model, reply.usage, AiMode.OFFLINE if reply.from_fixture else AiMode.LIVE
     )
 
     try:
