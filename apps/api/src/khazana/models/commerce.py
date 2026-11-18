@@ -418,14 +418,49 @@ class Shipment(UUIDPrimaryKey, TimestampMixin, Base):
     cartons: Mapped[int | None] = mapped_column(Integer, default=None)
     weight_kg: Mapped[float | None] = mapped_column(Numeric(8, 2), default=None)
     label_key: Mapped[str | None] = mapped_column(String(500), default=None)
+    pickup_scheduled_for: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
     picked_up_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
 
     order: Mapped[Order] = relationship(back_populates="shipments")
+    events: Mapped[list[ShipmentEvent]] = relationship(
+        back_populates="shipment",
+        cascade="all, delete-orphan",
+        order_by="ShipmentEvent.created_at",
+    )
 
     __table_args__ = (
         UniqueConstraint("courier", "tracking_number", name="one_shipment_per_tracking_number"),
         Index("ix_shipments_order", "order_id"),
+    )
+
+
+class ShipmentEvent(UUIDPrimaryKey, TimestampMixin, Base):
+    """One tracking update. Append only."""
+
+    __tablename__ = "shipment_events"
+
+    shipment_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("shipments.id", ondelete="CASCADE"), nullable=False
+    )
+    brand_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("brands.id", ondelete="RESTRICT"), nullable=False
+    )
+    status: Mapped[ShipmentStatus] = mapped_column(nullable=False)
+    location: Mapped[str | None] = mapped_column(String(120), default=None)
+    note: Mapped[str | None] = mapped_column(String(300), default=None)
+    # The courier's own id, so a repeated update is applied once.
+    provider_event_id: Mapped[str | None] = mapped_column(String(120), default=None)
+
+    shipment: Mapped[Shipment] = relationship(back_populates="events")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "shipment_id", "provider_event_id", name="one_shipment_event_per_provider_id"
+        ),
+        Index("ix_shipment_events_shipment", "shipment_id", "created_at"),
     )
 
 

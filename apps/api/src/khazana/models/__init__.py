@@ -39,6 +39,7 @@ from .commerce import (
     Payout,
     PayoutRun,
     Shipment,
+    ShipmentEvent,
     ShippingRate,
 )
 from .identity import OtpChallenge, ResellerProfile, Session, User
@@ -63,6 +64,7 @@ BRAND_SCOPED_TABLES: tuple[str, ...] = (
     "order_returns",
     "payouts",
     "shipments",
+    "shipment_events",
     "disputes",
 )
 
@@ -101,6 +103,7 @@ __all__ = [
     "SavedSearch",
     "Session",
     "Shipment",
+    "ShipmentEvent",
     "ShippingRate",
     "User",
     "Vector",
