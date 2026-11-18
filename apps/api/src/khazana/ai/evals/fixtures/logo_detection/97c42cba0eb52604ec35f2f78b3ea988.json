@@ -1,0 +1,26 @@
+{
+  "_case": "tone_on_tone_mark",
+  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
+  "content": {
+    "image_readable": true,
+    "needs_human_review": true,
+    "regions": [
+      {
+        "confidence": 0.45,
+        "height": 0.0303,
+        "kind": "logo",
+        "width": 0.2539,
+        "x": 0.3763,
+        "y": 0.3174
+      }
+    ],
+    "review_reason": "A faint mark may be present and is hard to judge."
+  },
+  "model": "claude-opus-5-5",
+  "usage": {
+    "cache_read_tokens": 1800,
+    "cache_write_tokens": 0,
+    "input_tokens": 3900,
+    "output_tokens": 420
+  }
+}

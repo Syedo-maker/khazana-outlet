@@ -52,10 +52,14 @@ def run_suite(db: Session, suite: EvalSuite, *, record: bool) -> list[CaseOutcom
     outcomes: list[CaseOutcome] = []
 
     for case in suite.cases:
-        # Placeholder images. The eval exercises the prompt, the schema and the
-        # graders; it is not a vision benchmark. Real photographs belong in a
-        # labelled set added in Phase 2 week 7.
-        images = [b"eval-placeholder-image"] * case.images
+        # A case with an image factory is graded on what the model can see.
+        # The others send placeholders: they exercise the prompt, the schema
+        # and the graders, and are not a vision benchmark.
+        images = (
+            [case.image_factory() for _ in range(case.images)]
+            if case.image_factory is not None
+            else [b"eval-placeholder-image"] * case.images
+        )
 
         try:
             result = run_feature(

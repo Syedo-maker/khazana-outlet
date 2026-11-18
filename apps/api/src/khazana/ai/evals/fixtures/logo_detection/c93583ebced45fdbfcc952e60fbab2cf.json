@@ -1,0 +1,26 @@
+{
+  "_case": "wordmark_on_chest",
+  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
+  "content": {
+    "image_readable": true,
+    "needs_human_review": false,
+    "regions": [
+      {
+        "confidence": 0.92,
+        "height": 0.0352,
+        "kind": "logo",
+        "width": 0.3008,
+        "x": 0.3503,
+        "y": 0.3047
+      }
+    ],
+    "review_reason": null
+  },
+  "model": "claude-opus-5-5",
+  "usage": {
+    "cache_read_tokens": 1800,
+    "cache_write_tokens": 0,
+    "input_tokens": 3900,
+    "output_tokens": 420
+  }
+}

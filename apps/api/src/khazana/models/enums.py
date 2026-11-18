@@ -162,6 +162,7 @@ class AiFeature(StrEnum):
     """
 
     LISTING_FROM_PHOTOS = "listing_from_photos"
+    LOGO_DETECTION = "logo_detection"
     MANIFEST_EXTRACT = "manifest_extract"
     PRICING = "pricing"
     RISK_SCORING = "risk_scoring"

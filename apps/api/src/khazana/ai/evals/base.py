@@ -45,6 +45,9 @@ class EvalCase:
     # here fail the build.
     must_pass: bool = False
     note: str = ""
+    # Builds the real photograph for a suite that grades what the model sees.
+    # Without it the runner sends placeholder bytes, ``images`` times.
+    image_factory: Callable[[], bytes] | None = None
 
 
 @dataclass(frozen=True, slots=True)

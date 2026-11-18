@@ -53,6 +53,18 @@ ROUTES: dict[AiFeature, Route] = {
         max_tokens=2_000,
         requires_vision=True,
     ),
+    # A missed logo exposes a brand that was promised anonymity, so this route
+    # does not economise either. The prompt is too short to reach the minimum
+    # cacheable size, so asking for a cache would only log a warning per call.
+    AiFeature.LOGO_DETECTION: Route(
+        feature=AiFeature.LOGO_DETECTION,
+        model_id=OPUS_5_5,
+        effort="medium",
+        mode=AiMode.LIVE,
+        cache_prefix=False,
+        max_tokens=2_000,
+        requires_vision=True,
+    ),
     # Nobody waits for a spreadsheet to be cleaned, so it goes in a batch.
     AiFeature.MANIFEST_EXTRACT: Route(
         feature=AiFeature.MANIFEST_EXTRACT,

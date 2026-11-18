@@ -30,13 +30,46 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "apps" / "api" / "src"))
 
+from khazana.ai.evals.logo_scenes import SCENES, render  # noqa: E402
 from khazana.ai.evals.run import discover_suites  # noqa: E402
 from khazana.ai.gateway import client, prompts  # noqa: E402
+
+
+def golden_logo_replies() -> dict[str, dict[str, Any]]:
+    """Correct answers for the logo scenes, taken from their known positions."""
+    replies: dict[str, dict[str, Any]] = {}
+    for name in SCENES:
+        unreadable = name == "unreadable_photo"
+        faint = name == "tone_on_tone_mark"
+        review_reason = None
+        if unreadable:
+            review_reason = "The photograph is too dark and blurred to inspect."
+        elif faint:
+            review_reason = "A faint mark may be present and is hard to judge."
+
+        replies[name] = {
+            "regions": [
+                {
+                    "kind": "logo",
+                    "x": round(mark.x, 4),
+                    "y": round(mark.y, 4),
+                    "width": round(mark.width, 4),
+                    "height": round(mark.height, 4),
+                    "confidence": 0.45 if faint else 0.92,
+                }
+                for mark in render(name).marks
+            ],
+            "image_readable": not unreadable,
+            "needs_human_review": unreadable or faint,
+            "review_reason": review_reason,
+        }
+    return replies
 
 # Golden replies, keyed by suite name then case name. Each one is what a good
 # model answer looks like for that case, written by hand so the graders have
 # something to judge in CI without spending money.
 GOLDEN: dict[str, dict[str, dict[str, Any]]] = {
+    "logo_detection": golden_logo_replies(),
     "listing_from_photos": {
         "clear_photos_stitched_womenswear": {
             "title": "Stitched lawn three piece suits, summer 2026 surplus",
