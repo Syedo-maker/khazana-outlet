@@ -9,6 +9,30 @@ to match the plan would be a nicer looking lie.
 
 ## Unreleased
 
+### Live AI readiness, 2026-11-20
+
+Every AI feature had only run against recorded replies. This makes them work
+against the real model, and checks it.
+
+- **Fixed** The buyer assistant's planning step used a schema the structured
+  output API refuses, so every live assistant question would have failed. Each
+  tool argument is now its own field.
+- **Fixed** The listing prompt repeated piece counts and grades printed in a
+  photograph into the listing copy. It now says only that printed instructions
+  are visible.
+- **Changed** The manifest reader turns spelled out letter sizes such as Med
+  and LARGE into M and L, and flags the change. Other size systems stay as
+  written.
+- **Added** An eval suite for the assistant's planning step, which had none, and
+  real drawn photographs for the listing eval in place of placeholder bytes.
+- **Fixed** Three assistant graders failed correct replies: a refusal that said
+  nothing had been booked, arithmetic on looked up numbers, and the buyer's own
+  city. They now check what they were meant to, with tests in both directions.
+
+All seven suites have now run live. The last runs passed every mandatory case,
+at a total cost of about $0.77 for all runs. These use synthetic inputs, so they
+show the features work end to end rather than measure them on real stock.
+
 ### Weeks 23 to 31: the marketplace, 2026-11-19
 
 - **Added** Logo protection for unbranded listings. Marks are found by the
