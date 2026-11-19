@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..models.enums import ConditionGrade
 
@@ -172,14 +172,64 @@ class AssistantAnswer(BaseModel):
     decline_reason: str | None = None
 
 
+TOOL_ARGUMENT_FIELDS = (
+    "query",
+    "category",
+    "city",
+    "max_price_per_piece_pkr",
+    "lot_code",
+    "pieces",
+    "order_code",
+    "to_city",
+)
+
+
 class PlannedToolCall(BaseModel):
+    """One planned lookup, with each possible argument as its own field.
+
+    A free form arguments object cannot be expressed in the closed schema the
+    structured output API requires, so every argument any tool takes is listed
+    here and the ones a tool does not use stay null. Which ones apply is checked
+    against the tool itself when the plan runs, so a malformed plan becomes a
+    recoverable error rather than a lost turn.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     tool: str = Field(max_length=60)
-    # Arguments are validated against the tool's own signature when it runs,
-    # not here. A permissive shape at this layer keeps a malformed plan a
-    # recoverable error rather than a schema failure that loses the turn.
-    arguments: dict[str, Any] = Field(default_factory=dict)
+    query: str | None = Field(default=None, max_length=200)
+    category: str | None = Field(default=None, max_length=120)
+    city: str | None = Field(default=None, max_length=80)
+    max_price_per_piece_pkr: int | None = None
+    lot_code: str | None = Field(default=None, max_length=24)
+    pieces: int | None = None
+    order_code: str | None = Field(default=None, max_length=24)
+    to_city: str | None = Field(default=None, max_length=80)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _unpack_arguments(cls, value: Any) -> Any:
+        """Accept the older shape, an ``arguments`` object, and flatten it.
+
+        Keys that are not arguments of any tool are dropped here, and the call
+        then fails at the tool for the argument it is missing.
+        """
+        if isinstance(value, dict) and isinstance(value.get("arguments"), dict):
+            flattened = {key: item for key, item in value.items() if key != "arguments"}
+            for key, item in value["arguments"].items():
+                if key in TOOL_ARGUMENT_FIELDS:
+                    flattened.setdefault(key, item)
+            return flattened
+        return value
+
+    @property
+    def arguments(self) -> dict[str, Any]:
+        """The arguments that were filled in."""
+        return {
+            name: getattr(self, name)
+            for name in TOOL_ARGUMENT_FIELDS
+            if getattr(self, name) is not None
+        }
 
 
 class ToolPlan(BaseModel):

@@ -52,6 +52,12 @@ MAX_TOOL_CALLS = 6
 MAX_TOOL_RESULT_CHARS = 6_000
 
 KNOWN_TOOLS = {schema["name"] for schema in catalog_tools.TOOL_SCHEMAS}
+# The arguments each tool accepts. A plan fills in every field it likes, so the
+# ones a tool does not take are left out before it runs.
+TOOL_PARAMETERS = {
+    schema["name"]: set(schema["input_schema"]["properties"])
+    for schema in catalog_tools.TOOL_SCHEMAS
+}
 
 
 @dataclass(slots=True)
@@ -167,8 +173,13 @@ def execute_plan(
 
         label = f"{call.tool}#{index + 1}"
         try:
+            arguments = {
+                name: value
+                for name, value in call.arguments.items()
+                if name in TOOL_PARAMETERS[call.tool]
+            }
             results[label] = catalog_tools.run_tool(
-                db, call.tool, call.arguments, buyer_user_id=buyer_user_id
+                db, call.tool, arguments, buyer_user_id=buyer_user_id
             )
             executed.append(call.tool)
         except TypeError as exc:

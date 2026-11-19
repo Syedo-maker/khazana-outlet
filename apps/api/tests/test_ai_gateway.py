@@ -520,14 +520,12 @@ class TestOutputSchemas:
                 }
             )
 
-    def test_a_free_form_field_is_not_silently_closed(self) -> None:
-        """Closing it would make every planned tool call lose its arguments."""
-        from khazana.ai.gateway.service import _json_schema
+    def test_the_assistant_plan_schema_is_closed(self) -> None:
+        """The plan used to carry a free form object, which the API refuses."""
+        from khazana.ai.gateway.service import _has_open_object, _json_schema
         from khazana.ai.schemas import ToolPlan
 
-        built = _json_schema(ToolPlan)["schema"]
-        arguments = built["$defs"]["PlannedToolCall"]["properties"]["arguments"]
-        assert arguments["additionalProperties"] is True
+        assert not _has_open_object(_json_schema(ToolPlan)["schema"])
 
 
 class TestAiFailuresReachTheCaller:

@@ -56,10 +56,13 @@ def run_suite(db: Session, suite: EvalSuite, *, record: bool) -> list[CaseOutcom
         # The others send placeholders: they exercise the prompt, the schema
         # and the graders, and are not a vision benchmark.
         images = (
-            [case.image_factory() for _ in range(case.images)]
+            list(case.image_factory())
             if case.image_factory is not None
             else [b"eval-placeholder-image"] * case.images
         )
+        # The fixture key counts images, so the two must agree.
+        if len(images) != case.images:
+            raise ValueError(f"{case.name} declares {case.images} images, got {len(images)}")
 
         try:
             result = run_feature(
@@ -68,6 +71,7 @@ def run_suite(db: Session, suite: EvalSuite, *, record: bool) -> list[CaseOutcom
                 prompt_name=suite.prompt_name,
                 prompt_values=case.prompt_values,
                 images=images,
+                output_schema=suite.output_schema,
                 record_fixture=record,
             )
         except Exception as exc:
