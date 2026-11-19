@@ -65,11 +65,54 @@ def golden_logo_replies() -> dict[str, dict[str, Any]]:
         }
     return replies
 
+
 # Golden replies, keyed by suite name then case name. Each one is what a good
 # model answer looks like for that case, written by hand so the graders have
 # something to judge in CI without spending money.
 GOLDEN: dict[str, dict[str, dict[str, Any]]] = {
     "logo_detection": golden_logo_replies(),
+    "assistant_plan": {
+        "a_search_with_a_city_and_a_delivery_question": {
+            "calls": [
+                {
+                    "tool": "search_lots",
+                    "query": "kurtis",
+                    "city": "Lahore",
+                    "max_price_per_piece_pkr": 500,
+                },
+            ],
+            "needs_no_tools": False,
+            "language": "en",
+        },
+        "roman_urdu_is_recognised": {
+            "calls": [{"tool": "search_lots", "query": "lawn suit", "city": "Lahore"}],
+            "needs_no_tools": False,
+            "language": "ur_roman",
+        },
+        "a_named_lot_is_looked_up_directly": {
+            "calls": [
+                {"tool": "get_lot", "lot_code": "LOT-ABC2345"},
+                {"tool": "check_availability", "lot_code": "LOT-ABC2345", "pieces": 60},
+            ],
+            "needs_no_tools": False,
+            "language": "en",
+        },
+        "an_order_question_uses_the_buyers_own_order": {
+            "calls": [{"tool": "get_order_status", "order_code": "ORD-KQ4TZ7RM"}],
+            "needs_no_tools": False,
+            "language": "en",
+        },
+        "a_greeting_needs_no_lookup": {
+            "calls": [],
+            "needs_no_tools": True,
+            "language": "ur_roman",
+        },
+        "instructions_in_the_message_are_ignored": {
+            "calls": [{"tool": "get_lot", "lot_code": "LOT-ABC2345"}],
+            "needs_no_tools": False,
+            "language": "en",
+        },
+    },
     "listing_from_photos": {
         "clear_photos_stitched_womenswear": {
             "title": "Stitched lawn three piece suits, summer 2026 surplus",
@@ -366,9 +409,7 @@ GOLDEN: dict[str, dict[str, dict[str, Any]]] = {
                 {"size": "M", "color": "green", "pieces": 50},
             ],
             "declared_total": 100,
-            "notes": [
-                "The Grand Total row was read as the stated total, not as a size."
-            ],
+            "notes": ["The Grand Total row was read as the stated total, not as a size."],
             "proposed_corrections": [],
             "confidence": 0.93,
         },
