@@ -16,6 +16,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -25,6 +26,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -63,6 +65,9 @@ class Order(UUIDPrimaryKey, TimestampMixin, Base):
 
     pieces: Mapped[int] = mapped_column(Integer, nullable=False)
     unit_price_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Lot prices rarely divide evenly by the piece count. Whoever takes the last
+    # of a lot gets this correction, so the orders add up to the listed price.
+    rounding_adjustment_pkr: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     subtotal_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
     shipping_pkr: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     total_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -74,6 +79,9 @@ class Order(UUIDPrimaryKey, TimestampMixin, Base):
     brand_payout_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
 
     status: Mapped[OrderStatus] = mapped_column(nullable=False, default=OrderStatus.CREATED)
+    payment_method: Mapped[PaymentMethod] = mapped_column(
+        nullable=False, default=PaymentMethod.BANK_TRANSFER
+    )
     delivery_city: Mapped[str] = mapped_column(String(80), nullable=False)
     delivery_address: Mapped[str] = mapped_column(String(500), nullable=False)
     delivery_phone: Mapped[str] = mapped_column(String(11), nullable=False)
@@ -83,6 +91,7 @@ class Order(UUIDPrimaryKey, TimestampMixin, Base):
     dispute_window_ends_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=None
     )
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     cancellation_reason: Mapped[str | None] = mapped_column(String(500), default=None)
@@ -95,6 +104,12 @@ class Order(UUIDPrimaryKey, TimestampMixin, Base):
     shipments: Mapped[list[Shipment]] = relationship(back_populates="order")
     disputes: Mapped[list[Dispute]] = relationship(back_populates="order")
     payout: Mapped[Payout | None] = relationship(back_populates="order", uselist=False)
+    events: Mapped[list[OrderEvent]] = relationship(
+        back_populates="order", cascade="all, delete-orphan", order_by="OrderEvent.created_at"
+    )
+    returns: Mapped[list[OrderReturn]] = relationship(
+        back_populates="order", cascade="all, delete-orphan", order_by="OrderReturn.created_at"
+    )
 
     __table_args__ = (
         CheckConstraint("pieces > 0", name="order_pieces_positive"),
@@ -103,7 +118,10 @@ class Order(UUIDPrimaryKey, TimestampMixin, Base):
         CheckConstraint("commission_pkr >= 0", name="order_commission_non_negative"),
         # The arithmetic is constrained, not merely computed in Python, so no
         # code path can persist an order whose totals do not add up.
-        CheckConstraint("subtotal_pkr = pieces * unit_price_pkr", name="order_subtotal_consistent"),
+        CheckConstraint(
+            "subtotal_pkr = pieces * unit_price_pkr + rounding_adjustment_pkr",
+            name="order_subtotal_consistent",
+        ),
         CheckConstraint("total_pkr = subtotal_pkr + shipping_pkr", name="order_total_consistent"),
         CheckConstraint(
             "brand_payout_pkr = subtotal_pkr - commission_pkr", name="order_payout_consistent"
@@ -145,6 +163,114 @@ class OrderLine(UUIDPrimaryKey, TimestampMixin, Base):
     )
 
 
+class OrderEvent(UUIDPrimaryKey, TimestampMixin, Base):
+    """One step in an order's life. Append only, and shown to both sides."""
+
+    __tablename__ = "order_events"
+
+    order_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False
+    )
+    brand_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("brands.id", ondelete="RESTRICT"), nullable=False
+    )
+    from_status: Mapped[OrderStatus | None] = mapped_column(default=None)
+    to_status: Mapped[OrderStatus] = mapped_column(nullable=False)
+    actor_user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), default=None
+    )
+    actor_role: Mapped[str] = mapped_column(String(32), nullable=False)
+    note: Mapped[str | None] = mapped_column(String(500), default=None)
+
+    order: Mapped[Order] = relationship(back_populates="events")
+
+    __table_args__ = (Index("ix_order_events_order", "order_id", "created_at"),)
+
+
+class OrderReturn(UUIDPrimaryKey, TimestampMixin, Base):
+    """Goods that came back, recorded against the order they were sold on."""
+
+    __tablename__ = "order_returns"
+
+    order_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False
+    )
+    brand_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("brands.id", ondelete="RESTRICT"), nullable=False
+    )
+    pieces: Mapped[int] = mapped_column(Integer, nullable=False)
+    reason: Mapped[str] = mapped_column(String(500), nullable=False)
+    recorded_by_user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), default=None
+    )
+
+    order: Mapped[Order] = relationship(back_populates="returns")
+
+    __table_args__ = (
+        CheckConstraint("pieces > 0", name="return_pieces_positive"),
+        Index("ix_order_returns_order", "order_id"),
+    )
+
+
+class CartItem(UUIDPrimaryKey, TimestampMixin, Base):
+    """A lot a buyer intends to order. Holds no stock until checkout."""
+
+    __tablename__ = "cart_items"
+
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    lot_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("lots.id", ondelete="CASCADE"), nullable=False
+    )
+    whole_lot: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # {"lines": [{"size": ..., "color": ..., "pieces": ...}]} for a part lot.
+    selection: Mapped[dict[str, object] | None] = mapped_column(default=None)
+
+    __table_args__ = (UniqueConstraint("user_id", "lot_id", name="one_cart_item_per_lot"),)
+
+
+class Courier(UUIDPrimaryKey, TimestampMixin, Base):
+    """A delivery company. Which one is used is configuration, not code."""
+
+    __tablename__ = "couriers"
+
+    code: Mapped[str] = mapped_column(String(40), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    rates: Mapped[list[ShippingRate]] = relationship(
+        back_populates="courier", cascade="all, delete-orphan"
+    )
+
+
+class ShippingRate(UUIDPrimaryKey, TimestampMixin, Base):
+    """What a route costs. An empty city matches any city."""
+
+    __tablename__ = "shipping_rates"
+
+    courier_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("couriers.id", ondelete="CASCADE"), nullable=False
+    )
+    origin_city: Mapped[str | None] = mapped_column(String(80), default=None)
+    destination_city: Mapped[str | None] = mapped_column(String(80), default=None)
+    base_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
+    per_kg_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Used when a lot has no stated weight.
+    default_piece_grams: Mapped[int] = mapped_column(Integer, nullable=False, default=300)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    courier: Mapped[Courier] = relationship(back_populates="rates")
+
+    __table_args__ = (
+        CheckConstraint("base_pkr >= 0", name="rate_base_non_negative"),
+        CheckConstraint("per_kg_pkr >= 0", name="rate_per_kg_non_negative"),
+        CheckConstraint("default_piece_grams > 0", name="rate_piece_weight_positive"),
+        Index("ix_shipping_rates_courier", "courier_id"),
+    )
+
+
 class Payment(UUIDPrimaryKey, TimestampMixin, Base):
     """Money in from a buyer, and the escrow state machine.
 
@@ -161,6 +287,7 @@ class Payment(UUIDPrimaryKey, TimestampMixin, Base):
     method: Mapped[PaymentMethod] = mapped_column(nullable=False)
     status: Mapped[PaymentStatus] = mapped_column(nullable=False, default=PaymentStatus.PENDING)
     amount_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
+    refunded_pkr: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     provider: Mapped[str | None] = mapped_column(String(40), default=None)
     provider_reference: Mapped[str | None] = mapped_column(String(120), default=None)
     held_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
@@ -174,10 +301,66 @@ class Payment(UUIDPrimaryKey, TimestampMixin, Base):
 
     __table_args__ = (
         CheckConstraint("amount_pkr > 0", name="payment_amount_positive"),
+        CheckConstraint(
+            "refunded_pkr >= 0 and refunded_pkr <= amount_pkr",
+            name="payment_refund_within_amount",
+        ),
         UniqueConstraint(
             "provider", "provider_reference", name="one_payment_per_provider_reference"
         ),
         Index("ix_payments_order_status", "order_id", "status"),
+        # An order can be paid only once at a time, whatever the callers do.
+        Index(
+            "uq_payments_one_open_per_order",
+            "order_id",
+            unique=True,
+            postgresql_where=text("status in ('pending', 'held')"),
+            sqlite_where=text("status in ('pending', 'held')"),
+        ),
+    )
+
+
+class PaymentEvent(UUIDPrimaryKey, TimestampMixin, Base):
+    """A provider callback, exactly as received. Append only.
+
+    The unique pair is what makes a repeated callback harmless.
+    """
+
+    __tablename__ = "payment_events"
+
+    provider: Mapped[str] = mapped_column(String(40), nullable=False)
+    event_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    payment_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("payments.id", ondelete="RESTRICT"), default=None
+    )
+    outcome: Mapped[str] = mapped_column(String(32), nullable=False)
+    payload: Mapped[dict[str, object]] = mapped_column(nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("provider", "event_id", name="one_payment_event_per_provider_id"),
+        Index("ix_payment_events_payment", "payment_id"),
+    )
+
+
+class PayoutRun(UUIDPrimaryKey, TimestampMixin, Base):
+    """A batch of brand payouts an admin released together."""
+
+    __tablename__ = "payout_runs"
+
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), default=None
+    )
+    status: Mapped[PayoutStatus] = mapped_column(nullable=False, default=PayoutStatus.SCHEDULED)
+    payout_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    total_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
+    reference: Mapped[str | None] = mapped_column(String(120), default=None)
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+
+    payouts: Mapped[list[Payout]] = relationship(back_populates="run")
+
+    __table_args__ = (
+        CheckConstraint("payout_count > 0", name="payout_run_not_empty"),
+        CheckConstraint("total_pkr >= 0", name="payout_run_total_non_negative"),
     )
 
 
@@ -202,8 +385,12 @@ class Payout(UUIDPrimaryKey, TimestampMixin, Base):
     approved_by_user_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="SET NULL"), default=None
     )
+    run_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("payout_runs.id", ondelete="SET NULL"), default=None
+    )
 
     order: Mapped[Order] = relationship(back_populates="payout")
+    run: Mapped[PayoutRun | None] = relationship(back_populates="payouts")
 
     __table_args__ = (
         CheckConstraint("amount_pkr >= 0", name="payout_amount_non_negative"),
@@ -231,14 +418,49 @@ class Shipment(UUIDPrimaryKey, TimestampMixin, Base):
     cartons: Mapped[int | None] = mapped_column(Integer, default=None)
     weight_kg: Mapped[float | None] = mapped_column(Numeric(8, 2), default=None)
     label_key: Mapped[str | None] = mapped_column(String(500), default=None)
+    pickup_scheduled_for: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
     picked_up_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
 
     order: Mapped[Order] = relationship(back_populates="shipments")
+    events: Mapped[list[ShipmentEvent]] = relationship(
+        back_populates="shipment",
+        cascade="all, delete-orphan",
+        order_by="ShipmentEvent.created_at",
+    )
 
     __table_args__ = (
         UniqueConstraint("courier", "tracking_number", name="one_shipment_per_tracking_number"),
         Index("ix_shipments_order", "order_id"),
+    )
+
+
+class ShipmentEvent(UUIDPrimaryKey, TimestampMixin, Base):
+    """One tracking update. Append only."""
+
+    __tablename__ = "shipment_events"
+
+    shipment_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("shipments.id", ondelete="CASCADE"), nullable=False
+    )
+    brand_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("brands.id", ondelete="RESTRICT"), nullable=False
+    )
+    status: Mapped[ShipmentStatus] = mapped_column(nullable=False)
+    location: Mapped[str | None] = mapped_column(String(120), default=None)
+    note: Mapped[str | None] = mapped_column(String(300), default=None)
+    # The courier's own id, so a repeated update is applied once.
+    provider_event_id: Mapped[str | None] = mapped_column(String(120), default=None)
+
+    shipment: Mapped[Shipment] = relationship(back_populates="events")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "shipment_id", "provider_event_id", name="one_shipment_event_per_provider_id"
+        ),
+        Index("ix_shipment_events_shipment", "shipment_id", "created_at"),
     )
 
 

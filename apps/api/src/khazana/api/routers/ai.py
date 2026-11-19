@@ -23,6 +23,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, File, Form, Query, UploadFile, status
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 
 from ...ai import embeddings
 from ...ai.features import (
@@ -41,8 +42,9 @@ from ...ai.schemas import (
 )
 from ...core.errors import AppError
 from ...core.tenancy import assert_owns
-from ...models import Lot
+from ...models import Lot, User
 from ...models.enums import ConditionGrade, PhotoKind
+from ...services import approval_service
 from ...storage import ALLOWED_IMAGE_TYPES, StorageError, validate_upload
 from ..deps import CurrentBrand, CurrentPrincipal, Db
 
@@ -321,6 +323,22 @@ def semantic_search(
         # On SQLite there is no vector search. Saying so beats returning an
         # empty list, which is indistinguishable from a genuine miss.
         raise AppError(str(exc)).as_http() from exc
+
+    # The vector query knows nothing of the region lock, so its results still
+    # have to pass the rule every other buyer path applies.
+    user = db.get(User, principal.user_id)
+    city = user.reseller_profile.city if user and user.reseller_profile else None
+    visible = set(
+        db.scalars(
+            select(Lot.id).where(
+                Lot.id.in_([hit.lot.id for hit in hits]),
+                approval_service.visibility_filter(
+                    role=principal.role, reseller_is_verified=False, city=city
+                ),
+            )
+        ).all()
+    )
+    hits = [hit for hit in hits if hit.lot.id in visible]
 
     return SearchOut(
         hits=[

@@ -18,7 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from catalog_helpers import BASE_LOT, build_submitted_lot
+from catalog_helpers import BASE_LOT, build_submitted_lot, review_photos
 from khazana.core.errors import Conflict, ValidationFailed
 from khazana.models import (
     Brand,
@@ -426,6 +426,7 @@ class TestVisibilityRules:
         brand, owner = brand_owner
         brand.unbranded_label = "Surplus lawn"
         db.commit()
+        review_photos(db, submitted, owner)
         approval_service.approve(db, lot=submitted, actor=owner, visibility=Visibility.UNBRANDED)
         db.commit()
         assert submitted.id in self._visible(db, verified=False)
@@ -536,9 +537,28 @@ class TestPresentation:
         db.commit()
 
         for role in (UserRole.BRAND, UserRole.ADMIN):
-            shown = approval_service.present(db, submitted, viewer_role=role)
+            shown = approval_service.present(
+                db, submitted, viewer_role=role, viewer_brand_ids=[brand.id]
+            )
             assert shown.brand_name == brand.name
             assert not shown.brand_is_hidden
+
+    def test_a_competing_brand_sees_only_the_label(
+        self, db: Session, submitted: Lot, brand_owner
+    ) -> None:
+        brand, owner = brand_owner
+        brand.unbranded_label = "Premium lawn surplus"
+        db.commit()
+        approval_service.set_visibility(
+            db, lot=submitted, actor=owner, visibility=Visibility.UNBRANDED
+        )
+        db.commit()
+
+        shown = approval_service.present(
+            db, submitted, viewer_role=UserRole.BRAND, viewer_brand_ids=["another-brand"]
+        )
+        assert shown.brand_name == "Premium lawn surplus"
+        assert shown.brand_is_hidden
 
 
 class TestQueue:

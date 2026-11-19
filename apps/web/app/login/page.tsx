@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Field, TextInput } from "@/components/ui/Field";
 import { ApiError, api } from "@/lib/api";
-import { DEFAULT_LOCALE, t } from "@/lib/i18n";
+import { useLocale } from "@/lib/hooks";
+import { t } from "@/lib/i18n";
 import { saveTokens } from "@/lib/session";
 
 type Step = "phone" | "code";
@@ -23,7 +24,7 @@ type Step = "phone" | "code";
  * than a round trip, and the server still checks it regardless.
  */
 export default function LoginPage() {
-  const locale = DEFAULT_LOCALE;
+  const locale = useLocale();
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");

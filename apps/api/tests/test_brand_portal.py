@@ -339,14 +339,16 @@ class TestSuspension:
 
 
 class TestPolicy:
-    def test_a_brand_sets_its_own_commercial_terms(self, db: Session, owner: User) -> None:
+    def test_an_admin_sets_the_commercial_terms(
+        self, db: Session, owner: User, admin: User
+    ) -> None:
         """Policy is data. This is the whole point of that rule."""
         brand = register(db, owner)
 
         policy = brand_service.update_policy(
             db,
             brand_id=brand.id,
-            actor=owner,
+            actor=admin,
             changes={"commission_percent": 12, "payout_terms_days": 3, "allow_cod": True},
         )
         db.commit()
@@ -392,11 +394,13 @@ class TestPolicy:
                 changes={"min_discount_percent": 90, "max_discount_percent": 40},
             )
 
-    def test_only_the_changed_fields_are_audited(self, db: Session, owner: User) -> None:
+    def test_only_the_changed_fields_are_audited(
+        self, db: Session, owner: User, admin: User
+    ) -> None:
         """A log that stores the whole object twice makes a reader hunt."""
         brand = register(db, owner)
         brand_service.update_policy(
-            db, brand_id=brand.id, actor=owner, changes={"commission_percent": 11}
+            db, brand_id=brand.id, actor=admin, changes={"commission_percent": 11}
         )
         db.commit()
 
@@ -405,7 +409,7 @@ class TestPolicy:
         assert entry.after["commission_percent"] == {"from": "15.00", "to": "11.00"}
 
     def test_setting_a_value_to_what_it_already_was_logs_no_change(
-        self, db: Session, owner: User
+        self, db: Session, owner: User, admin: User
     ) -> None:
         """The reason the snapshot is taken after a refresh.
 
@@ -415,7 +419,7 @@ class TestPolicy:
         """
         brand = register(db, owner)
         brand_service.update_policy(
-            db, brand_id=brand.id, actor=owner, changes={"commission_percent": 15}
+            db, brand_id=brand.id, actor=admin, changes={"commission_percent": 15}
         )
         db.commit()
 

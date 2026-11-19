@@ -16,7 +16,19 @@ from fastapi.responses import JSONResponse
 
 from . import __version__
 from .ai.gateway.limits import feature_switches
-from .api.routers import ai, auth, brands, catalog, health
+from .api.routers import (
+    admin,
+    ai,
+    auth,
+    brands,
+    catalog,
+    health,
+    logistics,
+    orders,
+    payments,
+    resellers,
+    search,
+)
 from .config import get_settings
 from .core.errors import AppError, CrossTenant
 
@@ -56,7 +68,7 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=[settings.web_base_url],
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],
     )
 
@@ -78,7 +90,14 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(ai.router)
     app.include_router(brands.router)
+    # Before catalog, whose /catalog/{lot_id} would otherwise match these paths.
+    app.include_router(search.router)
     app.include_router(catalog.router)
+    app.include_router(orders.router)
+    app.include_router(payments.router)
+    app.include_router(logistics.router)
+    app.include_router(resellers.router)
+    app.include_router(admin.router)
 
     @app.get(
         "/ai/status",

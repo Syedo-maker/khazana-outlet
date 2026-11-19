@@ -9,6 +9,49 @@ to match the plan would be a nicer looking lie.
 
 ## Unreleased
 
+### Weeks 23 to 31: the marketplace, 2026-11-19
+
+- **Added** Logo protection for unbranded listings. Marks are found by the
+  model, blurred by code and reviewed by the brand, and unreviewed photographs
+  are withheld from buyers.
+- **Added** Buyer search with filters, sorting, keyword, meaning and photo
+  search, and saved searches.
+- **Added** Cart, whole and part lot orders, stock reservation, the order
+  lifecycle, the dispute window and recorded returns.
+- **Added** Held funds with sandbox JazzCash and Easypaisa, bank transfer, cash
+  on delivery, refunds, payout records and reconciliation.
+- **Added** Configurable shipping rates, sandbox courier booking, labels, pickup
+  scheduling and tracking.
+- **Added** The admin panel, and web screens for buyers, brands and admins.
+- **Added** A seed that builds a working marketplace with orders at every stage.
+- **Fixed** The catalogue exposed brand identifiers, and any brand account could
+  see the real name on another brand's unbranded lot.
+- **Fixed** A brand could change its own commission through its policy settings.
+- **Fixed** The web origin was not allowed to send PUT requests.
+- **Fixed** The category list never reached the photo to listing prompt, and
+  live calls on batch routes were recorded at half their real cost.
+
+Payments and delivery run on sandbox providers. Search by meaning and by
+photograph use the development stand in until an embedding service is connected.
+
+### Week 23: logo detection eval, 2026-11-18
+
+- **Added** The eval for logo detection, written before the feature. Fourteen
+  synthetic photographs with invented brand names and exactly known mark
+  positions. Ten cases are mandatory: every mark must end up under the padded
+  blur, or the photograph must go to a person.
+- **Added** The feature's prompt, output schema and model route, and the region
+  arithmetic the blur will share with the eval.
+- **Changed** An eval case can now supply a real image instead of placeholder
+  bytes.
+- **Fixed** The gateway no longer sends schema keywords or an output format
+  field that the structured output API does not support.
+
+The offline run replays hand written replies, so it proves the pipeline and
+the graders, not the model. One live run on Claude Opus 5.5 passed all 14 cases,
+10 of 10 mandatory, for $0.23. Those photographs are synthetic, so real brand
+photographs still have to be tested.
+
 ### Migration baseline frozen, 2026-10-14
 
 - **Changed** Migration 0001 now writes out all 27 tables explicitly instead

@@ -8,7 +8,7 @@ the gateway rather than a strange bug three layers up.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -42,6 +42,34 @@ class ListingDraft(BaseModel):
     # as the list of fields to check, which is far more useful than a silent
     # guess.
     uncertain_fields: list[str] = Field(default_factory=list)
+
+
+class LogoRegion(BaseModel):
+    """One possible brand mark, as fractions of the image."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["logo", "brand_text", "label", "packaging", "other"]
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+    width: float = Field(ge=0, le=1)
+    height: float = Field(ge=0, le=1)
+    confidence: float = Field(ge=0, le=1)
+
+
+class LogoDetection(BaseModel):
+    """Where the brand marks are in one photograph.
+
+    Every field is required, so a reply cannot pass by leaving out the signal
+    that a person needs to look.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    regions: list[LogoRegion] = Field(max_length=24)
+    image_readable: bool
+    needs_human_review: bool
+    review_reason: str | None = Field(max_length=300)
 
 
 class ManifestLineDraft(BaseModel):
@@ -180,6 +208,7 @@ class ToolPlan(BaseModel):
 
 SCHEMA_BY_FEATURE: dict[str, type[BaseModel]] = {
     "listing_from_photos": ListingDraft,
+    "logo_detection": LogoDetection,
     "manifest_extract": ManifestDraft,
     "pricing": PriceSuggestion,
     "risk_scoring": RiskScore,

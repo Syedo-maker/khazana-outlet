@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from khazana.ai import embeddings
 from khazana.models import Base, Brand, BrandPolicy, Category, Lot, User
-from khazana.models.base import utcnow
+from khazana.models.base import new_id, utcnow
 from khazana.models.enums import (
     ConditionGrade,
     LotStatus,
@@ -87,6 +87,42 @@ def pg_session():  # type: ignore[no-untyped-def]
         session.close()
         Base.metadata.drop_all(engine)
         engine.dispose()
+
+
+def test_photo_search_finds_a_listing_but_never_an_unbranded_one(pg_session: Session) -> None:
+    from catalog_helpers import jpeg_bytes
+    from khazana.ai import images
+    from khazana.services import search_service
+
+    embeddings.reset_provider()
+    category = Category(name="Womenswear stitched", slug="womenswear-stitched")
+    pg_session.add(category)
+    pg_session.commit()
+    brand = seed_brand(pg_session, name="Brand One", slug="brand-one", phone="03001111111")
+    named = seed_lot(pg_session, brand, category, code="LOT-NAMED", title="printed lawn")
+    hidden = seed_lot(
+        pg_session,
+        brand,
+        category,
+        code="LOT-HIDDEN",
+        title="plain lawn",
+        visibility=Visibility.UNBRANDED,
+    )
+
+    original = jpeg_bytes(seed=3)
+    stored = images.prepare(original).data
+    embeddings.index_photo(pg_session, photo_id=new_id(), lot=named, data=stored)
+    embeddings.index_photo(pg_session, photo_id=new_id(), lot=hidden, data=stored)
+    pg_session.commit()
+
+    result = search_service.search_by_photo(
+        pg_session,
+        data=original,
+        filters=search_service.SearchFilters(),
+        viewer=search_service.Viewer(role=UserRole.RESELLER, verified=True, city=None),
+    )
+    assert [lot.id for lot in result.lots] == [named.id]
+    assert result.similarity[named.id] == pytest.approx(1.0)
 
 
 def seed_brand(db: Session, *, name: str, slug: str, phone: str) -> Brand:

@@ -15,6 +15,8 @@
  * Direction is derived from the locale here, once, so no component decides it.
  */
 
+import { marketplaceStrings } from "./i18n-marketplace";
+
 export const LOCALES = ["en", "ur", "ur_roman"] as const;
 export type Locale = (typeof LOCALES)[number];
 
@@ -331,6 +333,10 @@ const strings: Record<Locale, Dictionary> = {
  * is visible in the interface during development instead of silently
  * rendering nothing.
  */
+for (const locale of LOCALES) {
+  Object.assign(strings[locale], marketplaceStrings[locale]);
+}
+
 export function t(
   locale: Locale,
   key: string,

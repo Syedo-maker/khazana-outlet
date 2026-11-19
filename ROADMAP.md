@@ -131,8 +131,10 @@ seed data.
 
 # Phase 3: Marketplace core (weeks 17 to 31)
 
-**Status: in progress, weeks 17 to 22 complete.** 356 passing tests, six CI
-jobs.
+**Status: complete on sandbox providers.** 587 API tests, and the exit path
+below has been walked through both the API and a real browser against seed
+data. Before real customers it still needs merchant and courier accounts, a
+real embedding service, and logo detection tested on real brand photographs.
 
 - **M2 brand portal, weeks 17 to 18.** Registration, document upload, the
   verification workflow, the brand dashboard, per brand policy settings and an
@@ -146,6 +148,19 @@ jobs.
   append only snapshot of the listing as approved, public, unbranded and
   private protection levels, the region lock per brand and per lot, and
   withdraw. All buyer visibility goes through one function.
+- **Logo protection and brand review, week 23.** Brand marks on unbranded
+  photographs are found by the model, blurred by code and reviewed by the brand.
+  Anything not reviewed is withheld from buyers.
+- **M4 search, weeks 24 to 25.** Filters, sorting, keyword, meaning and photo
+  search, and saved searches.
+- **M5 cart and orders, weeks 26 to 27.** Whole and part lot ordering, stock
+  reservation, the order lifecycle, the dispute window and returns.
+- **M6 payments, week 28.** Held funds, signed callbacks, bank transfer, cash on
+  delivery, refunds, payout records and reconciliation.
+- **M7 logistics, week 29.** Configured rates, courier booking, labels, pickup
+  and tracking.
+- **M8 admin panel, weeks 30 to 31.** Verification, moderation, payments,
+  disputes, payout runs, commercial terms, shipping rates and the audit log.
 
 The development environment also moved into containers during this phase, so
 lint, types, tests, migrations and seeding all run in the same images CI uses.
@@ -158,12 +173,12 @@ calls Phase 2 rather than duplicating it.
 | --- | --- | --- |
 | 17 to 18 | M2 Brand portal | Done. Registration, NTN and document upload, verification workflow, brand dashboard, per brand policy settings |
 | 19 to 21 | M3 Catalog and manifests | Done. Lot creation from photo upload, the manifest editor with the sum must match total rule, bulk upload through the Phase 2 extractor, photo pipeline with compression and ordering, condition grading, draft to pending to approved to live states |
-| 22 to 23 | Approvals and protection | Week 22 done. Brand approval gate with full audit record, private listings, unbranded listings, region lock, withdraw. Week 23 is new work: automatic logo blur on unbranded listings, and brand reviews before publish |
-| 24 to 25 | M4 Search and discovery | Filters, sort, text search, semantic and photo search wired to Phase 2, saved searches |
-| 26 to 27 | M5 Cart and orders | Lot and part lot ordering, minimum order value, order lifecycle, buyer confirmation, dispute window, returns recorded |
-| 28 | M6 Payments | Bank transfer, JazzCash, Easypaisa, COD, held funds and brand payout records. Integration kept behind one interface so a sandbox implementation works until merchant accounts exist |
-| 29 | M7 Logistics | One courier integration behind a provider interface, label and tracking, shipping cost rules, pickup scheduling |
-| 30 to 31 | M8 Admin panel | Verification queue, listing moderation with the Phase 2 risk score shown, orders, disputes, commission settings, payout runs, audit log viewer |
+| 22 to 23 | Approvals and protection | Done. Brand approval gate with full audit record, private listings, unbranded listings, region lock, withdraw, automatic logo blur on unbranded listings, and brand review before publish |
+| 24 to 25 | M4 Search and discovery | Done. Filters, sort, text search, semantic and photo search wired to Phase 2, saved searches |
+| 26 to 27 | M5 Cart and orders | Done. Lot and part lot ordering, minimum order value, order lifecycle, buyer confirmation, dispute window, returns recorded |
+| 28 | M6 Payments | Done in sandbox. Bank transfer, JazzCash, Easypaisa, COD, held funds and brand payout records. Integration kept behind one interface so a sandbox implementation works until merchant accounts exist |
+| 29 | M7 Logistics | Done in sandbox. One courier integration behind a provider interface, label and tracking, shipping cost rules, pickup scheduling |
+| 30 to 31 | M8 Admin panel | Done. Verification queue, listing moderation with the Phase 2 risk score shown, orders, disputes, commission settings, payout runs, audit log viewer |
 
 Two deliberate constraints in this phase. Payments and logistics sit behind
 interfaces with sandbox implementations, so no week is blocked waiting for a

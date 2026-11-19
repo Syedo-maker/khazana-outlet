@@ -66,7 +66,7 @@ from ..storage import (
     put_object,
     validate_upload,
 )
-from . import audit_service, brand_service
+from . import audit_service, brand_service, photo_protection_service
 
 logger = logging.getLogger(__name__)
 
@@ -762,6 +762,7 @@ def remove_photo(
         )
 
     key = photo.file_key
+    blurred_key = photo.blurred_file_key
     lot.photos.remove(photo)
     db.flush()
 
@@ -784,10 +785,11 @@ def remove_photo(
     # Storage last. If the object delete fails the row is already gone, which
     # leaves an orphaned file: wasted bytes, and nothing a buyer can reach. The
     # other order risks a listing pointing at a file that is no longer there.
-    try:
-        delete_object(key)
-    except Exception:
-        logger.warning("could not delete stored object %s for lot %s", key, lot.id)
+    for stored_key in filter(None, (key, blurred_key)):
+        try:
+            delete_object(stored_key)
+        except Exception:
+            logger.warning("could not delete stored object %s for lot %s", stored_key, lot.id)
 
 
 # ------------------------------------------------------------------- defects
@@ -903,6 +905,10 @@ def readiness(db: Session, lot: Lot) -> Readiness:
 
     if not lot.description:
         result.warnings.append("No description. The photo to listing feature can draft one.")
+
+    # A warning here and a refusal at approval. Review can happen after the lot
+    # is submitted, so it must not stop the submission itself.
+    result.warnings.extend(photo_protection_service.problems(db, lot))
 
     return result
 
@@ -1062,10 +1068,15 @@ def _guard_material_change(lot: Lot, changes: dict[str, Any]) -> None:
     order, so the brand pauses first. Everything else is closed.
     """
     status = LotStatus(lot.status)
+    material = sorted(set(changes) & MATERIAL_FIELDS)
+    if material and lot.reserved_pieces > 0:
+        raise Conflict(
+            f"Buyers have already ordered from this lot, so {', '.join(material)} "
+            f"cannot be changed."
+        )
+
     if status in EDITABLE_STATUSES or status in RESETTABLE_STATUSES:
         return
-
-    material = sorted(set(changes) & MATERIAL_FIELDS)
     if not material:
         return
     if status == LotStatus.LIVE:

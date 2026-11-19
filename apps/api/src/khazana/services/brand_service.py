@@ -82,9 +82,11 @@ BRAND_AUDIT_FIELDS = (
     "contact_phone",
     "contact_email",
 )
+ADMIN_ONLY_POLICY_FIELDS = frozenset({"commission_percent", "payout_terms_days"})
 POLICY_AUDIT_FIELDS = (
     "commission_percent",
     "payout_terms_days",
+    "dispute_window_days",
     "min_lot_value_pkr",
     "min_discount_percent",
     "max_discount_percent",
@@ -464,6 +466,7 @@ def update_policy(
     editable = {
         "commission_percent",
         "payout_terms_days",
+        "dispute_window_days",
         "min_lot_value_pkr",
         "min_discount_percent",
         "max_discount_percent",
@@ -473,6 +476,12 @@ def update_policy(
         "auto_apply_ai_draft",
         "ai_monthly_budget_usd",
     }
+
+    # The platform's own commercial terms are agreed with the brand and entered
+    # by an admin. A brand setting its own commission would be setting what it
+    # pays the platform.
+    if actor.role != UserRole.ADMIN and set(changes) & ADMIN_ONLY_POLICY_FIELDS:
+        raise Forbidden("Commission and payout terms are changed by Khazana Outlet.")
 
     rejected = set(changes) - editable
     if rejected:
@@ -517,6 +526,41 @@ def update_policy(
         ip=ip,
     )
     return policy
+
+
+def set_unbranded_label(
+    db: Session,
+    *,
+    brand_id: str,
+    label: str,
+    actor: User,
+    ip: str | None = None,
+) -> Brand:
+    """Set what buyers read in place of the brand's name.
+
+    A label containing the name would defeat the point of having one.
+    """
+    brand = _get_brand(db, brand_id)
+    cleaned = " ".join(label.split())
+    if brand.name.casefold() in cleaned.casefold():
+        raise ValidationFailed("The label must not contain your brand name.")
+
+    before = {"unbranded_label": brand.unbranded_label}
+    brand.unbranded_label = cleaned[:160]
+    db.flush()
+    audit_service.record(
+        db,
+        action="brand.unbranded_label_set",
+        entity_type="brand",
+        entity_id=brand.id,
+        brand_id=brand.id,
+        actor_user_id=actor.id,
+        actor_role=actor.role,
+        before=before,
+        after={"unbranded_label": brand.unbranded_label},
+        ip=ip,
+    )
+    return brand
 
 
 def set_excluded_cities(

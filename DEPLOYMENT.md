@@ -11,7 +11,7 @@ inside the same images that CI uses.
 | Service | Image or build | Port | Notes |
 | --- | --- | --- | --- |
 | `db` | `pgvector/pgvector:pg16` | 127.0.0.1:55432 | PostgreSQL 16 with the vector extension, so visual search needs no second datastore |
-| `redis` | `redis:7-alpine` | 127.0.0.1:6379 | OTP store and job queue, append only persistence |
+| `redis` | `redis:7-alpine` | 127.0.0.1:56379 | OTP store and job queue, append only persistence |
 | `api` | `apps/api/Dockerfile`, target `dev` | 8000 | FastAPI with reload, docs at `/docs` |
 | `web` | `apps/web/Dockerfile`, target `dev` | 3000 | Next.js dev server |
 
@@ -187,6 +187,20 @@ Before a deployment:
 - Decide on backups for the `db_data` volume. There are none at the moment.
 - Set the AI spend guards for real. `AI_DAILY_SPEND_LIMIT_USD` and
   `AI_BRAND_MONTHLY_SPEND_LIMIT_USD` default to development sized numbers.
+- Connect real payment and courier providers. Only sandbox implementations
+  exist, and production refuses them. Each real one needs the provider's
+  merchant documents, and implements the interface in
+  `services/payment_providers.py` or `services/courier_providers.py`.
+- Set `BANK_ACCOUNT_TITLE` and `BANK_ACCOUNT_IBAN`. Production refuses to start
+  with the sandbox IBAN.
+- Schedule `POST /admin/jobs/close-dispute-windows`. Until something calls it,
+  delivered orders stay open after their window ends unless the buyer confirms.
+- Point `EMBEDDING_SERVICE_URL` at a real model. The stand in only finds an
+  identical photograph.
+- Add row level policies for buyers before connecting as a non owner database
+  role. The current policies cover brand staff and admins, so a reseller would
+  see no lots or orders. The application connects as the table owner today, and
+  its own access checks are what protect this data.
 
 ## When something is wrong
 

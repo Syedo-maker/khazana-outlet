@@ -59,12 +59,31 @@ from sqlalchemy.dialects import postgresql
 # on PostgreSQL and JSON on SQLite, so the migration has to reference it rather
 # than name a dialect specific type.
 import khazana.models.base
-from khazana.models import BRAND_SCOPED_TABLES
 
 revision: str = "0001"
 down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
+
+# Written out rather than imported from the models. The live list grows with
+# later migrations, and this baseline must keep creating the same schema.
+BRAND_SCOPED_TABLES: tuple[str, ...] = (
+    "brand_policies",
+    "brand_members",
+    "verification_documents",
+    "brand_excluded_cities",
+    "lots",
+    "manifest_lines",
+    "lot_defects",
+    "lot_photos",
+    "lot_excluded_cities",
+    "listing_approvals",
+    "orders",
+    "order_lines",
+    "payouts",
+    "shipments",
+    "disputes",
+)
 
 
 MANIFEST_BALANCE_FUNCTION = """

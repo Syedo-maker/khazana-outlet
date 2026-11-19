@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from khazana.models import Brand, Lot, User
 from khazana.models.enums import ConditionGrade, LotStatus, PhotoKind
-from khazana.services import approval_service, catalog_service
+from khazana.services import approval_service, catalog_service, photo_protection_service
 
 # retail 1000 x 100 pieces = 100,000 PKR at retail. A lot price of 30,000 is a
 # 70 percent discount, inside the default 50 to 85 band, and above the 25,000
@@ -82,6 +82,16 @@ def ready_lot(db: Session, lot: Lot, owner: User, *, offset: int = 0) -> Lot:
     """A lot that passes every readiness check."""
     catalog_service.set_manifest(db, lot=lot, actor=owner, lines=balanced_manifest())
     add_required_photos(db, lot, owner, offset=offset)
+    db.commit()
+    return lot
+
+
+def review_photos(db: Session, lot: Lot, owner: User) -> Lot:
+    """Record that the brand checked every photograph and found no mark."""
+    for photo in lot.photos:
+        photo_protection_service.review_photo(
+            db, lot=lot, photo_id=photo.id, actor=owner, regions=[]
+        )
     db.commit()
     return lot
 

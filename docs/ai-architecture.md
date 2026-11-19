@@ -131,6 +131,7 @@ is your decision to make, after the eval shows quality holds.
 | Task | Model | Effort | Mode | Why |
 | --- | --- | --- | --- | --- |
 | Photo to listing | `claude-opus-5-5` | medium | live | Vision quality decides listing quality, and listing quality decides whether a brand trusts the platform |
+| Logo detection for unbranded listings | `claude-opus-5-5` | medium | live | A missed logo exposes a brand that was promised anonymity |
 | Manifest extraction from Excel | `claude-opus-5-5`, with `claude-haiku-4-5` as the bulk option | low | batch | Nobody is waiting, so batch at half price |
 | Pricing suggestion | `claude-opus-5-5` | medium | live | Reasoning task, and a wrong price is expensive |
 | Risk and quality scoring | `claude-haiku-4-5` | n/a | live | High volume classification on every listing, the cheapest place to use a small model |
@@ -295,6 +296,7 @@ written before the feature.
 | Feature | What the eval measures | Graded by |
 | --- | --- | --- |
 | Photo to listing | Field by field accuracy against human labelled listings | Exact match on category and attributes, human or model scoring on text |
+| Logo detection | Every mark hidden after padding or sent to a person, with the blurred area bounded | Deterministic, against synthetic photographs with known mark positions |
 | Manifest extraction | Line count, totals reconciliation, flagged changes correct | Deterministic comparison |
 | Pricing | Suggestion inside the band a human expert accepts | Human rating, then real sales in Phase 6 |
 | Assistant | Grounded answer rate, tool call correctness, refusal when data is missing, across three languages | Mixed deterministic and model grading |
