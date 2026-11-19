@@ -7,6 +7,7 @@ registered on the metadata before Alembic or ``create_all`` runs.
 from __future__ import annotations
 
 from .ai import AiJob, AiOutput, AiSpend, Embedding
+from .assistant import AssistantConversation, AssistantMessage, WhatsAppMessage
 from .audit import AuditLog
 from .base import Base, Vector, new_id, utcnow
 from .brand import (
@@ -73,6 +74,8 @@ __all__ = [
     "AiJob",
     "AiOutput",
     "AiSpend",
+    "AssistantConversation",
+    "AssistantMessage",
     "AuditLog",
     "Base",
     "Brand",
@@ -108,6 +111,7 @@ __all__ = [
     "User",
     "Vector",
     "VerificationDocument",
+    "WhatsAppMessage",
     "new_id",
     "utcnow",
 ]

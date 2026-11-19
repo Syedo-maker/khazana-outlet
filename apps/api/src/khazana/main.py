@@ -19,6 +19,7 @@ from .ai.gateway.limits import feature_switches
 from .api.routers import (
     admin,
     ai,
+    assistant,
     auth,
     brands,
     catalog,
@@ -89,6 +90,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(ai.router)
+    app.include_router(assistant.router)
     app.include_router(brands.router)
     # Before catalog, whose /catalog/{lot_id} would otherwise match these paths.
     app.include_router(search.router)

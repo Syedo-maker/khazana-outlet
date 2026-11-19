@@ -190,6 +190,23 @@ class AiFeature(StrEnum):
     TRANSLATION = "translation"
 
 
+class ChatChannel(StrEnum):
+    """Where a conversation with the assistant happens."""
+
+    WEB = "web"
+    WHATSAPP = "whatsapp"
+
+
+class ChatRole(StrEnum):
+    BUYER = "buyer"
+    ASSISTANT = "assistant"
+
+
+class MessageDirection(StrEnum):
+    INBOUND = "inbound"
+    OUTBOUND = "outbound"
+
+
 class AiJobStatus(StrEnum):
     QUEUED = "queued"
     RUNNING = "running"

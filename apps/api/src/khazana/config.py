@@ -56,6 +56,20 @@ class Settings(BaseSettings):
     ai_brand_monthly_spend_limit_usd: float = 20.00
     ai_offline: bool = True
 
+    # ---------- Assistant ----------
+    # Each buyer message costs two model calls, so a per user daily cap is the
+    # control that keeps one chatty account from spending the whole budget.
+    assistant_daily_message_limit: int = Field(default=40, ge=1)
+    # How many earlier messages the model sees. Older turns are dropped, not
+    # summarised, so the cost of a long conversation stays flat.
+    assistant_history_messages: int = Field(default=6, ge=0, le=20)
+    # Below this, a voice note transcript is not trusted and the buyer is asked
+    # to type instead. A wrong lot code or quantity costs more than a retype.
+    voice_min_confidence: float = Field(default=0.6, ge=0, le=1)
+    # A WhatsApp message after this long a silence starts a new conversation,
+    # so yesterday's search does not colour today's question.
+    whatsapp_conversation_idle_hours: int = Field(default=12, ge=1)
+
     # ---------- Storage ----------
     storage_backend: Literal["local", "s3"] = "local"
     storage_local_path: str = "./uploads"

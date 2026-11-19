@@ -34,6 +34,8 @@ from .config import get_settings
 from .core.errors import AppError
 from .db import build_engine
 from .models import (
+    AssistantConversation,
+    AssistantMessage,
     Base,
     Brand,
     BrandExcludedCity,
@@ -64,6 +66,7 @@ from .models import (
     ShipmentEvent,
     ShippingRate,
     User,
+    WhatsAppMessage,
 )
 from .models.base import utcnow
 from .models.enums import (
@@ -253,6 +256,9 @@ def _wipe(db: Session) -> None:
 
     models = (
         OtpChallenge,
+        WhatsAppMessage,
+        AssistantMessage,
+        AssistantConversation,
         CartItem,
         SavedSearch,
         Embedding,
