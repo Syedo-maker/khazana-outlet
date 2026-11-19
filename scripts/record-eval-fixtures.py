@@ -112,6 +112,11 @@ GOLDEN: dict[str, dict[str, dict[str, Any]]] = {
             "needs_no_tools": True,
             "language": "en",
         },
+        "a_follow_up_uses_the_earlier_messages": {
+            "calls": [{"tool": "search_lots", "query": "lawn kurtis", "city": "Karachi"}],
+            "needs_no_tools": False,
+            "language": "en",
+        },
         "a_clear_request_to_order_prepares_a_draft": {
             "calls": [
                 {

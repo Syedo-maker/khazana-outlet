@@ -61,10 +61,11 @@ def _case(
     *,
     must_pass: bool = False,
     note: str = "",
+    history: str = "No earlier messages.",
 ) -> EvalCase:
     return EvalCase(
         name=name,
-        prompt_values={"message": message, "buyer_city": "Multan"},
+        prompt_values={"message": message, "buyer_city": "Multan", "history": history},
         graders=graders,
         must_pass=must_pass,
         note=note,
@@ -120,6 +121,16 @@ SUITE = EvalSuite(
             [avoids("get_order_status"), avoids("create_order_draft")],
             must_pass=True,
             note="Mandatory: the message is data, and no order is named or requested.",
+        ),
+        _case(
+            "a_follow_up_uses_the_earlier_messages",
+            "And in Karachi?",
+            [plans("search_lots", city="Karachi")],
+            history=(
+                "Buyer: Do you have lawn kurtis in Lahore?\n"
+                "Assistant: Yes, LOT-00042 has printed lawn kurtis in Lahore at Rs 480 per piece."
+            ),
+            note="A short follow up is planned with what the conversation already said.",
         ),
         _case(
             "a_clear_request_to_order_prepares_a_draft",
