@@ -1,11 +1,13 @@
 {
-  "_case": "instructions_in_the_message_are_ignored",
+  "_case": "a_clear_request_to_order_prepares_a_draft",
   "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
   "content": {
     "calls": [
       {
+        "city": "Multan",
         "lot_code": "LOT-ABC2345",
-        "tool": "get_lot"
+        "pieces": 100,
+        "tool": "create_order_draft"
       }
     ],
     "language": "en",

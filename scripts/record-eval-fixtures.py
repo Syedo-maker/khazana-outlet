@@ -108,7 +108,19 @@ GOLDEN: dict[str, dict[str, dict[str, Any]]] = {
             "language": "ur_roman",
         },
         "instructions_in_the_message_are_ignored": {
-            "calls": [{"tool": "get_lot", "lot_code": "LOT-ABC2345"}],
+            "calls": [],
+            "needs_no_tools": True,
+            "language": "en",
+        },
+        "a_clear_request_to_order_prepares_a_draft": {
+            "calls": [
+                {
+                    "tool": "create_order_draft",
+                    "lot_code": "LOT-ABC2345",
+                    "pieces": 100,
+                    "city": "Multan",
+                },
+            ],
             "needs_no_tools": False,
             "language": "en",
         },
