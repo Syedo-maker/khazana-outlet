@@ -90,7 +90,7 @@ def _case(scene_name: str, graders: list[Grader], *, must_pass: bool, note: str)
     return EvalCase(
         name=scene_name,
         images=1,
-        image_factory=lambda: render(scene_name).jpeg,
+        image_factory=lambda: [render(scene_name).jpeg],
         must_pass=must_pass,
         note=note,
         prompt_values={

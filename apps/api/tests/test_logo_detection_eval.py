@@ -214,3 +214,18 @@ class TestOfflineRun:
         monkeypatch.setattr(client, "call_model", spy)
         run_suite(db, SUITE, record=False)
         assert sent[0] == render(SUITE.cases[0].name).jpeg
+
+
+class TestListingPhotographs:
+    """The listing eval used to send placeholder bytes, which a live run rejects."""
+
+    def test_every_listing_case_sends_real_photographs(self) -> None:
+        from khazana.ai.evals.suites.listing_from_photos import SUITE as LISTING
+
+        for case in LISTING.cases:
+            assert case.image_factory is not None, case.name
+            photos = list(case.image_factory())
+            assert len(photos) == case.images, case.name
+            for data in photos:
+                with Image.open(io.BytesIO(data)) as image:
+                    assert image.format == "JPEG"

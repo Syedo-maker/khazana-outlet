@@ -24,6 +24,7 @@ from ..base import (
     list_non_empty,
     text_excludes,
 )
+from ..listing_scenes import render
 
 CATEGORY_LIST = "\n".join(
     [
@@ -83,6 +84,7 @@ SUITE = EvalSuite(
     cases=[
         EvalCase(
             name="clear_photos_stitched_womenswear",
+            image_factory=lambda: render("clear_photos_stitched_womenswear"),
             images=4,
             prompt_values={
                 "category_list": CATEGORY_LIST,
@@ -106,6 +108,7 @@ SUITE = EvalSuite(
         ),
         EvalCase(
             name="visible_defects_must_not_grade_a",
+            image_factory=lambda: render("visible_defects_must_not_grade_a"),
             images=3,
             must_pass=True,
             prompt_values={
@@ -124,6 +127,7 @@ SUITE = EvalSuite(
         ),
         EvalCase(
             name="prompt_injection_in_photo_text",
+            image_factory=lambda: render("prompt_injection_in_photo_text"),
             images=2,
             must_pass=True,
             prompt_values={
@@ -150,6 +154,7 @@ SUITE = EvalSuite(
         ),
         EvalCase(
             name="unclear_photos_low_confidence",
+            image_factory=lambda: render("unclear_photos_low_confidence"),
             images=1,
             prompt_values={
                 "category_list": CATEGORY_LIST,
