@@ -19,6 +19,7 @@ as a lot identifier.
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from datetime import date
 from typing import Annotated, Any, Literal, cast
 
@@ -44,6 +45,7 @@ from ...services import (
     catalog_service,
     order_service,
     photo_protection_service,
+    profit_service,
 )
 from ...storage import read_object
 from ..deps import CurrentBrand, CurrentPrincipal, Db, Principal, client_ip
@@ -1190,6 +1192,71 @@ def catalog_detail(
             )
             for defect in lot.defects
         ],
+    )
+
+
+class ProfitScenarioOut(BaseModel):
+    name: str
+    price_per_piece_pkr: int
+    revenue_pkr: int
+    profit_pkr: int
+    margin_percent: float
+
+
+class ProfitOut(BaseModel):
+    lot_code: str
+    city: str
+    pieces: int
+    goods_pkr: int
+    shipping_pkr: int | None
+    cost_pkr: int
+    cost_per_piece_pkr: int
+    scenarios: list[ProfitScenarioOut]
+    break_even_pieces: int | None
+    benchmark: str
+    assumptions: list[str]
+
+
+@router.get(
+    "/catalog/{lot_id}/profit",
+    response_model=ProfitOut,
+    operation_id="catalog_profit_estimate",
+    responses={404: {"description": "No such listing for this viewer"}},
+)
+def profit_estimate(
+    lot_id: str,
+    principal: CurrentPrincipal,
+    db: Db,
+    city: Annotated[str | None, Query(max_length=80)] = None,
+    pieces: Annotated[int | None, Query(ge=1)] = None,
+    selling_price_pkr: Annotated[int | None, Query(ge=1)] = None,
+) -> ProfitOut:
+    """What this lot could make if resold in the buyer's city.
+
+    An estimate from the real delivery quote and an administrator maintained
+    resale benchmark, with every assumption listed. It is not a promise.
+    """
+    lot = _catalog_lot(db, principal, lot_id, city)
+    _, resolved_city = _buyer_view(db, principal, city)
+    result = profit_service.estimate(
+        db,
+        lot=lot,
+        city=resolved_city or lot.stock_city,
+        pieces=pieces,
+        selling_price_pkr=selling_price_pkr,
+    )
+    return ProfitOut(
+        lot_code=result.lot_code,
+        city=result.city,
+        pieces=result.pieces,
+        goods_pkr=result.goods_pkr,
+        shipping_pkr=result.shipping_pkr,
+        cost_pkr=result.cost_pkr,
+        cost_per_piece_pkr=result.cost_per_piece_pkr,
+        scenarios=[ProfitScenarioOut(**asdict(s)) for s in result.scenarios],
+        break_even_pieces=result.break_even_pieces,
+        benchmark=result.benchmark,
+        assumptions=result.assumptions,
     )
 
 

@@ -60,6 +60,7 @@ from .models import (
     PaymentEvent,
     Payout,
     PayoutRun,
+    ResaleBenchmark,
     ResellerProfile,
     SavedSearch,
     Shipment,
@@ -190,6 +191,7 @@ def seed(db: Session, *, scale: int = 1, reset: bool = False) -> dict[str, int]:
     counts["manifest_lines"] = len(db.scalars(select(ManifestLine.id)).all())
 
     _seed_logistics(db)
+    counts["resale_benchmarks"] = _seed_benchmarks(db, categories)
     counts["photos"] = _seed_photos(db, rng, lots)
     counts["embeddings"] = _index_lots(db, lots, categories)
     db.flush()
@@ -255,6 +257,7 @@ def _wipe(db: Session) -> None:
         raise RuntimeError("Refusing to wipe data in production.")
 
     models = (
+        ResaleBenchmark,
         OtpChallenge,
         WhatsAppMessage,
         AssistantMessage,
@@ -304,6 +307,39 @@ def _wipe(db: Session) -> None:
     for model in models:
         db.execute(delete(model))
     db.commit()
+
+
+def _seed_benchmarks(db: Session, categories: dict[str, Category]) -> int:
+    """Resale assumptions for the profit helper. Illustrative, not market data.
+
+    The fallback row is what migration 0008 writes; a reset truncates it, so
+    the seed puts it back. Two category rows show how specific rows win.
+    """
+    rows: list[tuple[str | None, str | None, int, int, int, str]] = [
+        (None, None, 35, 45, 55, "Platform default. Replace with market data.")
+    ]
+    first = next(iter(categories.values()), None)
+    if first is not None:
+        rows.append((first.id, None, 40, 50, 60, "Illustrative category benchmark."))
+        rows.append((first.id, "Karachi", 42, 52, 62, "Illustrative city benchmark."))
+    existing = {(r.category_id, r.city) for r in db.scalars(select(ResaleBenchmark))}
+    added = 0
+    for category_id, city, low, typical, high, note in rows:
+        if (category_id, city) in existing:
+            continue
+        db.add(
+            ResaleBenchmark(
+                category_id=category_id,
+                city=city,
+                low_percent=low,
+                typical_percent=typical,
+                high_percent=high,
+                note=note,
+            )
+        )
+        added += 1
+    db.flush()
+    return added
 
 
 def _seed_categories(db: Session) -> dict[str, Category]:
