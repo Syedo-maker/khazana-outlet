@@ -101,6 +101,58 @@ export type ProfitEstimate = {
 
 export type LineChoice = { size: string; color: string; pieces: number };
 
+export type ResellKit = {
+  order_id: string;
+  lot_code: string;
+  selling_price_pkr: number;
+  caption_en: string;
+  caption_ur_roman: string;
+  caption_ur: string;
+  social_post: string;
+  whatsapp_status: string;
+  hashtags: string[];
+  selling_points: string[];
+  price_tags: {
+    size: string;
+    color: string;
+    pieces: number;
+    price_en: string;
+    price_ur: string;
+  }[];
+  whatsapp_catalogue: string;
+  photo_paths: string[];
+};
+
+export type PoolLine = { size: string; color: string; pieces: number };
+
+export type Pool = {
+  id: string;
+  item: CatalogItem;
+  city: string;
+  status: "open" | "ordered" | "cancelled" | "expired";
+  closes_at: string;
+  members: number;
+  min_members: number;
+  places_left: number;
+  pieces_covered: number;
+  meets_minimum: boolean;
+  shortfall: string[];
+  uncovered: PoolLine[];
+  mine: {
+    requested: PoolLine[];
+    allocated: PoolLine[] | null;
+    order_id: string | null;
+    is_organiser: boolean;
+  } | null;
+};
+
+export type PoolMembership = {
+  lines: PoolLine[];
+  delivery_address: string;
+  delivery_phone: string;
+  payment_method: PaymentMethod;
+};
+
 export type MixedLotRequest = {
   budget_pkr: number;
   target_pieces: number;
@@ -136,6 +188,7 @@ export type CatalogDetail = CatalogItem & {
   available_lines: LineChoice[];
   allows_part_lot: boolean;
   allows_cod: boolean;
+  allows_pooling: boolean;
   defects: { issue: string; pieces_affected: number; photo_id: string | null }[];
 };
 
@@ -458,6 +511,23 @@ export const market = {
   runSavedSearch: (token: string, id: string) =>
     request<SearchResult>(`/catalog/saved-searches/${id}/results`, { token }),
 
+  pools: (token: string) => request<Pool[]>("/pools", { token }),
+  openPool: (token: string, body: PoolMembership & { lot_id: string }) =>
+    request<Pool>("/pools", { method: "POST", token, body }),
+  joinPool: (token: string, poolId: string, body: PoolMembership) =>
+    request<Pool>(`/pools/${poolId}/join`, { method: "POST", token, body }),
+  leavePool: (token: string, poolId: string) =>
+    request<Pool>(`/pools/${poolId}/leave`, { method: "POST", token }),
+  placePool: (token: string, poolId: string) =>
+    request<{ order_ids: string[] }>(`/pools/${poolId}/place`, { method: "POST", token }),
+  resellKit: (token: string, orderId: string) =>
+    request<ResellKit>(`/orders/${orderId}/resell-kit`, { token }),
+  makeResellKit: (token: string, orderId: string, sellingPrice: number) =>
+    request<ResellKit>(`/orders/${orderId}/resell-kit`, {
+      method: "POST",
+      token,
+      body: { selling_price_pkr: sellingPrice },
+    }),
   buildMixedLot: (token: string, body: MixedLotRequest) =>
     request<MixedLot>("/catalog/mixed-lots", { method: "POST", token, body }),
   mixedLotToCart: (token: string, body: MixedLotRequest) =>

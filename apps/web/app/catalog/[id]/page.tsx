@@ -1,5 +1,6 @@
 "use client";
 
+import { OpenPoolCard } from "@/components/pools/OpenPoolCard";
 import { ProfitCard } from "@/components/ProfitCard";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -228,6 +229,9 @@ function ListingContent({ session, lotId }: { session: Session; lotId: string })
               </Card>
               {session.me.user.role === "reseller" ? (
                 <ProfitCard session={session} lotId={lotId} />
+              ) : null}
+              {session.me.user.role === "reseller" && detail.allows_pooling ? (
+                <OpenPoolCard detail={detail} session={session} />
               ) : null}
             </aside>
           </div>
