@@ -1,5 +1,6 @@
 "use client";
 
+import { RedirectCard } from "@/components/RedirectCard";
 import { LotAgents } from "@/components/LotAgents";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -182,6 +183,9 @@ export default function LotPage() {
         markdown={lot.auto_markdown_enabled}
         onChanged={load}
       />
+      {["live", "paused", "expired"].includes(lot.status) ? (
+        <RedirectCard lotId={lot.id} token={token} locale={locale} />
+      ) : null}
 
       {/* The checklist. Everything outstanding at once, not one error at a time. */}
       {readiness ? (

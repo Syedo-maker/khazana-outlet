@@ -159,5 +159,6 @@ export const ADMIN_NAV: NavItem[] = [
   { href: "/admin/disputes", labelKey: "nav.disputes" },
   { href: "/admin/payouts", labelKey: "nav.payouts" },
   { href: "/admin/settings", labelKey: "nav.settings" },
+  { href: "/admin/review", labelKey: "nav.review" },
   { href: "/admin/audit", labelKey: "nav.audit" },
 ];

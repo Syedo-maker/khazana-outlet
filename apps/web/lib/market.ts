@@ -208,6 +208,15 @@ export type SizeRow = {
   standard: string | null;
 };
 
+export type PartnerMatch = {
+  partner_id: string;
+  name: string;
+  kind: "tailor" | "artisan" | "ngo" | "recycler";
+  city: string;
+  score: number;
+  reasons: string[];
+};
+
 export type PoolLine = { size: string; color: string; pieces: number };
 
 export type Pool = {
@@ -635,6 +644,13 @@ export const market = {
     request<SizeRow[]>(`/brands/${brandId}/size-chart`, { token }),
   saveSizeChart: (token: string, brandId: string, rows: Record<string, unknown>[]) =>
     request<SizeRow[]>(`/brands/${brandId}/size-chart`, { method: "PUT", token, body: rows }),
+  partnerMatches: (token: string, lotId: string) =>
+    request<PartnerMatch[]>(`/lots/${lotId}/partner-matches`, { token }),
+  offerToPartner: (
+    token: string,
+    lotId: string,
+    body: { partner_id: string; route: "donation" | "upcycle_sale"; price_pkr?: number },
+  ) => request<unknown>(`/lots/${lotId}/redirections`, { method: "POST", token, body }),
   pools: (token: string) => request<Pool[]>("/pools", { token }),
   openPool: (token: string, body: PoolMembership & { lot_id: string }) =>
     request<Pool>("/pools", { method: "POST", token, body }),
@@ -899,7 +915,28 @@ export type AuditEntry = {
   created_at: string;
 };
 
+export type ReviewCase = {
+  id: string;
+  subject_type: "account" | "listing" | "order";
+  subject_id: string;
+  score: number;
+  signals: { code: string; weight: number; detail: string }[];
+  status: "open" | "cleared" | "actioned";
+  decision_note: string | null;
+  decided_at: string | null;
+  scored_at: string;
+};
+
 export const adminApi = {
+  reviewCases: (token: string) => request<ReviewCase[]>("/admin/review-cases", { token }),
+  decideCase: (
+    token: string,
+    id: string,
+    body: { outcome: "cleared" | "actioned"; action: string; note: string },
+  ) =>
+    request<ReviewCase>(`/admin/review-cases/${id}/decision`, { method: "POST", token, body }),
+  runRisk: (token: string) =>
+    request<{ open_cases: number }>("/admin/jobs/risk", { method: "POST", token }),
   overview: (token: string) => request<AdminOverview>("/admin/overview", { token }),
   resellers: (token: string) => request<AdminReseller[]>("/admin/resellers", { token }),
   reviewReseller: (token: string, id: string, approve: boolean, note: string) =>
