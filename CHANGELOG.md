@@ -9,6 +9,45 @@ to match the plan would be a nicer looking lie.
 
 ## Unreleased
 
+### Phase 4, weeks 32 to 49: the intelligence layer, 2026-11-20
+
+- **Added** The buyer assistant in the product: web chat with conversation
+  history, a daily message cap per account, and WhatsApp through a signed
+  sandbox provider that answers only registered numbers. Voice notes are
+  transcribed by a sandbox service that reports the language; an unclear one
+  asks the buyer to type.
+- **Added** The brand assistant: what is slow, what to discount, what sold
+  where, answered from the brand's own data through lookups that take the
+  brand from the session and cannot name another.
+- **Added** Lot recommendations with their reasons, a reseller profit helper
+  with every assumption listed, and a mixed lot builder that proposes part
+  lots from several brands priced by checkout's own rules.
+- **Added** The resell kit for paid orders: captions in three languages, a
+  social post, a WhatsApp catalogue, price tags and square photographs. The
+  model is never given the retail price or an unbranded lot's brand.
+- **Added** Committee pools for three or four shops in a city, opted into by
+  brands, split by need, with one ordinary order per member placed together.
+- **Added** The bargaining bot and the smart markdown agent, built to ADR
+  0001: brand set floors and steps, a clamp in code on every proposal, every
+  move audited, and both off by default per lot.
+- **Added** Demand and dead stock forecasts from sales history and an
+  editable season calendar, over production warnings, brand size charts
+  mapped to a standard, the upcycle and donation route, the risk review queue,
+  brand reports, platform growth, AI cost per feature, listing and order, and
+  an impact report.
+- **Added** Eval suites written before each AI feature: brand plan, brand
+  assistant, resell kit, bargaining and markdown, with grader tests in both
+  directions. Migrations 0007 to 0015.
+- **Fixed** Threads read their own new messages in the same session. A
+  loaded relationship had hidden them from the assistant's history and from
+  the negotiation the API returned.
+- **Fixed** Migration 0008 failed on SQLite, which has no now() for the
+  default row's timestamps.
+
+Everything runs offline against recorded replies and sandbox providers. The
+new suites have not run live yet; that costs money and is waiting for a go
+ahead.
+
 ### Live AI readiness, 2026-11-20
 
 Every AI feature had only run against recorded replies. This makes them work
