@@ -25,6 +25,9 @@ from ..core.errors import Conflict, Unauthenticated, ValidationFailed
 
 SIGNATURE_HEADER = "x-sandbox-signature"
 MAX_TEXT_CHARS = 2_000
+# Languages a voice note may be in. Buyers speak these; replies are written in
+# Urdu, Roman Urdu or English, which readers of all four can read.
+VOICE_LANGUAGES = ("ur", "pa", "sd", "ps", "en")
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +38,7 @@ class VoiceNote:
     duration_seconds: int
     sandbox_transcript: str | None = None
     sandbox_confidence: float | None = None
+    sandbox_language: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,6 +54,7 @@ class InboundMessage:
 class Transcript:
     text: str
     confidence: float
+    language: str | None = None
 
 
 class WhatsAppProvider(Protocol):
@@ -100,6 +105,7 @@ class SandboxWhatsAppProvider:
                 "duration_seconds": voice.duration_seconds,
                 "sandbox_transcript": voice.sandbox_transcript,
                 "sandbox_confidence": voice.sandbox_confidence,
+                "sandbox_language": voice.sandbox_language,
             }
         body = json.dumps(payload, sort_keys=True).encode()
         return body, self.sign(body)
@@ -119,6 +125,7 @@ class SandboxWhatsAppProvider:
                     duration_seconds=int(voice_raw.get("duration_seconds") or 0),
                     sandbox_transcript=voice_raw.get("sandbox_transcript"),
                     sandbox_confidence=None if confidence is None else float(confidence),
+                    sandbox_language=voice_raw.get("sandbox_language"),
                 )
             text = str(payload.get("text") or "")[:MAX_TEXT_CHARS]
             if not text.strip() and voice is None:
@@ -146,9 +153,11 @@ class SandboxTranscriber:
         if not voice.sandbox_transcript:
             return Transcript(text="", confidence=0.0)
         confidence = voice.sandbox_confidence
+        language = voice.sandbox_language if voice.sandbox_language in VOICE_LANGUAGES else None
         return Transcript(
             text=voice.sandbox_transcript,
             confidence=0.0 if confidence is None else max(0.0, min(1.0, confidence)),
+            language=language,
         )
 
 

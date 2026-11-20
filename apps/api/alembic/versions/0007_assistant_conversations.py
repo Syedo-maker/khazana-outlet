@@ -109,6 +109,7 @@ def upgrade() -> None:
         sa.Column("conversation_id", sa.String(length=36), nullable=True),
         sa.Column("media_key", sa.String(length=300), nullable=True),
         sa.Column("transcript_confidence", sa.Float(), nullable=True),
+        sa.Column("transcript_language", sa.String(length=8), nullable=True),
         sa.Column("status", sa.String(length=32), nullable=False),
         sa.Column("id", sa.String(length=36), nullable=False),
         *_timestamps(),

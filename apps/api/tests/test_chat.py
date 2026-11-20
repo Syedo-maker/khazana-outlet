@@ -312,7 +312,13 @@ class TestWhatsApp:
 
 
 class TestVoiceNotes:
-    def _voice(self, db: Session, transcript: str | None, confidence: float | None) -> Any:
+    def _voice(
+        self,
+        db: Session,
+        transcript: str | None,
+        confidence: float | None,
+        language: str | None = "ur",
+    ) -> Any:
         sandbox = whatsapp_providers.sandbox()
         body, signature = sandbox.build_inbound(
             phone="03007777777",
@@ -321,6 +327,7 @@ class TestVoiceNotes:
                 duration_seconds=6,
                 sandbox_transcript=transcript,
                 sandbox_confidence=confidence,
+                sandbox_language=language,
             ),
         )
         return whatsapp_service.ingest(db, "sandbox", body, signature)
@@ -338,6 +345,27 @@ class TestVoiceNotes:
         assert logged is not None
         assert logged.transcript_confidence == pytest.approx(0.91)
         assert logged.media_key == "media-1"
+        assert logged.transcript_language == "ur"
+
+    @pytest.mark.parametrize("language", ["pa", "sd", "ps"])
+    def test_punjabi_sindhi_and_pashto_voice_notes_are_answered(
+        self, db: Session, stub: StubAssistant, language: str
+    ) -> None:
+        make_reseller(db)
+        result = self._voice(db, "Lawn de suit kinne de ne?", 0.8, language)
+        assert result.status == "answered"
+        logged = db.scalar(
+            select(WhatsAppMessage).where(WhatsAppMessage.direction == MessageDirection.INBOUND)
+        )
+        assert logged is not None and logged.transcript_language == language
+
+    def test_an_unknown_language_code_is_not_stored(self, db: Session, stub: StubAssistant) -> None:
+        make_reseller(db)
+        self._voice(db, "hello", 0.9, "xx")
+        logged = db.scalar(
+            select(WhatsAppMessage).where(WhatsAppMessage.direction == MessageDirection.INBOUND)
+        )
+        assert logged is not None and logged.transcript_language is None
 
     @pytest.mark.parametrize(("transcript", "confidence"), [("kuch", 0.3), (None, None)])
     def test_an_unclear_voice_note_asks_the_buyer_to_type(

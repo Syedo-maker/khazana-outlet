@@ -92,4 +92,5 @@ class WhatsAppMessage(UUIDPrimaryKey, TimestampMixin, Base):
     # Voice notes: the stored audio key and the transcription, when there is one.
     media_key: Mapped[str | None] = mapped_column(String(300), default=None)
     transcript_confidence: Mapped[float | None] = mapped_column(default=None)
+    transcript_language: Mapped[str | None] = mapped_column(String(8), default=None)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="received")

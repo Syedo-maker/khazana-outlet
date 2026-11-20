@@ -195,6 +195,7 @@ class SandboxInboundIn(BaseModel):
     text: str = Field(default="", max_length=2_000)
     voice_transcript: str | None = Field(default=None, max_length=2_000)
     voice_confidence: float | None = Field(default=None, ge=0, le=1)
+    voice_language: str | None = Field(default=None, max_length=8)
 
 
 class SandboxInboundOut(BaseModel):
@@ -221,6 +222,7 @@ def sandbox_inbound(payload: SandboxInboundIn, _: AdminOnly, db: Db) -> SandboxI
             duration_seconds=5,
             sandbox_transcript=payload.voice_transcript,
             sandbox_confidence=payload.voice_confidence,
+            sandbox_language=payload.voice_language,
         )
     body, signature = sandbox.build_inbound(phone=payload.phone, text=payload.text, voice=voice)
     result = whatsapp_service.ingest(db, sandbox.name, body, signature)
@@ -235,6 +237,7 @@ class WhatsAppLogOut(BaseModel):
     body: str
     status: str
     transcript_confidence: float | None
+    transcript_language: str | None
     created_at: datetime
 
 
@@ -256,6 +259,7 @@ def whatsapp_log(_: AdminOnly, db: Db) -> list[WhatsAppLogOut]:
             body=row.body,
             status=row.status,
             transcript_confidence=row.transcript_confidence,
+            transcript_language=row.transcript_language,
             created_at=row.created_at,
         )
         for row in rows

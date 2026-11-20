@@ -176,6 +176,7 @@ def _answer(db: Session, provider: WhatsAppProvider, inbound: InboundMessage) ->
     if inbound.voice is not None:
         transcript = whatsapp_providers.transcriber().transcribe(inbound.voice)
         record.transcript_confidence = transcript.confidence
+        record.transcript_language = transcript.language
         if not transcript.text.strip() or transcript.confidence < settings.voice_min_confidence:
             record.status = "voice_unclear"
             _send(db, provider, phone=phone, text=VOICE_UNCLEAR_REPLY, user_id=user.id)
