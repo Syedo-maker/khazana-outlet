@@ -256,6 +256,47 @@ class ToolPlan(BaseModel):
     language: str = Field(description="en, ur or ur_roman")
 
 
+BRAND_TOOL_ARGUMENT_FIELDS = ("lot_code", "city", "category", "days", "min_days_live")
+
+
+class BrandToolCall(BaseModel):
+    """One planned lookup for the brand assistant.
+
+    There is no brand identifier among the fields, deliberately. Which brand's
+    data a lookup reads comes from the signed in session, so a plan cannot ask
+    for another brand's numbers however the message is worded.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    tool: str = Field(max_length=60)
+    lot_code: str | None = Field(default=None, max_length=24)
+    city: str | None = Field(default=None, max_length=80)
+    category: str | None = Field(default=None, max_length=120)
+    days: int | None = Field(default=None, description="Look back period in days")
+    min_days_live: int | None = Field(
+        default=None, description="Slow means live at least this long"
+    )
+
+    @property
+    def arguments(self) -> dict[str, Any]:
+        return {
+            name: getattr(self, name)
+            for name in BRAND_TOOL_ARGUMENT_FIELDS
+            if getattr(self, name) is not None
+        }
+
+
+class BrandToolPlan(BaseModel):
+    """Which lookups to run for one question from a brand."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    calls: list[BrandToolCall] = Field(default_factory=list, max_length=5)
+    needs_no_tools: bool = False
+    language: str = Field(description="en, ur or ur_roman")
+
+
 SCHEMA_BY_FEATURE: dict[str, type[BaseModel]] = {
     "listing_from_photos": ListingDraft,
     "logo_detection": LogoDetection,
