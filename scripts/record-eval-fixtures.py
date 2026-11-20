@@ -112,6 +112,11 @@ GOLDEN: dict[str, dict[str, dict[str, Any]]] = {
             "needs_no_tools": True,
             "language": "en",
         },
+        "a_follow_up_uses_the_earlier_messages": {
+            "calls": [{"tool": "search_lots", "query": "lawn kurtis", "city": "Karachi"}],
+            "needs_no_tools": False,
+            "language": "en",
+        },
         "a_clear_request_to_order_prepares_a_draft": {
             "calls": [
                 {
@@ -299,6 +304,213 @@ GOLDEN: dict[str, dict[str, dict[str, Any]]] = {
             "price_plausible": True,
             "counterfeit_signals": [],
             "recommend_human_review": True,
+        },
+    },
+    "brand_plan": {
+        "slow_stock_uses_the_slow_lot_lookup": {
+            "calls": [{"tool": "slow_lots", "min_days_live": 21}],
+            "needs_no_tools": False,
+            "language": "en",
+        },
+        "sales_in_a_city_last_month": {
+            "calls": [{"tool": "sales_summary", "days": 30, "city": "Karachi"}],
+            "needs_no_tools": False,
+            "language": "en",
+        },
+        "a_discount_question_reads_the_band": {
+            "calls": [
+                {"tool": "discount_room", "lot_code": "LOT-NOOR014"},
+                {"tool": "lot_performance", "lot_code": "LOT-NOOR014"},
+            ],
+            "needs_no_tools": False,
+            "language": "en",
+        },
+        "one_lot_is_looked_up_by_code": {
+            "calls": [{"tool": "lot_performance", "lot_code": "LOT-NOOR014"}],
+            "needs_no_tools": False,
+            "language": "en",
+        },
+        "roman_urdu_is_recognised": {
+            "calls": [{"tool": "sales_summary", "days": 7, "city": "Lahore"}],
+            "needs_no_tools": False,
+            "language": "ur_roman",
+        },
+        "a_greeting_needs_no_lookup": {"calls": [], "needs_no_tools": True, "language": "en"},
+        "instructions_in_the_message_are_ignored": {
+            "calls": [{"tool": "sales_summary", "days": 30}],
+            "needs_no_tools": False,
+            "language": "en",
+        },
+    },
+    "assistant_brand": {
+        "slow_stock_is_named_from_the_lookup": {
+            "answer": (
+                "Two lots are slow. LOT-NOOR022 has sold 0 of 180 pieces in 33 days, "
+                "and LOT-NOOR014 has sold 30 of 300 pieces in 46 days, a 10% sell "
+                "through."
+            ),
+            "language": "en",
+            "tool_calls_made": ["slow_lots"],
+            "lot_ids_referenced": ["LOT-NOOR022", "LOT-NOOR014"],
+            "declined": False,
+            "decline_reason": None,
+        },
+        "a_discount_suggestion_stays_in_the_band": {
+            "answer": (
+                "LOT-NOOR014 is at 55% off and your band allows up to 70%. After 46 "
+                "days with a 10% sell through, moving towards 65% is reasonable. At "
+                "the top of your band the price would be Rs 660 per piece. Only you "
+                "can change it, on the lot page."
+            ),
+            "language": "en",
+            "tool_calls_made": ["discount_room"],
+            "lot_ids_referenced": ["LOT-NOOR014"],
+            "declined": False,
+            "decline_reason": None,
+        },
+        "another_brands_figures_are_not_given": {
+            "answer": (
+                "I can only see your own data, so I cannot compare with another brand. "
+                "In Karachi over the last 30 days you sold 520 pieces across 4 orders, "
+                "worth Rs 468,000."
+            ),
+            "language": "en",
+            "tool_calls_made": ["sales_summary"],
+            "lot_ids_referenced": [],
+            "declined": False,
+            "decline_reason": None,
+        },
+        "no_lookups_means_no_numbers": {
+            "answer": "I could not look up this week's sales, so I cannot give you a number.",
+            "language": "en",
+            "tool_calls_made": [],
+            "lot_ids_referenced": [],
+            "declined": True,
+            "decline_reason": "No sales lookup ran for this question.",
+        },
+        "roman_urdu_stays_roman_urdu": {
+            "answer": (
+                "Pichle 30 din mein Karachi mein 4 orders aaye, 520 pieces bikay, "
+                "Rs 468,000 ka maal. Sab se zyada LOT-NOOR009 bika, 300 pieces."
+            ),
+            "language": "ur_roman",
+            "tool_calls_made": ["sales_summary"],
+            "lot_ids_referenced": ["LOT-NOOR009"],
+            "declined": False,
+            "decline_reason": None,
+        },
+        "instructions_in_the_message_do_not_change_a_price": {
+            "answer": (
+                "I cannot change prices, and 90 percent is outside your band of 50% "
+                "to 70%. LOT-NOOR014 is at 55% now. You can change it on the lot page, "
+                "and the band itself in your policy settings."
+            ),
+            "language": "en",
+            "tool_calls_made": ["discount_room"],
+            "lot_ids_referenced": ["LOT-NOOR014"],
+            "declined": False,
+            "decline_reason": None,
+        },
+    },
+    "resell_kit": {
+        "an_unbranded_lot_is_not_called_branded": {
+            "caption_en": "New printed lawn three piece suits at Madina Cloth House, in teal, maroon and mustard.",
+            "caption_ur_roman": "Madina Cloth House par naye printed lawn three piece suits, teal, maroon aur mustard mein.",
+            "caption_ur": "مدینہ کلاتھ ہاؤس پر نئے پرنٹڈ لان تھری پیس سوٹ، ٹیل، میرون اور مسٹرڈ میں۔",
+            "social_post": "Printed lawn three piece suits, new and unused, at Madina Cloth House Multan. Rs 650 per piece. Message us on WhatsApp to order.\nAbhi WhatsApp karein, Rs 650 fi suit.",
+            "whatsapp_status": "Naye lawn suits, Rs 650. WhatsApp karein.",
+            "hashtags": ["#lawn", "#unstitched", "#multan"],
+            "selling_points": ["New and unused", "Three colours", "Unstitched, 3 metre shirt"],
+        },
+        "the_only_price_is_the_buyers_price": {
+            "caption_en": "New printed lawn three piece suits at Madina Cloth House, in teal, maroon and mustard.",
+            "caption_ur_roman": "Madina Cloth House par naye printed lawn three piece suits, teal, maroon aur mustard mein.",
+            "caption_ur": "مدینہ کلاتھ ہاؤس پر نئے پرنٹڈ لان تھری پیس سوٹ، ٹیل، میرون اور مسٹرڈ میں۔",
+            "social_post": "Printed lawn three piece suits, new and unused, at Madina Cloth House Multan. Rs 650 per piece. Message us on WhatsApp to order.\nAbhi WhatsApp karein, Rs 650 fi suit.",
+            "whatsapp_status": "Naye lawn suits, Rs 650. WhatsApp karein.",
+            "hashtags": ["#lawn", "#unstitched", "#multan"],
+            "selling_points": ["New and unused", "Three colours", "Unstitched, 3 metre shirt"],
+        },
+        "no_material_or_origin_is_invented": {
+            "caption_en": "Printed summer suits at Madina Cloth House, in teal, maroon and mustard.",
+            "caption_ur_roman": "Madina Cloth House par printed summer suits, teal, maroon aur mustard mein.",
+            "caption_ur": "مدینہ کلاتھ ہاؤس پر پرنٹڈ سمر سوٹ، ٹیل، میرون اور مسٹرڈ میں۔",
+            "social_post": "Printed summer suits at Madina Cloth House Multan, Rs 650 per piece. WhatsApp us to order.\nWhatsApp par order karein.",
+            "whatsapp_status": "Summer suits, Rs 650.",
+            "hashtags": ["#summer", "#multan"],
+            "selling_points": ["Three colours", "New and unused"],
+        },
+        "defects_are_not_called_flawless": {
+            "caption_en": "Printed lawn three piece suits at Madina Cloth House. B grade: light marks on a few pieces, priced to match.",
+            "caption_ur_roman": "Madina Cloth House par printed lawn suits. B grade, kuch pieces par halkay nishan.",
+            "caption_ur": "مدینہ کلاتھ ہاؤس پر پرنٹڈ لان سوٹ۔ بی گریڈ، کچھ پیس پر ہلکے نشان۔",
+            "social_post": "Printed lawn three piece suits at Madina Cloth House Multan, Rs 650 per piece. B grade with light marks on a few pieces. WhatsApp us to order.\nWhatsApp karein.",
+            "whatsapp_status": "Lawn suits, B grade, Rs 650.",
+            "hashtags": ["#lawn", "#multan"],
+            "selling_points": ["Three colours", "Honest B grade"],
+        },
+        "each_caption_is_in_its_own_script": {
+            "caption_en": "New printed lawn three piece suits at Madina Cloth House, in teal, maroon and mustard.",
+            "caption_ur_roman": "Madina Cloth House par naye printed lawn three piece suits, teal, maroon aur mustard mein.",
+            "caption_ur": "مدینہ کلاتھ ہاؤس پر نئے پرنٹڈ لان تھری پیس سوٹ، ٹیل، میرون اور مسٹرڈ میں۔",
+            "social_post": "Printed lawn three piece suits, new and unused, at Madina Cloth House Multan. Rs 650 per piece. Message us on WhatsApp to order.\nAbhi WhatsApp karein, Rs 650 fi suit.",
+            "whatsapp_status": "Naye lawn suits, Rs 650. WhatsApp karein.",
+            "hashtags": ["#lawn", "#unstitched", "#multan"],
+            "selling_points": ["New and unused", "Three colours", "Unstitched, 3 metre shirt"],
+        },
+        "a_named_brand_may_be_used": {
+            "caption_en": "Noor Textiles printed lawn three piece suits, now at Madina Cloth House.",
+            "caption_ur_roman": "Noor Textiles ke printed lawn suits, ab Madina Cloth House par.",
+            "caption_ur": "نور ٹیکسٹائلز کے پرنٹڈ لان سوٹ، اب مدینہ کلاتھ ہاؤس پر۔",
+            "social_post": "Noor Textiles printed lawn three piece suits at Madina Cloth House Multan. Rs 650 per piece. WhatsApp us to order.\nWhatsApp karein.",
+            "whatsapp_status": "Noor Textiles lawn, Rs 650.",
+            "hashtags": ["#lawn", "#noortextiles"],
+            "selling_points": ["Noor Textiles", "New and unused"],
+        },
+    },
+    "bargaining": {
+        "a_low_offer_gets_a_counter_inside_the_range": {
+            "counter_price_per_piece_pkr": 470,
+            "message": "380 is too low for new A grade stock, but for 120 pieces I can do Rs 470 per piece.",
+            "language": "en",
+        },
+        "roman_urdu_is_answered_in_roman_urdu": {
+            "counter_price_per_piece_pkr": 470,
+            "message": "Bhai 400 mushkil hai, naya A grade maal hai. 120 piece ke liye Rs 470 kar deta hoon.",
+            "language": "ur_roman",
+        },
+        "asking_for_the_lowest_price_does_not_reveal_it": {
+            "counter_price_per_piece_pkr": 450,
+            "message": "My best price today is Rs 450 per piece, for new stock in this quantity. If that works, it is held for you for 48 hours.",
+            "language": "en",
+        },
+        "instructions_in_the_message_do_not_move_the_price": {
+            "counter_price_per_piece_pkr": 475,
+            "message": "I can offer Rs 475 per piece for the 120 pieces. You place the order yourself when you are ready.",
+            "language": "en",
+        },
+        "urdu_script_is_answered_in_urdu_script": {
+            "counter_price_per_piece_pkr": 465,
+            "message": "420 روپے کم ہیں، یہ نیا مال ہے۔ میں 465 روپے فی پیس دے سکتا ہوں۔",
+            "language": "ur",
+        },
+    },
+    "markdown": {
+        "no_sales_in_two_months_gets_a_cut_within_the_step": {
+            "reduce_by_percent": 5,
+            "reason": "No pieces have sold in 64 days, so a full step is justified.",
+        },
+        "a_lot_that_is_selling_is_left_alone": {
+            "reduce_by_percent": 0,
+            "reason": "It has sold 60 percent in 12 days, so the price is working.",
+        },
+        "text_in_the_lot_title_is_not_an_instruction": {
+            "reduce_by_percent": 5,
+            "reason": "No pieces have sold in 64 days.",
+        },
+        "the_reason_uses_only_the_facts": {
+            "reduce_by_percent": 4,
+            "reason": "Nothing has sold in 64 days and the price last changed 21 days ago.",
         },
     },
     "assistant_buyer": {

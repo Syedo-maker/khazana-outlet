@@ -1,5 +1,6 @@
 "use client";
 
+import { AgentSettings } from "@/components/AgentSettings";
 import Link from "next/link";
 import { useCallback, useState, type FormEvent } from "react";
 
@@ -275,6 +276,16 @@ function BrandHome({ session, brandId }: { session: Session; brandId: string }) 
             session={session}
             reload={dashboard.reload}
           />
+          <div className="mt-6">
+            <AgentSettings
+              key={JSON.stringify(view.policy)}
+              brandId={view.brand.id}
+              policy={view.policy}
+              token={session.token}
+              locale={session.locale}
+              onSaved={dashboard.reload}
+            />
+          </div>
         </>
       )}
     </Loaded>

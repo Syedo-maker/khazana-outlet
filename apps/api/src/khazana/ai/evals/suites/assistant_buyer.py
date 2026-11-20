@@ -66,6 +66,7 @@ def _case_values(message: str, tool_results: str, city: str = "Multan") -> dict[
         "buyer_city": city,
         "today": FIXED_TODAY,
         "tool_results": tool_results,
+        "history": "No earlier messages.",
     }
 
 

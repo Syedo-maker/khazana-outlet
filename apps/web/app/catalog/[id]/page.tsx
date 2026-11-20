@@ -1,5 +1,9 @@
 "use client";
 
+import { SizeGuideCard } from "@/components/SizeGuideCard";
+import { NegotiationCard } from "@/components/NegotiationCard";
+import { OpenPoolCard } from "@/components/pools/OpenPoolCard";
+import { ProfitCard } from "@/components/ProfitCard";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
@@ -135,7 +139,9 @@ function ListingContent({ session, lotId }: { session: Session; lotId: string })
               <h1 className="mt-2 text-2xl font-semibold tracking-tight">{detail.lot.title}</h1>
               <p className="mt-1 text-sm text-ink-soft">{detail.brand_name}</p>
               {detail.lot.description ? (
-                <p className="mt-4 max-w-prose">{detail.lot.description}</p>
+                <p dir="auto" className="mt-4 max-w-prose">
+                  {detail.lot.description}
+                </p>
               ) : null}
 
               <dl className="my-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -168,6 +174,7 @@ function ListingContent({ session, lotId }: { session: Session; lotId: string })
                 </ul>
               ) : null}
 
+              <SizeGuideCard guide={detail.size_guide} locale={locale} />
               <Card className="mb-6">
                 <CardHeader>
                   <CardTitle as="h2">{t(locale, "manifest.title")}</CardTitle>
@@ -225,6 +232,15 @@ function ListingContent({ session, lotId }: { session: Session; lotId: string })
                   <PurchaseCard detail={detail} session={session} />
                 </CardBody>
               </Card>
+              {session.me.user.role === "reseller" ? (
+                <ProfitCard session={session} lotId={lotId} />
+              ) : null}
+              {session.me.user.role === "reseller" && detail.allows_bargaining ? (
+                <NegotiationCard detail={detail} session={session} />
+              ) : null}
+              {session.me.user.role === "reseller" && detail.allows_pooling ? (
+                <OpenPoolCard detail={detail} session={session} />
+              ) : null}
             </aside>
           </div>
         )}

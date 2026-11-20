@@ -270,6 +270,8 @@ export type Lot = {
 };
 
 export type LotDetail = Lot & {
+  bargaining_enabled: boolean | null;
+  auto_markdown_enabled: boolean | null;
   manifest_lines: ManifestLineOut[];
   photos: LotPhoto[];
   defects: LotDefect[];

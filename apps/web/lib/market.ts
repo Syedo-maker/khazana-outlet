@@ -75,7 +75,210 @@ export type CatalogItem = {
   similarity?: number | null;
 };
 
+export type Recommendation = CatalogItem & {
+  score: number;
+  reasons: string[];
+  reason_codes: ({ code: string } & Record<string, string>)[];
+};
+
+export type ProfitScenario = {
+  name: string;
+  price_per_piece_pkr: number;
+  revenue_pkr: number;
+  profit_pkr: number;
+  margin_percent: number;
+};
+
+export type ProfitEstimate = {
+  lot_code: string;
+  city: string;
+  pieces: number;
+  goods_pkr: number;
+  shipping_pkr: number | null;
+  cost_pkr: number;
+  cost_per_piece_pkr: number;
+  scenarios: ProfitScenario[];
+  break_even_pieces: number | null;
+  benchmark: string;
+  assumptions: string[];
+};
+
 export type LineChoice = { size: string; color: string; pieces: number };
+
+export type ResellKit = {
+  order_id: string;
+  lot_code: string;
+  selling_price_pkr: number;
+  caption_en: string;
+  caption_ur_roman: string;
+  caption_ur: string;
+  social_post: string;
+  whatsapp_status: string;
+  hashtags: string[];
+  selling_points: string[];
+  price_tags: {
+    size: string;
+    color: string;
+    pieces: number;
+    price_en: string;
+    price_ur: string;
+  }[];
+  whatsapp_catalogue: string;
+  photo_paths: string[];
+};
+
+export type NegotiationMessage = {
+  role: "buyer" | "assistant";
+  body: string;
+  offer_pkr: number | null;
+  created_at: string;
+};
+
+export type Negotiation = {
+  id: string;
+  lot_id: string;
+  lot_code: string;
+  status: "open" | "agreed" | "ordered" | "expired" | "withdrawn";
+  pieces: number;
+  list_price_pkr: number;
+  asking_price_pkr: number;
+  agreed_price_pkr: number | null;
+  agreed_until: string | null;
+  rounds: number;
+  order_id: string | null;
+  messages: NegotiationMessage[];
+};
+
+export type PriceMove = {
+  at: string;
+  action: string;
+  by: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  note: string | null;
+};
+
+export type ForecastLot = {
+  lot_id: string;
+  lot_code: string;
+  title: string;
+  weekly_pieces: number;
+  weeks_to_clear: number | null;
+  at_risk: boolean;
+  reason: string;
+};
+
+export type SeasonEvent = {
+  id: string;
+  name: string;
+  starts_on: string;
+  ends_on: string;
+  lead_days: number;
+  demand_factor: number;
+  keywords: string[];
+  note: string;
+};
+
+export type BrandForecast = {
+  computed_at: string | null;
+  at_risk: ForecastLot[];
+  on_track: ForecastLot[];
+  warnings: {
+    category: string;
+    live_pieces: number;
+    weekly_demand: number;
+    weeks_of_demand: number | null;
+    message: string;
+  }[];
+  upcoming: SeasonEvent[];
+};
+
+export type SizeGuide = {
+  size: string;
+  standard: string | null;
+  match: "close" | "approximate" | "no chart";
+  measurements: string;
+};
+
+export type SizeRow = {
+  audience: string;
+  label: string;
+  chest_min_cm: number | null;
+  chest_max_cm: number | null;
+  waist_min_cm: number | null;
+  waist_max_cm: number | null;
+  hip_min_cm: number | null;
+  hip_max_cm: number | null;
+  standard: string | null;
+};
+
+export type PartnerMatch = {
+  partner_id: string;
+  name: string;
+  kind: "tailor" | "artisan" | "ngo" | "recycler";
+  city: string;
+  score: number;
+  reasons: string[];
+};
+
+export type PoolLine = { size: string; color: string; pieces: number };
+
+export type Pool = {
+  id: string;
+  item: CatalogItem;
+  city: string;
+  status: "open" | "ordered" | "cancelled" | "expired";
+  closes_at: string;
+  members: number;
+  min_members: number;
+  places_left: number;
+  pieces_covered: number;
+  meets_minimum: boolean;
+  shortfall: string[];
+  uncovered: PoolLine[];
+  mine: {
+    requested: PoolLine[];
+    allocated: PoolLine[] | null;
+    order_id: string | null;
+    is_organiser: boolean;
+  } | null;
+};
+
+export type PoolMembership = {
+  lines: PoolLine[];
+  delivery_address: string;
+  delivery_phone: string;
+  payment_method: PaymentMethod;
+};
+
+export type MixedLotRequest = {
+  budget_pkr: number;
+  target_pieces: number;
+  category_ids: string[];
+  max_brands: number;
+  city?: string;
+};
+
+export type MixedLotPart = {
+  item: CatalogItem;
+  pieces: number;
+  lines: LineChoice[];
+  subtotal_pkr: number;
+  shipping_pkr: number;
+  total_pkr: number;
+  reason: string;
+};
+
+export type MixedLot = {
+  components: MixedLotPart[];
+  pieces: number;
+  total_pkr: number;
+  brand_count: number;
+  budget_pkr: number;
+  target_pieces: number;
+  notes: string[];
+  added_to_cart: boolean;
+};
 
 export type CatalogDetail = CatalogItem & {
   photos: { id: string; kind: PhotoKind; sort_order: number }[];
@@ -83,6 +286,9 @@ export type CatalogDetail = CatalogItem & {
   available_lines: LineChoice[];
   allows_part_lot: boolean;
   allows_cod: boolean;
+  allows_pooling: boolean;
+  allows_bargaining: boolean;
+  size_guide: SizeGuide[];
   defects: { issue: string; pieces_affected: number; photo_id: string | null }[];
 };
 
@@ -254,6 +460,16 @@ export type BrandPolicy = {
   default_visibility: Visibility;
   allow_cod: boolean;
   allow_part_lot_orders: boolean;
+  allow_pooled_orders: boolean;
+  allow_bargaining: boolean;
+  bargain_floor_percent: number | null;
+  bargain_step_percent: number;
+  allow_auto_markdown: boolean;
+  markdown_step_percent: number;
+  markdown_interval_days: number;
+  markdown_floor_percent: number | null;
+  min_discount_percent?: number;
+  max_discount_percent?: number;
 };
 
 export type BrandDashboard = {
@@ -309,6 +525,37 @@ function queryString(values: Record<string, unknown>): string {
 }
 
 /** A protected file, read with the bearer token an image tag cannot send. */
+export type ChatRole = "buyer" | "assistant";
+
+export type ChatMessage = {
+  id: string;
+  role: ChatRole;
+  body: string;
+  language: string | null;
+  lot_codes: string[];
+  grounded: boolean | null;
+  declined: boolean | null;
+  created_at: string;
+};
+
+export type Conversation = {
+  id: string;
+  channel: "web" | "whatsapp";
+  title: string;
+  last_message_at: string | null;
+};
+
+export type ConversationDetail = Conversation & { messages: ChatMessage[] };
+
+export type AssistantUsage = { limit: number; used: number; remaining: number };
+
+export type ChatExchange = {
+  conversation: Conversation;
+  buyer_message: ChatMessage;
+  reply: ChatMessage;
+  usage: AssistantUsage;
+};
+
 export async function fetchFile(path: string, token: string, signal?: AbortSignal): Promise<Blob> {
   let response: Response;
   try {
@@ -325,6 +572,30 @@ export async function fetchFile(path: string, token: string, signal?: AbortSigna
 }
 
 export const market = {
+  conversations: (token: string) =>
+    request<Conversation[]>("/assistant/conversations", { token }),
+  conversation: (token: string, id: string) =>
+    request<ConversationDetail>(`/assistant/conversations/${id}`, { token }),
+  assistantUsage: (token: string) => request<AssistantUsage>("/assistant/usage", { token }),
+  sendAssistantMessage: (
+    token: string,
+    body: { message: string; conversation_id?: string; city?: string },
+  ) => request<ChatExchange>("/assistant/messages", { method: "POST", token, body }),
+  brandConversations: (token: string, brandId: string) =>
+    request<Conversation[]>(`/brands/${brandId}/assistant/conversations`, { token }),
+  brandConversation: (token: string, brandId: string, id: string) =>
+    request<ConversationDetail>(`/brands/${brandId}/assistant/conversations/${id}`, { token }),
+  sendBrandAssistantMessage: (
+    token: string,
+    brandId: string,
+    body: { message: string; conversation_id?: string },
+  ) =>
+    request<ChatExchange>(`/brands/${brandId}/assistant/messages`, {
+      method: "POST",
+      token,
+      body,
+    }),
+
   categories: (token: string) => request<Category[]>("/catalog/categories", { token }),
 
   search: (token: string, filters: SearchFilters, offset = 0) =>
@@ -349,6 +620,73 @@ export const market = {
     request<void>(`/catalog/saved-searches/${id}`, { method: "DELETE", token }),
   runSavedSearch: (token: string, id: string) =>
     request<SearchResult>(`/catalog/saved-searches/${id}/results`, { token }),
+
+  startNegotiation: (token: string, body: { lot_id: string; message: string; offer_pkr?: number }) =>
+    request<Negotiation>("/negotiations", { method: "POST", token, body }),
+  replyNegotiation: (
+    token: string,
+    id: string,
+    body: { message: string; offer_pkr?: number },
+  ) => request<Negotiation>(`/negotiations/${id}/messages`, { method: "POST", token, body }),
+  acceptNegotiation: (token: string, id: string) =>
+    request<Negotiation>(`/negotiations/${id}/accept`, { method: "POST", token }),
+  orderNegotiation: (
+    token: string,
+    id: string,
+    body: { delivery_address: string; delivery_phone: string; payment_method: PaymentMethod },
+  ) => request<Negotiation>(`/negotiations/${id}/order`, { method: "POST", token, body }),
+  setLotAgents: (
+    token: string,
+    lotId: string,
+    body: { bargaining_enabled?: boolean | null; auto_markdown_enabled?: boolean | null },
+  ) => request<unknown>(`/lots/${lotId}/agents`, { method: "PATCH", token, body }),
+  priceHistory: (token: string, lotId: string) =>
+    request<PriceMove[]>(`/lots/${lotId}/price-history`, { token }),
+  brandForecast: (token: string, brandId: string) =>
+    request<BrandForecast>(`/brands/${brandId}/forecast`, { token }),
+  sizeChart: (token: string, brandId: string) =>
+    request<SizeRow[]>(`/brands/${brandId}/size-chart`, { token }),
+  saveSizeChart: (token: string, brandId: string, rows: Record<string, unknown>[]) =>
+    request<SizeRow[]>(`/brands/${brandId}/size-chart`, { method: "PUT", token, body: rows }),
+  partnerMatches: (token: string, lotId: string) =>
+    request<PartnerMatch[]>(`/lots/${lotId}/partner-matches`, { token }),
+  offerToPartner: (
+    token: string,
+    lotId: string,
+    body: { partner_id: string; route: "donation" | "upcycle_sale"; price_pkr?: number },
+  ) => request<unknown>(`/lots/${lotId}/redirections`, { method: "POST", token, body }),
+  brandAnalytics: (token: string, brandId: string) =>
+    request<BrandAnalytics>(`/brands/${brandId}/analytics`, { token }),
+  brandImpact: (token: string, brandId: string) =>
+    request<BrandImpact>(`/brands/${brandId}/impact`, { token }),
+  pools: (token: string) => request<Pool[]>("/pools", { token }),
+  openPool: (token: string, body: PoolMembership & { lot_id: string }) =>
+    request<Pool>("/pools", { method: "POST", token, body }),
+  joinPool: (token: string, poolId: string, body: PoolMembership) =>
+    request<Pool>(`/pools/${poolId}/join`, { method: "POST", token, body }),
+  leavePool: (token: string, poolId: string) =>
+    request<Pool>(`/pools/${poolId}/leave`, { method: "POST", token }),
+  placePool: (token: string, poolId: string) =>
+    request<{ order_ids: string[] }>(`/pools/${poolId}/place`, { method: "POST", token }),
+  resellKit: (token: string, orderId: string) =>
+    request<ResellKit | null>(`/orders/${orderId}/resell-kit`, { token }),
+  makeResellKit: (token: string, orderId: string, sellingPrice: number) =>
+    request<ResellKit>(`/orders/${orderId}/resell-kit`, {
+      method: "POST",
+      token,
+      body: { selling_price_pkr: sellingPrice },
+    }),
+  buildMixedLot: (token: string, body: MixedLotRequest) =>
+    request<MixedLot>("/catalog/mixed-lots", { method: "POST", token, body }),
+  mixedLotToCart: (token: string, body: MixedLotRequest) =>
+    request<MixedLot>("/catalog/mixed-lots/cart", { method: "POST", token, body }),
+  recommendations: (token: string) =>
+    request<Recommendation[]>("/catalog/recommendations", { token }),
+  profit: (
+    token: string,
+    lotId: string,
+    params: { city?: string; pieces?: number; selling_price_pkr?: number },
+  ) => request<ProfitEstimate>(`/catalog/${lotId}/profit${queryString(params)}`, { token }),
 
   listing: (token: string, lotId: string) =>
     request<CatalogDetail>(`/catalog/${lotId}`, { token }),
@@ -585,7 +923,87 @@ export type AuditEntry = {
   created_at: string;
 };
 
+export type BrandAnalytics = {
+  days: number;
+  orders: number;
+  pieces: number;
+  goods_pkr: number;
+  payout_pkr: number;
+  average_price_per_piece_pkr: number;
+  average_discount_percent: number;
+  by_city: { city: string; pieces: number }[];
+  by_category: { category: string; pieces: number }[];
+  by_month: { month: string; pieces: number; goods_pkr: number }[];
+  lots_by_status: Record<string, number>;
+};
+
+type ImpactTotals = { pieces: number; kg: number; water_litres: number; co2_kg: number };
+
+export type BrandImpact = {
+  days: number;
+  sold: ImpactTotals;
+  second_life: ImpactTotals;
+  factors: { keyword: string; kg_per_piece: number; source: string }[];
+  assumption: string;
+};
+
+export type PlatformReport = {
+  days: number;
+  gmv_pkr: number;
+  orders: number;
+  commission_pkr: number;
+  active_buyers: number;
+  new_accounts: number;
+  brands: number;
+  live_lots: number;
+  change_percent: Record<"gmv" | "orders" | "active_buyers" | "new_accounts", number | null>;
+};
+
+export type AiCosts = {
+  days: number;
+  total_usd: string;
+  features: {
+    feature: string;
+    calls: number;
+    cost_usd: string;
+    average_usd: string;
+    input_tokens: number;
+    output_tokens: number;
+  }[];
+  listings: number;
+  orders: number;
+  cost_per_listing_usd: string | null;
+  cost_per_order_usd: string | null;
+  listing_features: string[];
+  order_features: string[];
+};
+
+export type ReviewCase = {
+  id: string;
+  subject_type: "account" | "listing" | "order";
+  subject_id: string;
+  subject_label: string;
+  subject_link: string | null;
+  score: number;
+  signals: { code: string; weight: number; detail: string }[];
+  status: "open" | "cleared" | "actioned";
+  decision_note: string | null;
+  decided_at: string | null;
+  scored_at: string;
+};
+
 export const adminApi = {
+  aiCosts: (token: string) => request<AiCosts>("/admin/ai-costs", { token }),
+  analytics: (token: string) => request<PlatformReport>("/admin/analytics", { token }),
+  reviewCases: (token: string) => request<ReviewCase[]>("/admin/review-cases", { token }),
+  decideCase: (
+    token: string,
+    id: string,
+    body: { outcome: "cleared" | "actioned"; action: string; note: string },
+  ) =>
+    request<ReviewCase>(`/admin/review-cases/${id}/decision`, { method: "POST", token, body }),
+  runRisk: (token: string) =>
+    request<{ open_cases: number }>("/admin/jobs/risk", { method: "POST", token }),
   overview: (token: string) => request<AdminOverview>("/admin/overview", { token }),
   resellers: (token: string) => request<AdminReseller[]>("/admin/resellers", { token }),
   reviewReseller: (token: string, id: string, approve: boolean, note: string) =>

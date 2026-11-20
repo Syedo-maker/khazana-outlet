@@ -165,7 +165,7 @@ def _money_already_committed(db: Session, lot_id: str) -> int:
 
 
 def _chosen_lines(
-    db: Session, lot: Lot, purchase: Purchase, policy: BrandPolicy
+    db: Session, lot: Lot, purchase: Purchase, policy: BrandPolicy, *, pooled: bool = False
 ) -> list[LineChoice]:
     remaining = available_lines(db, lot)
     if purchase.whole_lot:
@@ -173,7 +173,10 @@ def _chosen_lines(
             raise Conflict("This lot has sold out.")
         return remaining
 
-    if not policy.allow_part_lot_orders:
+    if pooled:
+        if not policy.allow_pooled_orders:
+            raise ValidationFailed("This brand does not allow pooled orders.")
+    elif not policy.allow_part_lot_orders:
         raise ValidationFailed("This brand sells this lot only as a whole.")
     if not purchase.lines:
         raise ValidationFailed("Choose at least one size and colour.")
@@ -200,24 +203,39 @@ def price_purchase(
     lot: Lot,
     purchase: Purchase,
     destination_city: str,
+    pooled: bool = False,
+    agreed_unit_price: int | None = None,
 ) -> Pricing:
+    """Price one purchase exactly as checkout will.
+
+    ``pooled`` is for one member's share of a committee pool. The per order
+    minimums are then the pool's to meet as a whole, and the pool service
+    checks them across all members before any order exists.
+
+    ``agreed_unit_price`` is a price per piece agreed with the bargaining bot,
+    already checked against the brand's floor by the bargaining service. It
+    replaces the listed price for a whole lot order.
+    """
     policy = _policy(db, lot.brand_id)
-    lines = _chosen_lines(db, lot, purchase, policy)
+    lines = _chosen_lines(db, lot, purchase, policy, pooled=pooled)
     pieces = sum(line.pieces for line in lines)
     available = lot.available_pieces
 
     if pieces > available:
         raise Conflict(f"Only {available} pieces of this lot are available.")
     takes_the_rest = pieces == available
-    if pieces < lot.min_order_pieces and not takes_the_rest:
+    if pieces < lot.min_order_pieces and not takes_the_rest and not pooled:
         raise ValidationFailed(f"The minimum order for this lot is {lot.min_order_pieces} pieces.")
 
     unit_price = ceil(lot.lot_price_pkr / lot.total_pieces)
     subtotal = pieces * unit_price
-    if takes_the_rest:
+    if agreed_unit_price is not None:
+        unit_price = agreed_unit_price
+        subtotal = pieces * unit_price
+    elif takes_the_rest:
         # The orders on one lot always add up to its listed price.
         subtotal = max(pieces, lot.lot_price_pkr - _money_already_committed(db, lot.id))
-    elif subtotal < policy.min_lot_value_pkr:
+    elif subtotal < policy.min_lot_value_pkr and not pooled:
         raise ValidationFailed(
             f"The minimum order value for this brand is {policy.min_lot_value_pkr:,} PKR."
         )
@@ -287,6 +305,7 @@ def place_orders(
     delivery: Delivery,
     method: PaymentMethod,
     ip: str | None = None,
+    agreed_prices: dict[str, int] | None = None,
 ) -> list[Order]:
     """Create one order per lot, all of them or none.
 
@@ -309,50 +328,77 @@ def place_orders(
         if method == PaymentMethod.COD and not policy.allow_cod:
             raise ValidationFailed(f"Cash on delivery is not available for {lot.lot_code}.")
 
-        pricing = price_purchase(db, lot=lot, purchase=purchase, destination_city=cleaned.city)
-        order = Order(
-            order_code=_new_code(db),
-            lot_id=lot.id,
-            brand_id=lot.brand_id,
-            buyer_user_id=buyer.id,
-            pieces=pricing.pieces,
-            unit_price_pkr=pricing.unit_price_pkr,
-            rounding_adjustment_pkr=pricing.rounding_adjustment_pkr,
-            subtotal_pkr=pricing.subtotal_pkr,
-            shipping_pkr=pricing.shipping_pkr,
-            total_pkr=pricing.total_pkr,
-            commission_percent=pricing.commission_percent,
-            commission_pkr=pricing.commission_pkr,
-            brand_payout_pkr=pricing.brand_payout_pkr,
-            status=OrderStatus.CREATED,
-            payment_method=method,
-            delivery_city=cleaned.city,
-            delivery_address=cleaned.address,
-            delivery_phone=cleaned.phone,
+        pricing = price_purchase(
+            db,
+            lot=lot,
+            purchase=purchase,
+            destination_city=cleaned.city,
+            agreed_unit_price=(agreed_prices or {}).get(lot.id),
         )
-        order.lines = [
-            OrderLine(
-                brand_id=lot.brand_id,
-                size=line.size,
-                color=line.color,
-                pieces=line.pieces,
-                unit_price_pkr=pricing.unit_price_pkr,
+        orders.append(
+            create_order(
+                db, buyer=buyer, lot=lot, pricing=pricing, delivery=cleaned, method=method, ip=ip
             )
-            for line in pricing.lines
-        ]
-        db.add(order)
-        lot.reserved_pieces += pricing.pieces
-        db.flush()
-
-        _record_event(db, order, None, OrderStatus.CREATED, actor=buyer, note=None)
-        next_status = (
-            OrderStatus.PREPARING if method == PaymentMethod.COD else OrderStatus.AWAITING_PAYMENT
         )
-        _move(db, order, next_status, actor=buyer, ip=ip)
-        orders.append(order)
-
         db.execute(delete(CartItem).where(CartItem.user_id == buyer.id, CartItem.lot_id == lot.id))
     return orders
+
+
+def create_order(
+    db: Session,
+    *,
+    buyer: User,
+    lot: Lot,
+    pricing: Pricing,
+    delivery: Delivery,
+    method: PaymentMethod,
+    ip: str | None = None,
+) -> Order:
+    """Write one priced order, reserve its pieces and move it to its first state.
+
+    The caller has locked the lot and priced the purchase. Checkout and pooled
+    orders both come through here, so an order is the same thing either way.
+    """
+    order = Order(
+        order_code=_new_code(db),
+        lot_id=lot.id,
+        brand_id=lot.brand_id,
+        buyer_user_id=buyer.id,
+        pieces=pricing.pieces,
+        unit_price_pkr=pricing.unit_price_pkr,
+        rounding_adjustment_pkr=pricing.rounding_adjustment_pkr,
+        subtotal_pkr=pricing.subtotal_pkr,
+        shipping_pkr=pricing.shipping_pkr,
+        total_pkr=pricing.total_pkr,
+        commission_percent=pricing.commission_percent,
+        commission_pkr=pricing.commission_pkr,
+        brand_payout_pkr=pricing.brand_payout_pkr,
+        status=OrderStatus.CREATED,
+        payment_method=method,
+        delivery_city=delivery.city,
+        delivery_address=delivery.address,
+        delivery_phone=delivery.phone,
+    )
+    order.lines = [
+        OrderLine(
+            brand_id=lot.brand_id,
+            size=line.size,
+            color=line.color,
+            pieces=line.pieces,
+            unit_price_pkr=pricing.unit_price_pkr,
+        )
+        for line in pricing.lines
+    ]
+    db.add(order)
+    lot.reserved_pieces += pricing.pieces
+    db.flush()
+
+    _record_event(db, order, None, OrderStatus.CREATED, actor=buyer, note=None)
+    next_status = (
+        OrderStatus.PREPARING if method == PaymentMethod.COD else OrderStatus.AWAITING_PAYMENT
+    )
+    _move(db, order, next_status, actor=buyer, ip=ip)
+    return order
 
 
 def get_order(db: Session, order_id: str) -> Order:

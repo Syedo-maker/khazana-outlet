@@ -188,6 +188,54 @@ class AiFeature(StrEnum):
     EMBEDDING = "embedding"
     DEMAND_FORECAST = "demand_forecast"
     TRANSLATION = "translation"
+    RESELL_KIT = "resell_kit"
+    BARGAINING = "bargaining"
+    MARKDOWN = "markdown"
+
+
+class ChatChannel(StrEnum):
+    """Where a conversation with the assistant happens."""
+
+    WEB = "web"
+    WHATSAPP = "whatsapp"
+
+
+class ChatRole(StrEnum):
+    BUYER = "buyer"
+    ASSISTANT = "assistant"
+
+
+class MessageDirection(StrEnum):
+    INBOUND = "inbound"
+    OUTBOUND = "outbound"
+
+
+class NegotiationStatus(StrEnum):
+    OPEN = "open"
+    AGREED = "agreed"
+    ORDERED = "ordered"
+    EXPIRED = "expired"
+    WITHDRAWN = "withdrawn"
+
+
+class RedirectStatus(StrEnum):
+    PROPOSED = "proposed"
+    ACCEPTED = "accepted"
+    COLLECTED = "collected"
+    CANCELLED = "cancelled"
+
+
+class ReviewStatus(StrEnum):
+    OPEN = "open"
+    CLEARED = "cleared"
+    ACTIONED = "actioned"
+
+
+class PoolStatus(StrEnum):
+    OPEN = "open"
+    ORDERED = "ordered"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"
 
 
 class AiJobStatus(StrEnum):

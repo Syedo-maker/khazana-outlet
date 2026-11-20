@@ -197,6 +197,24 @@ Before a deployment:
   delivered orders stay open after their window ends unless the buyer confirms.
 - Point `EMBEDDING_SERVICE_URL` at a real model. The stand in only finds an
   identical photograph.
+- Connect a real WhatsApp Business provider. Only the signed sandbox exists,
+  and production refuses it. A real adapter implements `WhatsAppProvider` in
+  `services/whatsapp_providers.py` and needs a verified business, an approved
+  number and approved message templates.
+- Connect a speech to text service for voice notes. The sandbox transcriber
+  only reads a transcript the sender attached. A real one implements
+  `Transcriber` and must handle Urdu, Punjabi, Sindhi and Pashto.
+- Schedule the Phase 4 jobs. Each has an admin endpoint that runs it once:
+  `POST /admin/jobs/markdowns` (daily), `POST /admin/jobs/forecast` (weekly)
+  and `POST /admin/jobs/risk` (daily). Pools that pass their closing time
+  stay open until `pool_service.expire_pools` runs, which nothing calls yet.
+- Run the new eval suites live before turning their features on: the
+  assistant plan with history, the brand assistant, the resell kit,
+  bargaining and markdown. Their fixtures are hand written, so the offline
+  run proves the pipeline and the graders, not the model.
+- Replace the starting reference data with real numbers: the resale
+  benchmarks, the standard size chart, the impact factors, and the season
+  calendar, whose Islamic dates are estimates to correct each year.
 - Add row level policies for buyers before connecting as a non owner database
   role. The current policies cover brand staff and admins, so a reseller would
   see no lots or orders. The application connects as the table owner today, and

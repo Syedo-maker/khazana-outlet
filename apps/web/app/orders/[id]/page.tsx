@@ -1,5 +1,6 @@
 "use client";
 
+import { ResellKitPanel } from "@/components/orders/ResellKitPanel";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useState, type ReactNode } from "react";
@@ -19,6 +20,16 @@ import { adminApi, market, type OrderDetail } from "@/lib/market";
 const CANCELLABLE = ["created", "awaiting_payment", "preparing"];
 const REFUNDABLE = ["paid", "preparing", "shipped", "disputed"];
 const RETURNABLE = ["delivered", "disputed", "confirmed", "refunded"];
+
+// A resell kit is for stock the buyer has paid for and still has.
+const KIT_STATUSES: OrderDetail["status"][] = [
+  "paid",
+  "preparing",
+  "shipped",
+  "delivered",
+  "confirmed",
+  "disputed",
+];
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -219,6 +230,9 @@ function OrderView({
         <p className="mb-6 text-sm text-ink-soft">{t(locale, "orderDetail.readyToPack")}</p>
       ) : null}
       <ShippingPanel order={order} session={session} selling={selling} onChanged={refresh} />
+      {isBuyer && KIT_STATUSES.includes(order.status) ? (
+        <ResellKitPanel orderId={order.id} session={session} />
+      ) : null}
       <OrderActions
         order={order}
         session={session}

@@ -194,6 +194,12 @@ seed data.
 
 # Phase 4: Intelligence layer (weeks 32 to 49)
 
+**Status: built, offline.** Every feature below exists with tests, and every
+AI feature has an eval suite that passes against recorded replies. Live runs
+of the new suites, a real WhatsApp Business number, a speech service for voice
+notes and the schedulers for the batch jobs are what remain before it meets
+real users. See `DEPLOYMENT.md`.
+
 Goal: the features that make the platform feel like it is run by software
 rather than by a person with a spreadsheet.
 
@@ -205,21 +211,24 @@ resell kit because the buyer's next problem after buying is selling.
 
 | Weeks | Feature | What it does |
 | --- | --- | --- |
-| 32 to 33 | Buyer assistant in the product | The Phase 2 assistant exposed in the web UI and on WhatsApp, with conversation history, catalogue tools, and an explicit refusal to quote a price or stock level it has not read from the database |
-| 34 | Voice note ordering | New. WhatsApp voice notes in Urdu, Punjabi, Sindhi and Pashto, built on the buyer assistant |
-| 35 to 36 | Brand assistant | A brand can ask which of my stock is slow, what should I discount, what sold in Karachi last month, answered from that brand's own data only, with the access boundary tested |
-| 37 | Recommendations | Lot recommendations for resellers from purchase history and embeddings |
-| 38 | Reseller profit helper | Estimates resale value and margin for a lot in the buyer's own city |
-| 39 | Mixed lot builder | New. Combines slow stock from several brands into one lot matched to a reseller's shop and city |
-| 40 | Resell kit generator | New. Social posts, cleaned photos, Urdu and Roman Urdu captions, price tags and a WhatsApp catalogue for every purchased lot |
-| 41 | Committee lot pooling | New. Matches 3 to 4 resellers in one city to buy a large lot together and splits it by their needs |
-| 42 | Bargaining bot | New. Negotiates in Urdu, never below the brand's floor price, every deal logged |
-| 43 | Smart markdown agent | New. Lowers unsold lot prices on a schedule, never below the brand's floor price |
-| 44 to 45 | Demand and dead stock prediction | Scheduled batch jobs over sales history that predict what will sell where, flag lots heading nowhere, and give brands an over production warning. New: a season and event calendar covering Eid, Ramzan, wedding season, school opening and monsoon |
-| 46 | Size translator | New. Maps sizes across brands to cut returns |
-| 47 | Upcycle and donation route | New. Matches unsellable stock with tailors, artisans and NGOs |
-| 48 | Fraud and counterfeit detection | Risk scoring for accounts, listings and orders, with human review for anything consequential |
-| 49 | M10 Analytics | Brand reporting on what sold, where and at what price, admin reporting on GMV, users and growth, plus an AI cost dashboard per feature. New: an impact report per brand covering waste, water and CO2 saved |
+| 32 to 33 | Buyer assistant in the product | Done. Web chat for buyers, conversation history, a daily message cap per account, and WhatsApp through a signed sandbox provider that answers registered numbers only |
+| 34 | Voice note ordering | Done. Voice notes through a sandbox transcriber that reports the language heard, in Urdu, Punjabi, Sindhi, Pashto or English; a low confidence transcript asks the buyer to type |
+| 35 to 36 | Brand assistant | Done. Five read only lookups scoped to the session's brand, with the plan unable to name a brand, a discount answer that reads the brand's own band, and the boundary tested |
+| 37 | Recommendations | Done. A deterministic ranking from purchase history, saved searches, embeddings, price and city, with the reasons shown |
+| 38 | Reseller profit helper | Done. Arithmetic from the real delivery quote and administrator maintained resale benchmarks, with every assumption listed |
+| 39 | Mixed lot builder | Done. Part lot purchases from several brands priced by checkout's own rules, sized to budget and pieces with a spread of sizes |
+| 40 | Resell kit generator | Done. Captions in three languages, a social post, a WhatsApp status and catalogue, price tags and square photographs; the model never sees the retail price or a hidden brand |
+| 41 | Committee lot pooling | Done. Brand opt in, a split by need, one ordinary order per member placed together, and members never identified to each other |
+| 42 | Bargaining bot | Done under ADR 0001. The bot chooses inside a per round range code computed, never sees the floor, and every move is clamped and audited |
+| 43 | Smart markdown agent | Done under ADR 0001. One step at most per interval, never past the markdown floor or the advertised band, audited, and lots with orders in progress skipped |
+| 44 to 45 | Demand and dead stock prediction | Done as statistics rather than a model. Demand per category and city, dead stock flags, over production warnings, and an editable season calendar |
+| 46 | Size translator | Done. Brand size charts in centimetres mapped to a platform standard by measurement and shown on listings |
+| 47 | Upcycle and donation route | Done. Administrator kept partners, matches by city, category, grade and size of lot, and recorded handovers that take the lot off sale |
+| 48 | Fraud and counterfeit detection | Done. Rule signals plus the AI risk check open review cases; only an administrator clears or acts, with a note, audited |
+| 49 | M10 Analytics | Done. Brand sales reports, platform growth, AI spend per feature with cost per listing and per order, and an impact report with its factors |
+
+Decided on 2026-10-14 in `docs/decisions/0001-ai-value-bands.md`, and weeks 42
+and 43 were built to its four conditions. The original reasoning follows.
 
 Two of the new features need a decision before they are built, because they
 sit against the rule in `CLAUDE.md` section 4 and

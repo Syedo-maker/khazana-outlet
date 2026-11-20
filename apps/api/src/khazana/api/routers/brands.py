@@ -16,12 +16,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, File, Form, Request, UploadFile, status
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import select
 
 from ...core.errors import AppError, NotFound
 from ...core.tenancy import assert_owns
-from ...models import Brand, User
+from ...models import Brand, SizeChartRow, StandardSize, User
 from ...models.enums import DocumentType, UserRole, VerificationStatus, Visibility
-from ...services import brand_service
+from ...services import brand_service, size_service
 from ..deps import AdminOnly, CurrentBrand, CurrentPrincipal, Db, client_ip
 
 router = APIRouter(prefix="/brands", tags=["brands"])
@@ -65,6 +66,14 @@ class PolicyOut(BaseModel):
     require_brand_approval: bool
     allow_cod: bool
     allow_part_lot_orders: bool
+    allow_pooled_orders: bool
+    allow_bargaining: bool
+    bargain_floor_percent: float | None
+    bargain_step_percent: float
+    allow_auto_markdown: bool
+    markdown_step_percent: float
+    markdown_interval_days: int
+    markdown_floor_percent: float | None
     auto_apply_ai_draft: bool
     ai_monthly_budget_usd: float
 
@@ -87,6 +96,14 @@ class PolicyUpdateIn(BaseModel):
     default_visibility: Visibility | None = None
     allow_cod: bool | None = None
     allow_part_lot_orders: bool | None = None
+    allow_pooled_orders: bool | None = None
+    allow_bargaining: bool | None = None
+    bargain_floor_percent: float | None = Field(default=None, ge=0, le=95)
+    bargain_step_percent: float | None = Field(default=None, gt=0, le=20)
+    allow_auto_markdown: bool | None = None
+    markdown_step_percent: float | None = Field(default=None, gt=0, le=20)
+    markdown_interval_days: int | None = Field(default=None, ge=1, le=90)
+    markdown_floor_percent: float | None = Field(default=None, ge=0, le=95)
     auto_apply_ai_draft: bool | None = None
     ai_monthly_budget_usd: float | None = Field(default=None, ge=0)
 
@@ -481,3 +498,70 @@ def suspend_brand(
 
     db.commit()
     return BrandOut.model_validate(brand)
+
+
+class SizeRowIn(BaseModel):
+    audience: str = Field(max_length=16)
+    label: str = Field(min_length=1, max_length=32)
+    chest_min_cm: float | None = Field(default=None, gt=0, lt=300)
+    chest_max_cm: float | None = Field(default=None, gt=0, lt=300)
+    waist_min_cm: float | None = Field(default=None, gt=0, lt=300)
+    waist_max_cm: float | None = Field(default=None, gt=0, lt=300)
+    hip_min_cm: float | None = Field(default=None, gt=0, lt=300)
+    hip_max_cm: float | None = Field(default=None, gt=0, lt=300)
+
+
+class SizeRowOut(SizeRowIn):
+    model_config = ConfigDict(from_attributes=True)
+
+    standard: str | None = None
+
+
+@router.get(
+    "/{brand_id}/size-chart",
+    response_model=list[SizeRowOut],
+    operation_id="brands_size_chart",
+)
+def size_chart(brand_id: str, principal: CurrentBrand, db: Db) -> list[SizeRowOut]:
+    """The brand's own chart, each row with the standard size it maps to."""
+    assert_owns(principal, brand_id)
+    standards = list(db.scalars(select(StandardSize)))
+    rows = db.scalars(
+        select(SizeChartRow)
+        .where(SizeChartRow.brand_id == brand_id)
+        .order_by(
+            SizeChartRow.audience,
+            SizeChartRow.chest_min_cm.is_(None),
+            SizeChartRow.chest_min_cm,
+            SizeChartRow.waist_min_cm,
+            SizeChartRow.label,
+        )
+    )
+    out = []
+    for row in rows:
+        pool = [s for s in standards if s.audience == row.audience] or standards
+        match, _ = size_service.nearest(row, pool)
+        item = SizeRowOut.model_validate(row)
+        item.standard = match.label if match else None
+        out.append(item)
+    return out
+
+
+@router.put(
+    "/{brand_id}/size-chart",
+    response_model=list[SizeRowOut],
+    operation_id="brands_replace_size_chart",
+)
+def replace_size_chart(
+    brand_id: str, rows: list[SizeRowIn], principal: CurrentBrand, db: Db
+) -> list[SizeRowOut]:
+    """Replace the whole chart, so it is always one consistent set."""
+    assert_owns(principal, brand_id)
+    actor = db.get(User, principal.user_id)
+    if actor is None:
+        raise NotFound("That account no longer exists.")
+    size_service.replace_chart(
+        db, brand_id=brand_id, actor=actor, rows=[r.model_dump() for r in rows]
+    )
+    db.commit()
+    return size_chart(brand_id, principal, db)

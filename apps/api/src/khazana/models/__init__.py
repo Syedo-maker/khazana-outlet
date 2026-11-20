@@ -7,6 +7,7 @@ registered on the metadata before Alembic or ``create_all`` runs.
 from __future__ import annotations
 
 from .ai import AiJob, AiOutput, AiSpend, Embedding
+from .assistant import AssistantConversation, AssistantMessage, WhatsAppMessage
 from .audit import AuditLog
 from .base import Base, Vector, new_id, utcnow
 from .brand import (
@@ -42,7 +43,14 @@ from .commerce import (
     ShipmentEvent,
     ShippingRate,
 )
+from .forecast import DemandForecast, LotForecast, ProductionWarning, SeasonEvent
 from .identity import OtpChallenge, ResellerProfile, Session, User
+from .insight import ResaleBenchmark, ResellKit
+from .negotiation import Negotiation, NegotiationMessage
+from .pool import Pool, PoolMember
+from .redirect import ImpactFactor, Partner, Redirection
+from .review import ReviewCase
+from .sizing import SizeChartRow, StandardSize
 
 # Tables that carry a brand_id and are therefore subject to tenant isolation.
 # The isolation test suite reads this list, so adding a brand owned table
@@ -66,6 +74,12 @@ BRAND_SCOPED_TABLES: tuple[str, ...] = (
     "shipments",
     "shipment_events",
     "disputes",
+    "negotiations",
+    "negotiation_messages",
+    "lot_forecasts",
+    "production_warnings",
+    "size_chart_rows",
+    "redirections",
 )
 
 __all__ = [
@@ -73,6 +87,8 @@ __all__ = [
     "AiJob",
     "AiOutput",
     "AiSpend",
+    "AssistantConversation",
+    "AssistantMessage",
     "AuditLog",
     "Base",
     "Brand",
@@ -82,32 +98,49 @@ __all__ = [
     "CartItem",
     "Category",
     "Courier",
+    "DemandForecast",
     "Dispute",
     "Embedding",
+    "ImpactFactor",
     "ListingApproval",
     "Lot",
     "LotDefect",
     "LotExcludedCity",
+    "LotForecast",
     "LotPhoto",
     "ManifestLine",
+    "Negotiation",
+    "NegotiationMessage",
     "Order",
     "OrderEvent",
     "OrderLine",
     "OrderReturn",
     "OtpChallenge",
+    "Partner",
     "Payment",
     "PaymentEvent",
     "Payout",
     "PayoutRun",
+    "Pool",
+    "PoolMember",
+    "ProductionWarning",
+    "Redirection",
+    "ResaleBenchmark",
+    "ResellKit",
     "ResellerProfile",
+    "ReviewCase",
     "SavedSearch",
+    "SeasonEvent",
     "Session",
     "Shipment",
     "ShipmentEvent",
     "ShippingRate",
+    "SizeChartRow",
+    "StandardSize",
     "User",
     "Vector",
     "VerificationDocument",
+    "WhatsAppMessage",
     "new_id",
     "utcnow",
 ]

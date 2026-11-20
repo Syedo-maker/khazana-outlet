@@ -36,7 +36,7 @@ from sqlalchemy.orm import Session
 from ...core.errors import ValidationFailed
 from ...models.enums import AiFeature
 from ..gateway import AiResult, run_feature
-from ..schemas import AssistantAnswer, ToolPlan
+from ..schemas import AssistantAnswer, BrandToolPlan, ToolPlan
 from ..tools import catalog_tools
 
 logger = logging.getLogger(__name__)
@@ -45,6 +45,7 @@ PLAN_PROMPT = "assistant_plan"
 ANSWER_PROMPT = "assistant_buyer"
 
 MAX_MESSAGE_CHARS = 1_500
+NO_HISTORY = "No earlier messages."
 MAX_TOOL_CALLS = 6
 # A tool result goes back into the model's context and is paid for per token,
 # so the rendered block is capped. A truncated result is better than a bill
@@ -63,7 +64,7 @@ TOOL_PARAMETERS = {
 @dataclass(slots=True)
 class AssistantTurn:
     answer: AssistantAnswer
-    plan: ToolPlan
+    plan: ToolPlan | BrandToolPlan
     tool_results: dict[str, Any]
     plan_result: AiResult
     answer_result: AiResult
@@ -93,16 +94,22 @@ def ask(
     message: str,
     buyer_user_id: str,
     buyer_city: str = "",
+    history: str = "",
     record_fixture: bool = False,
 ) -> AssistantTurn:
-    """Answer one buyer message."""
+    """Answer one buyer message, given the conversation so far."""
     cleaned = _clean_message(message)
+    earlier = history.strip() or NO_HISTORY
 
     plan_result = run_feature(
         db,
         AiFeature.ASSISTANT_BUYER,
         prompt_name=PLAN_PROMPT,
-        prompt_values={"message": cleaned, "buyer_city": buyer_city or "not given"},
+        prompt_values={
+            "message": cleaned,
+            "buyer_city": buyer_city or "not given",
+            "history": earlier,
+        },
         output_schema=ToolPlan,
         user_id=buyer_user_id,
         entity_type="assistant_turn",
@@ -122,6 +129,7 @@ def ask(
             "buyer_city": buyer_city or "not given",
             "today": catalog_tools.now_iso(),
             "tool_results": render_results(results),
+            "history": earlier,
         },
         output_schema=AssistantAnswer,
         user_id=buyer_user_id,

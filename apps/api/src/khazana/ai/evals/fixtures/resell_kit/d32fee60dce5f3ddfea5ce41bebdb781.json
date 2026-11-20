@@ -1,0 +1,28 @@
+{
+  "_case": "each_caption_is_in_its_own_script",
+  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
+  "content": {
+    "caption_en": "New printed lawn three piece suits at Madina Cloth House, in teal, maroon and mustard.",
+    "caption_ur": "مدینہ کلاتھ ہاؤس پر نئے پرنٹڈ لان تھری پیس سوٹ، ٹیل، میرون اور مسٹرڈ میں۔",
+    "caption_ur_roman": "Madina Cloth House par naye printed lawn three piece suits, teal, maroon aur mustard mein.",
+    "hashtags": [
+      "#lawn",
+      "#unstitched",
+      "#multan"
+    ],
+    "selling_points": [
+      "New and unused",
+      "Three colours",
+      "Unstitched, 3 metre shirt"
+    ],
+    "social_post": "Printed lawn three piece suits, new and unused, at Madina Cloth House Multan. Rs 650 per piece. Message us on WhatsApp to order.\nAbhi WhatsApp karein, Rs 650 fi suit.",
+    "whatsapp_status": "Naye lawn suits, Rs 650. WhatsApp karein."
+  },
+  "model": "claude-opus-5-5",
+  "usage": {
+    "cache_read_tokens": 1800,
+    "cache_write_tokens": 0,
+    "input_tokens": 2400,
+    "output_tokens": 420
+  }
+}

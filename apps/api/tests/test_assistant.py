@@ -423,7 +423,7 @@ class TestFullTurn:
             tmp_path,
             monkeypatch,
             assistant.PLAN_PROMPT,
-            {"message": message, "buyer_city": "Multan"},
+            {"message": message, "buyer_city": "Multan", "history": assistant.NO_HISTORY},
             {
                 "calls": [
                     {"tool": "search_lots", "arguments": {"query": "kurtis", "city": "Lahore"}}
@@ -450,6 +450,7 @@ class TestFullTurn:
                 "buyer_city": "Multan",
                 "today": tools.now_iso(),
                 "tool_results": assistant.render_results(results),
+                "history": assistant.NO_HISTORY,
             },
             {
                 "answer": "LOT-1 available hai, 500 rupay per piece, minimum 50 pieces.",
@@ -482,7 +483,7 @@ class TestFullTurn:
             tmp_path,
             monkeypatch,
             assistant.PLAN_PROMPT,
-            {"message": message, "buyer_city": "not given"},
+            {"message": message, "buyer_city": "not given", "history": assistant.NO_HISTORY},
             {"calls": [], "needs_no_tools": True, "language": "en"},
         )
         self._stub(
@@ -494,6 +495,7 @@ class TestFullTurn:
                 "buyer_city": "not given",
                 "today": tools.now_iso(),
                 "tool_results": assistant.render_results({}),
+                "history": assistant.NO_HISTORY,
             },
             {
                 "answer": "We have 400 kurtis at 300 rupees.",

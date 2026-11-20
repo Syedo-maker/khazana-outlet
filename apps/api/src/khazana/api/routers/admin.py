@@ -40,6 +40,7 @@ from ...services import (
     catalog_service,
     order_service,
     payment_service,
+    profit_service,
 )
 from ...storage import read_object
 from ..deps import AdminOnly, Db, Principal, client_ip
@@ -722,6 +723,48 @@ def update_rate(
     )
     db.commit()
     return rate
+
+
+# ---------------------------------------------------------- resale benchmarks
+
+
+class ResaleBenchmarkIn(BaseModel):
+    category_id: str | None = None
+    city: str | None = Field(default=None, max_length=80)
+    low_percent: float = Field(gt=0, le=100)
+    typical_percent: float = Field(gt=0, le=100)
+    high_percent: float = Field(gt=0, le=100)
+    note: str = Field(default="", max_length=300)
+
+
+class ResaleBenchmarkOut(ResaleBenchmarkIn):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+
+
+@router.get(
+    "/resale-benchmarks",
+    response_model=list[ResaleBenchmarkOut],
+    operation_id="admin_resale_benchmarks",
+)
+def resale_benchmarks(principal: AdminOnly, db: Db) -> list[ResaleBenchmarkOut]:
+    """The resale assumptions the profit helper shows buyers."""
+    return [ResaleBenchmarkOut.model_validate(r) for r in profit_service.list_benchmarks(db)]
+
+
+@router.put(
+    "/resale-benchmarks",
+    response_model=ResaleBenchmarkOut,
+    operation_id="admin_save_resale_benchmark",
+)
+def save_resale_benchmark(
+    body: ResaleBenchmarkIn, principal: AdminOnly, db: Db
+) -> ResaleBenchmarkOut:
+    """Create or replace the benchmark for one category and city."""
+    row = profit_service.save_benchmark(db, admin=_admin(db, principal), **body.model_dump())
+    db.commit()
+    return ResaleBenchmarkOut.model_validate(row)
 
 
 # ----------------------------------------------------------------------- audit

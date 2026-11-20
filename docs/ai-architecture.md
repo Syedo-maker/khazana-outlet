@@ -138,6 +138,9 @@ is your decision to make, after the eval shows quality holds.
 | Buyer assistant | `claude-opus-5-5` | low | live, streaming | Tool calling and three languages, but a chat turn needs no deep reasoning |
 | Brand assistant over own data | `claude-opus-5-5` | medium | live, streaming | Analytical questions over real numbers |
 | Demand prediction | `claude-opus-5-5` | high | batch, scheduled | Runs weekly, quality matters more than latency |
+| Resell kit copy | `claude-haiku-4-5` | n/a | live | Marketing copy for stock the buyer owns; the eval guards the claims and no money moves on it |
+| Bargaining bot | `claude-opus-5-5` | low | live | Chooses inside a range code computed; the clamp decides what is allowed, the model only how well it negotiates |
+| Markdown agent | `claude-haiku-4-5` | n/a | batch, scheduled | One small decision per lot, clamped to the brand's step |
 | Translation and copy cleanup | `claude-haiku-4-5` | n/a | batch | Bulk, low judgement |
 
 Notes that matter when writing the code:
@@ -287,6 +290,32 @@ Classification on every listing before it reaches the approval queue:
 completeness, manifest consistency, photo quality, price plausibility and
 counterfeit signals. Output is a score plus reasons, and a score never blocks
 anything by itself, it orders the admin queue.
+
+## 6b. Phase 4: what uses a model and what deliberately does not
+
+Phase 4 added three model features and several that look like AI work but are
+built as arithmetic, because the numbers feed money or plans.
+
+Model features, each behind its own eval:
+
+- **Brand assistant.** The same plan and answer shape as the buyer assistant.
+  Its lookups take the brand from the session, and the plan schema has no
+  field for a brand, so the access boundary does not depend on the prompt.
+- **Resell kit.** Copy only. Prices, sizes and photographs are added by code,
+  and the model is never given the retail price or a hidden brand.
+- **Bargaining and markdown.** Value choices under ADR 0001: the model picks
+  inside a range code computed, the clamp enforces it, every move is audited.
+
+Built without a model, on purpose:
+
+- **Demand forecasts and dead stock flags.** Statistics over sales history and
+  a season calendar. AI never quotes demand or stock, and a brand planning
+  production needs numbers it can check. The `demand_forecast` route stays
+  unused until there is a summarising task that suits a model.
+- **Recommendations, the profit helper, the mixed lot builder, size
+  translation and the risk rules.** Rankings and arithmetic with stated
+  reasons. The AI risk score from Phase 2 is one input to the risk queue,
+  never a verdict.
 
 ## 7. Evals, and why they come first
 

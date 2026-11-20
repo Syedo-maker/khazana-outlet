@@ -7,7 +7,7 @@ a lot identifier by `/catalog/{lot_id}`.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, File, Query, UploadFile, status
 from pydantic import BaseModel, ConfigDict, Field
@@ -18,7 +18,7 @@ from ...core.errors import NotFound
 from ...models import Category, Lot, SavedSearch, User
 from ...models.base import utcnow
 from ...models.enums import ConditionGrade
-from ...services import search_service
+from ...services import mixed_lot_service, recommendation_service, search_service
 from ...services.search_service import SearchFilters, SearchResult, Viewer
 from ..deps import CurrentPrincipal, Db, Principal
 from .catalog import BrowseItemOut, _browse_item, _buyer_view
@@ -156,6 +156,146 @@ def _saved_out(db: Session, principal: Principal, row: SavedSearch) -> SavedSear
 def categories(principal: CurrentPrincipal, db: Db) -> list[CategoryOut]:
     rows = db.scalars(select(Category).order_by(Category.sort_order, Category.name)).all()
     return [CategoryOut.model_validate(row) for row in rows]
+
+
+class RecommendationOut(BrowseItemOut):
+    score: float
+    reasons: list[str]
+    reason_codes: list[dict[str, str]] = Field(default_factory=list)
+
+
+@router.get(
+    "/recommendations",
+    response_model=list[RecommendationOut],
+    operation_id="catalog_recommendations",
+)
+def recommendations(
+    principal: CurrentPrincipal,
+    db: Db,
+    limit: Annotated[int, Query(ge=1, le=24)] = 8,
+) -> list[RecommendationOut]:
+    """Lots this buyer is likely to want, each with the reasons it was chosen.
+
+    Ranked from the buyer's own orders, saved searches and city. Only lots the
+    buyer may open are considered.
+    """
+    viewer = _viewer(db, principal, None)
+    ranked = recommendation_service.recommend(
+        db, user_id=principal.user_id, viewer=viewer, limit=limit
+    )
+    return [
+        RecommendationOut(
+            **_browse_item(db, principal, rec.lot).model_dump(),
+            score=rec.score,
+            reasons=rec.reasons,
+            reason_codes=rec.reason_codes,
+        )
+        for rec in ranked
+    ]
+
+
+class MixedLotIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    budget_pkr: int = Field(ge=1_000, le=50_000_000)
+    target_pieces: int = Field(ge=1, le=10_000)
+    category_ids: list[str] = Field(default_factory=list, max_length=10)
+    max_brands: int = Field(default=4, ge=2, le=6)
+    city: str | None = Field(default=None, max_length=80)
+
+
+class MixedLineOut(BaseModel):
+    size: str
+    color: str
+    pieces: int
+
+
+class MixedComponentOut(BaseModel):
+    item: BrowseItemOut
+    pieces: int
+    lines: list[MixedLineOut]
+    subtotal_pkr: int
+    shipping_pkr: int
+    total_pkr: int
+    reason: str
+
+
+class MixedLotOut(BaseModel):
+    components: list[MixedComponentOut]
+    pieces: int
+    total_pkr: int
+    brand_count: int
+    budget_pkr: int
+    target_pieces: int
+    notes: list[str]
+    added_to_cart: bool = False
+
+
+def _build_mixed(db: Session, principal: Principal, body: MixedLotIn) -> tuple[User, Any]:
+    user = _user(db, principal)
+    _, city = _buyer_view(db, principal, body.city)
+    proposal = mixed_lot_service.build(
+        db,
+        user=user,
+        budget_pkr=body.budget_pkr,
+        target_pieces=body.target_pieces,
+        city=city or "",
+        category_ids=tuple(body.category_ids),
+        max_brands=body.max_brands,
+    )
+    return user, proposal
+
+
+def _mixed_out(db: Session, principal: Principal, proposal: Any, added: bool) -> MixedLotOut:
+    return MixedLotOut(
+        components=[
+            MixedComponentOut(
+                item=_browse_item(db, principal, c.lot),
+                pieces=c.pieces,
+                lines=[MixedLineOut(size=x.size, color=x.color, pieces=x.pieces) for x in c.lines],
+                subtotal_pkr=c.subtotal_pkr,
+                shipping_pkr=c.shipping_pkr,
+                total_pkr=c.total_pkr,
+                reason=c.reason,
+            )
+            for c in proposal.components
+        ],
+        pieces=proposal.pieces,
+        total_pkr=proposal.total_pkr,
+        brand_count=proposal.brand_count,
+        budget_pkr=proposal.budget_pkr,
+        target_pieces=proposal.target_pieces,
+        notes=proposal.notes,
+        added_to_cart=added,
+    )
+
+
+@router.post(
+    "/mixed-lots",
+    response_model=MixedLotOut,
+    operation_id="catalog_build_mixed_lot",
+)
+def build_mixed_lot(body: MixedLotIn, principal: CurrentPrincipal, db: Db) -> MixedLotOut:
+    """Propose slow stock from several brands that fits a budget and piece count.
+
+    Each part is an ordinary part lot purchase from its own brand, priced by
+    the same rules as checkout. Nothing is reserved until checkout.
+    """
+    _, proposal = _build_mixed(db, principal, body)
+    return _mixed_out(db, principal, proposal, added=False)
+
+
+@router.post(
+    "/mixed-lots/cart",
+    response_model=MixedLotOut,
+    operation_id="catalog_mixed_lot_to_cart",
+)
+def mixed_lot_to_cart(body: MixedLotIn, principal: CurrentPrincipal, db: Db) -> MixedLotOut:
+    """Build the proposal again from current stock and put every part in the cart."""
+    user, proposal = _build_mixed(db, principal, body)
+    mixed_lot_service.add_to_cart(db, user=user, proposal=proposal)
+    db.commit()
+    return _mixed_out(db, principal, proposal, added=True)
 
 
 @router.get("/search", response_model=SearchOut, operation_id="catalog_search")
