@@ -43,10 +43,12 @@ from .commerce import (
     ShipmentEvent,
     ShippingRate,
 )
+from .forecast import DemandForecast, LotForecast, ProductionWarning, SeasonEvent
 from .identity import OtpChallenge, ResellerProfile, Session, User
 from .insight import ResaleBenchmark, ResellKit
 from .negotiation import Negotiation, NegotiationMessage
 from .pool import Pool, PoolMember
+from .sizing import SizeChartRow, StandardSize
 
 # Tables that carry a brand_id and are therefore subject to tenant isolation.
 # The isolation test suite reads this list, so adding a brand owned table
@@ -72,6 +74,9 @@ BRAND_SCOPED_TABLES: tuple[str, ...] = (
     "disputes",
     "negotiations",
     "negotiation_messages",
+    "lot_forecasts",
+    "production_warnings",
+    "size_chart_rows",
 )
 
 __all__ = [
@@ -90,12 +95,14 @@ __all__ = [
     "CartItem",
     "Category",
     "Courier",
+    "DemandForecast",
     "Dispute",
     "Embedding",
     "ListingApproval",
     "Lot",
     "LotDefect",
     "LotExcludedCity",
+    "LotForecast",
     "LotPhoto",
     "ManifestLine",
     "Negotiation",
@@ -111,14 +118,18 @@ __all__ = [
     "PayoutRun",
     "Pool",
     "PoolMember",
+    "ProductionWarning",
     "ResaleBenchmark",
     "ResellKit",
     "ResellerProfile",
     "SavedSearch",
+    "SeasonEvent",
     "Session",
     "Shipment",
     "ShipmentEvent",
     "ShippingRate",
+    "SizeChartRow",
+    "StandardSize",
     "User",
     "Vector",
     "VerificationDocument",

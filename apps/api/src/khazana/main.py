@@ -23,6 +23,7 @@ from .api.routers import (
     auth,
     brands,
     catalog,
+    forecasts,
     health,
     logistics,
     negotiations,
@@ -103,6 +104,7 @@ def create_app() -> FastAPI:
     app.include_router(resell_kits.router)
     app.include_router(pools.router)
     app.include_router(negotiations.router)
+    app.include_router(forecasts.router)
     app.include_router(logistics.router)
     app.include_router(resellers.router)
     app.include_router(admin.router)

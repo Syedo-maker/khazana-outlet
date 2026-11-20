@@ -47,6 +47,7 @@ from ...services import (
     order_service,
     photo_protection_service,
     profit_service,
+    size_service,
 )
 from ...storage import read_object
 from ..deps import CurrentBrand, CurrentPrincipal, Db, Principal, client_ip
@@ -415,6 +416,13 @@ class BrowseItemOut(BaseModel):
     cover_photo_id: str | None = None
 
 
+class SizeGuideOut(BaseModel):
+    size: str
+    standard: str | None
+    match: str
+    measurements: str
+
+
 class CatalogDetailOut(BrowseItemOut):
     photos: list[CatalogPhotoOut]
     manifest_lines: list[CatalogManifestLineOut]
@@ -423,6 +431,7 @@ class CatalogDetailOut(BrowseItemOut):
     allows_cod: bool
     allows_pooling: bool = False
     allows_bargaining: bool = False
+    size_guide: list[SizeGuideOut] = Field(default_factory=list)
     defects: list[CatalogDefectOut]
 
 
@@ -1191,6 +1200,7 @@ def catalog_detail(
         allows_cod=bool(policy and policy.allow_cod),
         allows_pooling=bool(policy and policy.allow_pooled_orders),
         allows_bargaining=bargaining_service.bargaining_allowed(lot, policy),
+        size_guide=[SizeGuideOut(**asdict(g)) for g in size_service.guide_for(db, lot)],
         defects=[
             CatalogDefectOut(
                 issue=defect.issue,

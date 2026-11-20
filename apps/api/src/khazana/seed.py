@@ -44,11 +44,13 @@ from .models import (
     CartItem,
     Category,
     Courier,
+    DemandForecast,
     Dispute,
     Embedding,
     ListingApproval,
     Lot,
     LotDefect,
+    LotForecast,
     LotPhoto,
     ManifestLine,
     Negotiation,
@@ -64,6 +66,7 @@ from .models import (
     PayoutRun,
     Pool,
     PoolMember,
+    ProductionWarning,
     ResaleBenchmark,
     ResellerProfile,
     ResellKit,
@@ -71,6 +74,7 @@ from .models import (
     Shipment,
     ShipmentEvent,
     ShippingRate,
+    SizeChartRow,
     User,
     WhatsAppMessage,
 )
@@ -262,6 +266,10 @@ def _wipe(db: Session) -> None:
         raise RuntimeError("Refusing to wipe data in production.")
 
     models = (
+        SizeChartRow,
+        LotForecast,
+        ProductionWarning,
+        DemandForecast,
         NegotiationMessage,
         Negotiation,
         PoolMember,
