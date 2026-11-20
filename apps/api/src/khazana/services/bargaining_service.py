@@ -25,12 +25,13 @@ from dataclasses import dataclass
 from datetime import UTC, timedelta
 from math import ceil, floor
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..ai.gateway import run_feature
 from ..ai.schemas import BargainReply
-from ..core.errors import Conflict, NotFound, ValidationFailed
+from ..config import get_settings
+from ..core.errors import Conflict, NotFound, RateLimited, ValidationFailed
 from ..models import BrandPolicy, Lot, Negotiation, NegotiationMessage, Order, User, utcnow
 from ..models.enums import AiFeature, ChatRole, ConditionGrade, NegotiationStatus, PaymentMethod
 from . import audit_service, order_service
@@ -122,6 +123,24 @@ def _say(
     return message
 
 
+def rounds_today(db: Session, buyer_user_id: str) -> int:
+    """How many bargaining messages this buyer has sent since midnight in Pakistan."""
+    from .chat_service import start_of_pakistan_day
+
+    since = start_of_pakistan_day(utcnow())
+    count = db.scalar(
+        select(func.count())
+        .select_from(NegotiationMessage)
+        .join(Negotiation, Negotiation.id == NegotiationMessage.negotiation_id)
+        .where(
+            Negotiation.buyer_user_id == buyer_user_id,
+            NegotiationMessage.role == ChatRole.BUYER,
+            NegotiationMessage.created_at >= since,
+        )
+    )
+    return int(count or 0)
+
+
 def get_for_buyer(db: Session, *, buyer: User, negotiation_id: str) -> Negotiation:
     negotiation = db.get(Negotiation, negotiation_id)
     if negotiation is None or negotiation.buyer_user_id != buyer.id:
@@ -195,6 +214,15 @@ def respond(
         raise ValidationFailed("Say something or make an offer.")
     if offer is not None and offer < 1:
         raise ValidationFailed("An offer must be at least 1 rupee.")
+
+    # Each round is a model call paid from the brand's AI budget, so a buyer's
+    # rounds count against the same daily limit as their assistant messages.
+    limit = get_settings().assistant_daily_message_limit
+    if rounds_today(db, buyer.id) >= limit:
+        raise RateLimited(
+            f"You have made {limit} offers and messages today. "
+            "The limit resets at midnight Pakistan time."
+        )
 
     lot = db.get(Lot, negotiation.lot_id)
     policy = _policy(db, lot) if lot else None

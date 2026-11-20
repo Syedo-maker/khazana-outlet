@@ -265,6 +265,31 @@ class TestAgreement:
         assert negotiation.status == NegotiationStatus.WITHDRAWN
 
 
+class TestDailyLimit:
+    def test_rounds_count_against_the_daily_limit(
+        self,
+        db: Session,
+        lot: Lot,
+        buyer,
+        model: StubModel,
+        monkeypatch: pytest.MonkeyPatch,  # type: ignore[no-untyped-def]
+    ) -> None:
+        from khazana.config import get_settings
+        from khazana.core.errors import RateLimited
+
+        monkeypatch.setattr(get_settings(), "assistant_daily_message_limit", 2)
+        negotiation = _start(db, buyer, lot, offer=None)
+        bargaining_service.respond(
+            db, buyer=buyer, negotiation=negotiation, message="less", offer=None
+        )
+        calls = len(model.calls)
+        with pytest.raises(RateLimited, match="midnight Pakistan time"):
+            bargaining_service.respond(
+                db, buyer=buyer, negotiation=negotiation, message="less", offer=None
+            )
+        assert len(model.calls) == calls, "a refused round costs nothing"
+
+
 class TestEndpoints:
     def test_the_buyer_never_sees_the_floor_and_the_brand_does(
         self,
