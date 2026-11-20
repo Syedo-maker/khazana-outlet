@@ -73,6 +73,7 @@ class TestSchemaInvariants:
             "embeddings",
             "audit_log",
             "assistant_conversations",
+            "review_cases",
         }
         unregistered = with_brand_id - set(BRAND_SCOPED_TABLES) - allowed_extras
         assert not unregistered, (

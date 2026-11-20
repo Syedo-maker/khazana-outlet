@@ -48,6 +48,8 @@ from .identity import OtpChallenge, ResellerProfile, Session, User
 from .insight import ResaleBenchmark, ResellKit
 from .negotiation import Negotiation, NegotiationMessage
 from .pool import Pool, PoolMember
+from .redirect import ImpactFactor, Partner, Redirection
+from .review import ReviewCase
 from .sizing import SizeChartRow, StandardSize
 
 # Tables that carry a brand_id and are therefore subject to tenant isolation.
@@ -77,6 +79,7 @@ BRAND_SCOPED_TABLES: tuple[str, ...] = (
     "lot_forecasts",
     "production_warnings",
     "size_chart_rows",
+    "redirections",
 )
 
 __all__ = [
@@ -98,6 +101,7 @@ __all__ = [
     "DemandForecast",
     "Dispute",
     "Embedding",
+    "ImpactFactor",
     "ListingApproval",
     "Lot",
     "LotDefect",
@@ -112,6 +116,7 @@ __all__ = [
     "OrderLine",
     "OrderReturn",
     "OtpChallenge",
+    "Partner",
     "Payment",
     "PaymentEvent",
     "Payout",
@@ -119,9 +124,11 @@ __all__ = [
     "Pool",
     "PoolMember",
     "ProductionWarning",
+    "Redirection",
     "ResaleBenchmark",
     "ResellKit",
     "ResellerProfile",
+    "ReviewCase",
     "SavedSearch",
     "SeasonEvent",
     "Session",

@@ -60,6 +60,7 @@ from .models import (
     OrderLine,
     OrderReturn,
     OtpChallenge,
+    Partner,
     Payment,
     PaymentEvent,
     Payout,
@@ -67,9 +68,11 @@ from .models import (
     Pool,
     PoolMember,
     ProductionWarning,
+    Redirection,
     ResaleBenchmark,
     ResellerProfile,
     ResellKit,
+    ReviewCase,
     SavedSearch,
     Shipment,
     ShipmentEvent,
@@ -266,6 +269,9 @@ def _wipe(db: Session) -> None:
         raise RuntimeError("Refusing to wipe data in production.")
 
     models = (
+        ReviewCase,
+        Redirection,
+        Partner,
         SizeChartRow,
         LotForecast,
         ProductionWarning,

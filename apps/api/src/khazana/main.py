@@ -30,8 +30,10 @@ from .api.routers import (
     orders,
     payments,
     pools,
+    redirections,
     resell_kits,
     resellers,
+    review,
     search,
 )
 from .config import get_settings
@@ -105,6 +107,8 @@ def create_app() -> FastAPI:
     app.include_router(pools.router)
     app.include_router(negotiations.router)
     app.include_router(forecasts.router)
+    app.include_router(redirections.router)
+    app.include_router(review.router)
     app.include_router(logistics.router)
     app.include_router(resellers.router)
     app.include_router(admin.router)

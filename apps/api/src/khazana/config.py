@@ -75,6 +75,10 @@ class Settings(BaseSettings):
     pool_max_members: int = Field(default=4, ge=2, le=10)
     pool_open_days: int = Field(default=7, ge=1, le=60)
 
+    # ---------- Risk review ----------
+    # A score at or above this opens a case for a person to review.
+    risk_case_threshold: int = Field(default=40, ge=1, le=100)
+
     # ---------- Storage ----------
     storage_backend: Literal["local", "s3"] = "local"
     storage_local_path: str = "./uploads"

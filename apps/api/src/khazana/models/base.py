@@ -100,6 +100,8 @@ ENUM_TYPES: tuple[type[StrEnum], ...] = (
     enums.PhotoKind,
     enums.PhotoProtectionStatus,
     enums.PoolStatus,
+    enums.RedirectStatus,
+    enums.ReviewStatus,
     enums.ShipmentStatus,
     enums.UserRole,
     enums.VerificationStatus,

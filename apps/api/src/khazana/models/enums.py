@@ -218,6 +218,19 @@ class NegotiationStatus(StrEnum):
     WITHDRAWN = "withdrawn"
 
 
+class RedirectStatus(StrEnum):
+    PROPOSED = "proposed"
+    ACCEPTED = "accepted"
+    COLLECTED = "collected"
+    CANCELLED = "cancelled"
+
+
+class ReviewStatus(StrEnum):
+    OPEN = "open"
+    CLEARED = "cleared"
+    ACTIONED = "actioned"
+
+
 class PoolStatus(StrEnum):
     OPEN = "open"
     ORDERED = "ordered"
