@@ -1,5 +1,6 @@
 "use client";
 
+import { NegotiationCard } from "@/components/NegotiationCard";
 import { OpenPoolCard } from "@/components/pools/OpenPoolCard";
 import { ProfitCard } from "@/components/ProfitCard";
 import Link from "next/link";
@@ -229,6 +230,9 @@ function ListingContent({ session, lotId }: { session: Session; lotId: string })
               </Card>
               {session.me.user.role === "reseller" ? (
                 <ProfitCard session={session} lotId={lotId} />
+              ) : null}
+              {session.me.user.role === "reseller" && detail.allows_bargaining ? (
+                <NegotiationCard detail={detail} session={session} />
               ) : null}
               {session.me.user.role === "reseller" && detail.allows_pooling ? (
                 <OpenPoolCard detail={detail} session={session} />

@@ -123,6 +123,37 @@ export type ResellKit = {
   photo_paths: string[];
 };
 
+export type NegotiationMessage = {
+  role: "buyer" | "assistant";
+  body: string;
+  offer_pkr: number | null;
+  created_at: string;
+};
+
+export type Negotiation = {
+  id: string;
+  lot_id: string;
+  lot_code: string;
+  status: "open" | "agreed" | "ordered" | "expired" | "withdrawn";
+  pieces: number;
+  list_price_pkr: number;
+  asking_price_pkr: number;
+  agreed_price_pkr: number | null;
+  agreed_until: string | null;
+  rounds: number;
+  order_id: string | null;
+  messages: NegotiationMessage[];
+};
+
+export type PriceMove = {
+  at: string;
+  action: string;
+  by: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  note: string | null;
+};
+
 export type PoolLine = { size: string; color: string; pieces: number };
 
 export type Pool = {
@@ -189,6 +220,7 @@ export type CatalogDetail = CatalogItem & {
   allows_part_lot: boolean;
   allows_cod: boolean;
   allows_pooling: boolean;
+  allows_bargaining: boolean;
   defects: { issue: string; pieces_affected: number; photo_id: string | null }[];
 };
 
@@ -360,6 +392,16 @@ export type BrandPolicy = {
   default_visibility: Visibility;
   allow_cod: boolean;
   allow_part_lot_orders: boolean;
+  allow_pooled_orders: boolean;
+  allow_bargaining: boolean;
+  bargain_floor_percent: number | null;
+  bargain_step_percent: number;
+  allow_auto_markdown: boolean;
+  markdown_step_percent: number;
+  markdown_interval_days: number;
+  markdown_floor_percent: number | null;
+  min_discount_percent?: number;
+  max_discount_percent?: number;
 };
 
 export type BrandDashboard = {
@@ -511,6 +553,27 @@ export const market = {
   runSavedSearch: (token: string, id: string) =>
     request<SearchResult>(`/catalog/saved-searches/${id}/results`, { token }),
 
+  startNegotiation: (token: string, body: { lot_id: string; message: string; offer_pkr?: number }) =>
+    request<Negotiation>("/negotiations", { method: "POST", token, body }),
+  replyNegotiation: (
+    token: string,
+    id: string,
+    body: { message: string; offer_pkr?: number },
+  ) => request<Negotiation>(`/negotiations/${id}/messages`, { method: "POST", token, body }),
+  acceptNegotiation: (token: string, id: string) =>
+    request<Negotiation>(`/negotiations/${id}/accept`, { method: "POST", token }),
+  orderNegotiation: (
+    token: string,
+    id: string,
+    body: { delivery_address: string; delivery_phone: string; payment_method: PaymentMethod },
+  ) => request<Negotiation>(`/negotiations/${id}/order`, { method: "POST", token, body }),
+  setLotAgents: (
+    token: string,
+    lotId: string,
+    body: { bargaining_enabled?: boolean | null; auto_markdown_enabled?: boolean | null },
+  ) => request<unknown>(`/lots/${lotId}/agents`, { method: "PATCH", token, body }),
+  priceHistory: (token: string, lotId: string) =>
+    request<PriceMove[]>(`/lots/${lotId}/price-history`, { token }),
   pools: (token: string) => request<Pool[]>("/pools", { token }),
   openPool: (token: string, body: PoolMembership & { lot_id: string }) =>
     request<Pool>("/pools", { method: "POST", token, body }),

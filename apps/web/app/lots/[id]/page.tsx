@@ -1,5 +1,6 @@
 "use client";
 
+import { LotAgents } from "@/components/LotAgents";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -172,6 +173,15 @@ export default function LotPage() {
         />
         <Stat label={t(locale, "lots.city")} value={lot.stock_city} />
       </dl>
+
+      <LotAgents
+        lotId={lot.id}
+        token={token}
+        locale={locale}
+        bargaining={lot.bargaining_enabled}
+        markdown={lot.auto_markdown_enabled}
+        onChanged={load}
+      />
 
       {/* The checklist. Everything outstanding at once, not one error at a time. */}
       {readiness ? (
