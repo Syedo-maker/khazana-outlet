@@ -529,7 +529,13 @@ def size_chart(brand_id: str, principal: CurrentBrand, db: Db) -> list[SizeRowOu
     rows = db.scalars(
         select(SizeChartRow)
         .where(SizeChartRow.brand_id == brand_id)
-        .order_by(SizeChartRow.audience, SizeChartRow.label)
+        .order_by(
+            SizeChartRow.audience,
+            SizeChartRow.chest_min_cm.is_(None),
+            SizeChartRow.chest_min_cm,
+            SizeChartRow.waist_min_cm,
+            SizeChartRow.label,
+        )
     )
     out = []
     for row in rows:

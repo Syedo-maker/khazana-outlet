@@ -1,5 +1,6 @@
 "use client";
 
+import { dateTime } from "@/lib/format";
 import { RedirectCard } from "@/components/RedirectCard";
 import { LotAgents } from "@/components/LotAgents";
 import Link from "next/link";
@@ -416,7 +417,7 @@ export default function LotPage() {
                 <li key={entry.id} className="border-l-2 border-line pl-3">
                   <span className="font-semibold">{t(locale, `action.${entry.action}`)}</span>
                   <span className="ml-2 text-ink-faint">
-                    {new Date(entry.created_at).toLocaleString("en-PK")}
+                    {dateTime(entry.created_at)}
                   </span>
                   {entry.note ? <p className="text-ink-soft">{entry.note}</p> : null}
                 </li>

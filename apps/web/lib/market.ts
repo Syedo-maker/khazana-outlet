@@ -75,7 +75,11 @@ export type CatalogItem = {
   similarity?: number | null;
 };
 
-export type Recommendation = CatalogItem & { score: number; reasons: string[] };
+export type Recommendation = CatalogItem & {
+  score: number;
+  reasons: string[];
+  reason_codes: ({ code: string } & Record<string, string>)[];
+};
 
 export type ProfitScenario = {
   name: string;
@@ -665,7 +669,7 @@ export const market = {
   placePool: (token: string, poolId: string) =>
     request<{ order_ids: string[] }>(`/pools/${poolId}/place`, { method: "POST", token }),
   resellKit: (token: string, orderId: string) =>
-    request<ResellKit>(`/orders/${orderId}/resell-kit`, { token }),
+    request<ResellKit | null>(`/orders/${orderId}/resell-kit`, { token }),
   makeResellKit: (token: string, orderId: string, sellingPrice: number) =>
     request<ResellKit>(`/orders/${orderId}/resell-kit`, {
       method: "POST",
@@ -978,6 +982,8 @@ export type ReviewCase = {
   id: string;
   subject_type: "account" | "listing" | "order";
   subject_id: string;
+  subject_label: string;
+  subject_link: string | null;
   score: number;
   signals: { code: string; weight: number; detail: string }[];
   status: "open" | "cleared" | "actioned";

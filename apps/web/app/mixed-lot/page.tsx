@@ -118,7 +118,7 @@ function MixedLotContent({ session }: { session: Session }) {
             <Card>
               <CardHeader>
                 <CardTitle as="h2">
-                  {t(locale, "mixed.summary", {
+                  {t(locale, proposal.brand_count === 1 ? "mixed.summaryOne" : "mixed.summary", {
                     pieces: proposal.pieces,
                     brands: proposal.brand_count,
                     amount: pkr(proposal.total_pkr),
@@ -127,7 +127,7 @@ function MixedLotContent({ session }: { session: Session }) {
               </CardHeader>
               <CardBody>
                 {proposal.notes.map((note) => (
-                  <p key={note} className="mb-2 text-sm font-semibold text-warn">
+                  <p key={note} dir="auto" className="mb-2 text-sm font-semibold text-warn">
                     {note}
                   </p>
                 ))}
@@ -157,7 +157,9 @@ function MixedLotContent({ session }: { session: Session }) {
                           </Badge>
                         ))}
                       </div>
-                      <p className="mt-1 text-xs text-ink-faint">{part.reason}</p>
+                      <p dir="auto" className="mt-1 text-xs text-ink-faint">
+                        {part.reason}
+                      </p>
                     </li>
                   ))}
                 </ul>

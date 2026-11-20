@@ -154,6 +154,20 @@ class TestKit:
 
 
 class TestEndpoints:
+    def test_no_kit_yet_is_an_empty_answer_not_an_error(
+        self,
+        client: TestClient,
+        db: Session,
+        two_brands,
+        category,
+        model,  # type: ignore[no-untyped-def]
+    ) -> None:
+        order = _paid_order(db, two_brands, category, Visibility.PUBLIC)
+        buyer = db.get(User, order.buyer_user_id)
+        response = client.get(f"/orders/{order.id}/resell-kit", headers=auth(buyer))
+        assert response.status_code == 200
+        assert response.json() is None
+
     def test_another_buyer_gets_a_404(
         self,
         client: TestClient,

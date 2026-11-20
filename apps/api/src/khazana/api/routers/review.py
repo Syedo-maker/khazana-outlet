@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from ...core.errors import NotFound
-from ...models import ReviewCase, User
+from ...models import Lot, Order, ReviewCase, User
 from ...models.enums import ReviewStatus
 from ...services import risk_service
 from ..deps import AdminOnly, Db
@@ -27,6 +27,8 @@ class CaseOut(BaseModel):
     id: str
     subject_type: str
     subject_id: str
+    subject_label: str
+    subject_link: str | None
     score: int
     signals: list[SignalOut]
     status: ReviewStatus
@@ -45,11 +47,33 @@ class RunOut(BaseModel):
     open_cases: int
 
 
-def _out(case: ReviewCase) -> CaseOut:
+def _subject(db: Db, case: ReviewCase) -> tuple[str, str | None]:
+    """A name a reviewer recognises, and where to look at it."""
+    if case.subject_type == "listing":
+        lot = db.get(Lot, case.subject_id)
+        if lot is not None:
+            return f"{lot.lot_code} {lot.title}", "/admin/listings"
+    if case.subject_type == "order":
+        order = db.get(Order, case.subject_id)
+        if order is not None:
+            return order.order_code, f"/orders/{order.id}"
+    if case.subject_type == "account":
+        user = db.get(User, case.subject_id)
+        if user is not None:
+            profile = user.reseller_profile
+            name = profile.business_name if profile else user.full_name
+            return f"{name}, {user.phone}", "/admin/verification"
+    return case.subject_id, None
+
+
+def _out(case: ReviewCase, db: Db) -> CaseOut:
+    label, link = _subject(db, case)
     return CaseOut(
         id=case.id,
         subject_type=case.subject_type,
         subject_id=case.subject_id,
+        subject_label=label,
+        subject_link=link,
         score=case.score,
         signals=[SignalOut(**s) for s in (case.signals or {}).get("signals", [])],
         status=case.status,
@@ -70,7 +94,7 @@ def cases(
         .order_by(ReviewCase.score.desc(), ReviewCase.scored_at.desc())
         .limit(200)
     )
-    return [_out(row) for row in rows]
+    return [_out(row, db) for row in rows]
 
 
 @router.post(
@@ -87,7 +111,7 @@ def decide(case_id: str, body: DecisionIn, principal: AdminOnly, db: Db) -> Case
         db, case_id=case_id, admin=admin, outcome=body.outcome, action=body.action, note=body.note
     )
     db.commit()
-    return _out(case)
+    return _out(case, db)
 
 
 @router.post("/jobs/risk", response_model=RunOut, operation_id="admin_run_risk")

@@ -88,7 +88,9 @@ export function ProfitCard({ session, lotId }: { session: Session; lotId: string
                 </summary>
                 <ul className="mt-2 list-disc ps-5 text-ink-soft">
                   {data.assumptions.map((line) => (
-                    <li key={line}>{line}</li>
+                    <li key={line} dir="auto">
+                      {line}
+                    </li>
                   ))}
                 </ul>
               </details>

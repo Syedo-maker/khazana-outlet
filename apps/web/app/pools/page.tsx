@@ -96,7 +96,7 @@ function PoolCard({
           })}
         </p>
         {pool.shortfall.map((line) => (
-          <p key={line} className="text-sm text-warn">
+          <p key={line} dir="auto" className="text-sm text-warn">
             {line}
           </p>
         ))}

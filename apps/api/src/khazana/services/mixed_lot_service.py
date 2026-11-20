@@ -220,6 +220,11 @@ def build(
             "Not enough brands have matching stock that can be bought in part, so "
             "this is not a mixed lot yet. Widen the categories or raise the budget."
         )
+    if proposal.pieces > target_pieces:
+        proposal.notes.append(
+            f"This is {proposal.pieces} pieces rather than {target_pieces}, because a brand's "
+            "minimum order or minimum value is larger than your share."
+        )
     if proposal.pieces < target_pieces:
         proposal.notes.append(
             f"Found {proposal.pieces} of the {target_pieces} pieces asked for within the budget."
@@ -260,7 +265,8 @@ def _priced(db: Session, lot: Lot, pieces: int, city: str, budget_left: int) -> 
 
 def _reason(lot: Lot) -> str:
     days = _days_live(lot)
-    return f"{round(lot.discount_percent)}% below retail, on sale for {days} days"
+    listed = "listed today" if days == 0 else f"on sale for {days} day{'s' if days != 1 else ''}"
+    return f"{round(lot.discount_percent)}% below retail, {listed}"
 
 
 def add_to_cart(db: Session, *, user: User, proposal: MixedLotProposal) -> list[CartItem]:

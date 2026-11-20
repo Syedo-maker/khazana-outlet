@@ -92,12 +92,14 @@ def generate_kit(order_id: str, body: KitIn, principal: CurrentPrincipal, db: Db
 
 @router.get(
     "/orders/{order_id}/resell-kit",
-    response_model=KitOut,
+    response_model=KitOut | None,
     operation_id="resell_kit_view",
-    responses={404: {"description": "No kit yet, or no such order for this account"}},
+    responses={404: {"description": "No such order for this account"}},
 )
-def view_kit(order_id: str, principal: CurrentPrincipal, db: Db) -> KitOut:
-    return _out(resell_kit_service.get(db, user=_user(db, principal), order_id=order_id))
+def view_kit(order_id: str, principal: CurrentPrincipal, db: Db) -> KitOut | None:
+    """The order's kit, or null when none has been made yet."""
+    kit = resell_kit_service.find(db, user=_user(db, principal), order_id=order_id)
+    return _out(kit) if kit is not None else None
 
 
 @router.get(

@@ -162,6 +162,15 @@ def generate(db: Session, *, user: User, order_id: str, selling_price_pkr: int) 
     return _assemble(db, record, order, lot, user)
 
 
+def find(db: Session, *, user: User, order_id: str) -> Kit | None:
+    """The kit for one of the buyer's orders, or None if none was made yet."""
+    order = owned_order(db, user=user, order_id=order_id)
+    record = db.scalar(select(ResellKit).where(ResellKit.order_id == order.id))
+    if record is None:
+        return None
+    return _assemble(db, record, order, _lot(db, order), user)
+
+
 def get(db: Session, *, user: User, order_id: str) -> Kit:
     order = owned_order(db, user=user, order_id=order_id)
     record = db.scalar(select(ResellKit).where(ResellKit.order_id == order.id))

@@ -7,7 +7,7 @@ import { Loaded, PageHeader } from "@/components/Feedback";
 import { RoleShell, type Session } from "@/components/RoleShell";
 import { Badge, Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/States";
-import { dateTime } from "@/lib/format";
+import { dateTime, ltr } from "@/lib/format";
 import { useResource } from "@/lib/hooks";
 import { t } from "@/lib/i18n";
 import { market, type BrandForecast } from "@/lib/market";
@@ -32,7 +32,9 @@ function ForecastView({ data, session }: { data: BrandForecast; session: Session
                       {item.title}
                     </Link>{" "}
                     <span className="font-mono text-xs text-ink-faint">{item.lot_code}</span>
-                    <p className="text-sm text-ink-soft">{item.reason}</p>
+                    <p dir="auto" className="text-sm text-ink-soft">
+                      {item.reason}
+                    </p>
                   </li>
                 ))}
               </ul>
@@ -69,7 +71,9 @@ function ForecastView({ data, session }: { data: BrandForecast; session: Session
                     {item.title}{" "}
                     <span className="font-mono text-xs text-ink-faint">{item.lot_code}</span>
                   </span>
-                  <span className="text-ink-soft">{item.reason}</span>
+                  <span dir="auto" className="text-ink-soft">
+                    {item.reason}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -87,12 +91,16 @@ function ForecastView({ data, session }: { data: BrandForecast; session: Session
               {data.upcoming.map((event) => (
                 <li key={event.id}>
                   <p className="font-semibold">
-                    {event.name} <Badge tone="accent">×{event.demand_factor}</Badge>
+                    <bdi>{event.name}</bdi> <Badge tone="accent">×{event.demand_factor}</Badge>
                   </p>
                   <p className="text-ink-soft">
-                    {t(locale, "forecast.range", { from: event.starts_on, to: event.ends_on })}
+                    {t(locale, "forecast.range", { from: ltr(event.starts_on), to: ltr(event.ends_on) })}
                   </p>
-                  {event.note ? <p className="text-xs text-ink-faint">{event.note}</p> : null}
+                  {event.note ? (
+                    <p dir="auto" className="text-xs text-ink-faint">
+                      {event.note}
+                    </p>
+                  ) : null}
                 </li>
               ))}
             </ul>

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useState } from "react";
 
 import { AdminPage } from "@/components/admin/AdminPage";
@@ -47,7 +48,13 @@ function CaseRow({
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={item.score >= 70 ? "danger" : "warn"}>Score {item.score}</Badge>
           <Badge>{item.subject_type}</Badge>
-          <span className="font-mono text-xs text-ink-faint">{item.subject_id}</span>
+          {item.subject_link ? (
+            <Link href={item.subject_link} className="text-sm font-semibold underline">
+              {item.subject_label}
+            </Link>
+          ) : (
+            <span className="text-sm font-semibold">{item.subject_label}</span>
+          )}
         </div>
         <ul className="mt-2 list-disc ps-5 text-sm">
           {item.signals.map((signal) => (

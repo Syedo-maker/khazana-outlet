@@ -44,6 +44,7 @@ class TestColdStart:
         ranked = recommendation_service.recommend(db, user_id=buyer.id, viewer=_viewer("Multan"))
         assert [rec.lot.id for rec in ranked][:2] == [near.id, far.id]
         assert "Stock is in Multan, your city" in ranked[0].reasons
+        assert {"code": "in_your_city", "city": "Multan"} in ranked[0].reason_codes
 
 
 class TestHistory:

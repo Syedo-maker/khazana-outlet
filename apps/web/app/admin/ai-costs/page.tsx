@@ -65,6 +65,13 @@ function Costs({ session }: { session: Session }) {
                   </tr>
                 </thead>
                 <tbody>
+                  {costs.features.length === 0 ? (
+                    <tr className="border-t border-line">
+                      <td colSpan={4} className="py-3 text-ink-soft">
+                        No AI calls in the last {costs.days} days.
+                      </td>
+                    </tr>
+                  ) : null}
                   {costs.features.map((row) => (
                     <tr key={row.feature} className="border-t border-line">
                       <td className="py-1">{row.feature.replaceAll("_", " ")}</td>

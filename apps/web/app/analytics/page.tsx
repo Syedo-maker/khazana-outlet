@@ -99,7 +99,9 @@ function Report({
               value={`${Math.round(impact.sold.co2_kg + impact.second_life.co2_kg)}`}
             />
           </dl>
-          <p className="text-xs text-ink-faint">{impact.assumption}</p>
+          <p dir="auto" className="text-xs text-ink-faint">
+            {impact.assumption}
+          </p>
         </CardBody>
       </Card>
     </div>

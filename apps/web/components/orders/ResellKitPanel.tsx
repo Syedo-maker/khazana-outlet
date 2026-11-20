@@ -57,7 +57,7 @@ export function ResellKitPanel({ orderId, session }: { orderId: string; session:
       .resellKit(token, orderId)
       .then((existing) => {
         setKit(existing);
-        setPrice(String(existing.selling_price_pkr));
+        if (existing) setPrice(String(existing.selling_price_pkr));
       })
       .catch(() => setKit(null));
   }, [token, orderId]);

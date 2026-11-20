@@ -23,8 +23,10 @@ export function Recommendations({ session }: { session: Session }) {
         {items.map((item) => (
           <li key={item.lot.id} className="flex flex-col gap-2">
             <LotCard item={item} token={token} locale={locale} />
-            {item.reasons[0] ? (
-              <p className="text-xs text-ink-soft">{item.reasons[0]}</p>
+            {item.reason_codes[0] ? (
+              <p className="text-xs text-ink-soft">
+                {t(locale, `recommend.reason.${item.reason_codes[0].code}`, item.reason_codes[0])}
+              </p>
             ) : null}
           </li>
         ))}

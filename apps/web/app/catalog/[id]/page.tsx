@@ -139,7 +139,9 @@ function ListingContent({ session, lotId }: { session: Session; lotId: string })
               <h1 className="mt-2 text-2xl font-semibold tracking-tight">{detail.lot.title}</h1>
               <p className="mt-1 text-sm text-ink-soft">{detail.brand_name}</p>
               {detail.lot.description ? (
-                <p className="mt-4 max-w-prose">{detail.lot.description}</p>
+                <p dir="auto" className="mt-4 max-w-prose">
+                  {detail.lot.description}
+                </p>
               ) : null}
 
               <dl className="my-6 grid grid-cols-2 gap-3 lg:grid-cols-4">

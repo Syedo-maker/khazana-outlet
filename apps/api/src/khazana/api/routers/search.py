@@ -161,6 +161,7 @@ def categories(principal: CurrentPrincipal, db: Db) -> list[CategoryOut]:
 class RecommendationOut(BrowseItemOut):
     score: float
     reasons: list[str]
+    reason_codes: list[dict[str, str]] = Field(default_factory=list)
 
 
 @router.get(
@@ -187,6 +188,7 @@ def recommendations(
             **_browse_item(db, principal, rec.lot).model_dump(),
             score=rec.score,
             reasons=rec.reasons,
+            reason_codes=rec.reason_codes,
         )
         for rec in ranked
     ]

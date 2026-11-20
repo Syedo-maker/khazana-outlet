@@ -212,3 +212,19 @@ class TestEndpoints:
         ran = client.post("/admin/jobs/risk", headers=auth(admin_user))
         assert ran.status_code == 200, ran.text
         assert client.get("/admin/review-cases", headers=auth(admin_user)).status_code == 200
+
+    def test_a_case_names_its_subject(
+        self,
+        client: TestClient,
+        db: Session,
+        two_brands,
+        category,
+        admin_user,  # type: ignore[no-untyped-def]
+    ) -> None:
+        (one, owner), (two, _) = two_brands
+        lot = live_lot(db, one, owner, category.id, title=f"{two.name} copy suits")
+        risk_service.run(db)
+        db.commit()
+        [case] = client.get("/admin/review-cases", headers=auth(admin_user)).json()
+        assert case["subject_label"].startswith(lot.lot_code)
+        assert case["subject_link"] == "/admin/listings"

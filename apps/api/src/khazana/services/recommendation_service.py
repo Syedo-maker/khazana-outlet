@@ -52,6 +52,9 @@ class Recommendation:
     lot: Lot
     score: float
     reasons: list[str] = field(default_factory=list)
+    # The same reasons as codes with values, so the page can show them in the
+    # buyer's language. ``reasons`` stays as plain English for logs and tests.
+    reason_codes: list[dict[str, str]] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -182,6 +185,7 @@ def recommend(db: Session, *, user_id: str, viewer: Viewer, limit: int = 8) -> l
             "discount": max(0.0, min(1.0, lot.discount_percent / 100)),
         }
         reasons: list[str] = []
+        codes: list[dict[str, str]] = []
         category = category_names.get(lot.category_id, "this category")
 
         if profile.has_history or profile.saved_categories:
@@ -197,25 +201,34 @@ def recommend(db: Session, *, user_id: str, viewer: Viewer, limit: int = 8) -> l
             weights = WEIGHTS
             if profile.category_share.get(lot.category_id):
                 reasons.append(f"You have bought {category} before")
+                codes.append({"code": "bought_category", "category": category})
             elif lot.category_id in profile.saved_categories:
                 reasons.append(f"Matches a saved search for {category}")
+                codes.append({"code": "saved_search", "category": category})
             if signals["price"] >= 0.6:
                 reasons.append("Priced close to what you usually pay")
+                codes.append({"code": "usual_price"})
             if signals["similarity"] >= 0.8:
                 reasons.append("Similar to lots you bought")
+                codes.append({"code": "similar"})
         else:
             signals["recency"] = max(0.0, 1.0 - _aware_age_days(lot) / FRESH_DAYS)
             weights = COLD_START_WEIGHTS
             if signals["recency"] > 0.5:
                 reasons.append("Newly listed")
+                codes.append({"code": "newly_listed"})
 
         if signals["city"]:
             reasons.append(f"Stock is in {lot.stock_city}, your city")
+            codes.append({"code": "in_your_city", "city": lot.stock_city})
         if lot.discount_percent >= 70:
             reasons.append(f"{round(lot.discount_percent)}% below retail")
+            codes.append({"code": "deep_discount", "percent": str(round(lot.discount_percent))})
 
         score = sum(weights[name] * signals.get(name, 0.0) for name in weights)
-        ranked.append(Recommendation(lot=lot, score=round(score, 4), reasons=reasons))
+        ranked.append(
+            Recommendation(lot=lot, score=round(score, 4), reasons=reasons, reason_codes=codes)
+        )
 
     ranked.sort(key=lambda rec: (rec.score, rec.lot.discount_percent), reverse=True)
     return ranked[:limit]
