@@ -18,7 +18,7 @@ from ...core.errors import NotFound
 from ...models import Category, Lot, SavedSearch, User
 from ...models.base import utcnow
 from ...models.enums import ConditionGrade
-from ...services import search_service
+from ...services import recommendation_service, search_service
 from ...services.search_service import SearchFilters, SearchResult, Viewer
 from ..deps import CurrentPrincipal, Db, Principal
 from .catalog import BrowseItemOut, _browse_item, _buyer_view
@@ -156,6 +156,40 @@ def _saved_out(db: Session, principal: Principal, row: SavedSearch) -> SavedSear
 def categories(principal: CurrentPrincipal, db: Db) -> list[CategoryOut]:
     rows = db.scalars(select(Category).order_by(Category.sort_order, Category.name)).all()
     return [CategoryOut.model_validate(row) for row in rows]
+
+
+class RecommendationOut(BrowseItemOut):
+    score: float
+    reasons: list[str]
+
+
+@router.get(
+    "/recommendations",
+    response_model=list[RecommendationOut],
+    operation_id="catalog_recommendations",
+)
+def recommendations(
+    principal: CurrentPrincipal,
+    db: Db,
+    limit: Annotated[int, Query(ge=1, le=24)] = 8,
+) -> list[RecommendationOut]:
+    """Lots this buyer is likely to want, each with the reasons it was chosen.
+
+    Ranked from the buyer's own orders, saved searches and city. Only lots the
+    buyer may open are considered.
+    """
+    viewer = _viewer(db, principal, None)
+    ranked = recommendation_service.recommend(
+        db, user_id=principal.user_id, viewer=viewer, limit=limit
+    )
+    return [
+        RecommendationOut(
+            **_browse_item(db, principal, rec.lot).model_dump(),
+            score=rec.score,
+            reasons=rec.reasons,
+        )
+        for rec in ranked
+    ]
 
 
 @router.get("/search", response_model=SearchOut, operation_id="catalog_search")
