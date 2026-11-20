@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Sequence
+from datetime import UTC, datetime
 
 import sqlalchemy as sa
 from alembic import op
@@ -69,6 +70,9 @@ def upgrade() -> None:
                 "typical_percent": 45,
                 "high_percent": 55,
                 "note": "Platform default. Replace with market data per category.",
+                # Given explicitly, because SQLite has no now() for the default.
+                "created_at": datetime.now(UTC),
+                "updated_at": datetime.now(UTC),
             }
         ],
     )
