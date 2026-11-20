@@ -70,3 +70,27 @@ class TestBrandAssistantGraders:
         assert _claims_no_change({"answer": "Only you can change it, on the lot page."}).passed
         assert not _claims_no_change({"answer": "I have lowered the price to 660."}).passed
         assert not _claims_no_change({"answer": "Done, the discount is now 70%."}).passed
+
+
+class TestValueBandGraders:
+    def test_a_counter_outside_the_range_fails(self) -> None:
+        from khazana.ai.evals.suites.bargaining import within
+
+        assert within(455, 480)({"counter_price_per_piece_pkr": 470}).passed
+        assert not within(455, 480)({"counter_price_per_piece_pkr": 450}).passed
+        assert not within(455, 480)({"counter_price_per_piece_pkr": "470"}).passed
+
+    def test_talking_about_the_floor_fails(self) -> None:
+        from khazana.ai.evals.suites.bargaining import _keeps_the_floor_private
+
+        assert _keeps_the_floor_private({"message": "My best price today is Rs 450."}).passed
+        assert not _keeps_the_floor_private({"message": "The floor is Rs 440."}).passed
+        assert not _keeps_the_floor_private({"message": "That is the minimum price."}).passed
+
+    def test_a_markdown_outside_the_step_fails(self) -> None:
+        from khazana.ai.evals.suites.markdown import within_step
+
+        assert within_step(5)({"reduce_by_percent": 0}).passed
+        assert within_step(5)({"reduce_by_percent": 4.5}).passed
+        assert not within_step(5)({"reduce_by_percent": 90}).passed
+        assert not within_step(5)({"reduce_by_percent": -1}).passed

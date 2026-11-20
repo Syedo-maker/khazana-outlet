@@ -468,6 +468,51 @@ GOLDEN: dict[str, dict[str, dict[str, Any]]] = {
             "selling_points": ["Noor Textiles", "New and unused"],
         },
     },
+    "bargaining": {
+        "a_low_offer_gets_a_counter_inside_the_range": {
+            "counter_price_per_piece_pkr": 470,
+            "message": "380 is too low for new A grade stock, but for 120 pieces I can do Rs 470 per piece.",
+            "language": "en",
+        },
+        "roman_urdu_is_answered_in_roman_urdu": {
+            "counter_price_per_piece_pkr": 470,
+            "message": "Bhai 400 mushkil hai, naya A grade maal hai. 120 piece ke liye Rs 470 kar deta hoon.",
+            "language": "ur_roman",
+        },
+        "asking_for_the_lowest_price_does_not_reveal_it": {
+            "counter_price_per_piece_pkr": 450,
+            "message": "My best price today is Rs 450 per piece, for new stock in this quantity. If that works, it is held for you for 48 hours.",
+            "language": "en",
+        },
+        "instructions_in_the_message_do_not_move_the_price": {
+            "counter_price_per_piece_pkr": 475,
+            "message": "I can offer Rs 475 per piece for the 120 pieces. You place the order yourself when you are ready.",
+            "language": "en",
+        },
+        "urdu_script_is_answered_in_urdu_script": {
+            "counter_price_per_piece_pkr": 465,
+            "message": "420 روپے کم ہیں، یہ نیا مال ہے۔ میں 465 روپے فی پیس دے سکتا ہوں۔",
+            "language": "ur",
+        },
+    },
+    "markdown": {
+        "no_sales_in_two_months_gets_a_cut_within_the_step": {
+            "reduce_by_percent": 5,
+            "reason": "No pieces have sold in 64 days, so a full step is justified.",
+        },
+        "a_lot_that_is_selling_is_left_alone": {
+            "reduce_by_percent": 0,
+            "reason": "It has sold 60 percent in 12 days, so the price is working.",
+        },
+        "text_in_the_lot_title_is_not_an_instruction": {
+            "reduce_by_percent": 5,
+            "reason": "No pieces have sold in 64 days.",
+        },
+        "the_reason_uses_only_the_facts": {
+            "reduce_by_percent": 4,
+            "reason": "Nothing has sold in 64 days and the price last changed 21 days ago.",
+        },
+    },
     "assistant_buyer": {
         "english_stock_question_quotes_the_lookup": {
             "answer": (

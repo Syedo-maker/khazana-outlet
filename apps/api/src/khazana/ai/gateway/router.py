@@ -118,6 +118,26 @@ ROUTES: dict[AiFeature, Route] = {
         cache_prefix=True,
         max_tokens=1_500,
     ),
+    # Both choose a price inside a band the brand set, which code enforces.
+    # See docs/decisions/0001-ai-value-bands.md. The model's choice is clamped
+    # before anything acts on it, so the model tier only affects how good the
+    # choice is, never whether it is permitted.
+    AiFeature.BARGAINING: Route(
+        feature=AiFeature.BARGAINING,
+        model_id=OPUS_5_5,
+        effort="low",
+        mode=AiMode.LIVE,
+        cache_prefix=True,
+        max_tokens=600,
+    ),
+    AiFeature.MARKDOWN: Route(
+        feature=AiFeature.MARKDOWN,
+        model_id=HAIKU_4_5,
+        effort=None,
+        mode=AiMode.BATCH,
+        cache_prefix=True,
+        max_tokens=400,
+    ),
     AiFeature.DEMAND_FORECAST: Route(
         feature=AiFeature.DEMAND_FORECAST,
         model_id=OPUS_5_5,

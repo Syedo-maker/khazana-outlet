@@ -318,6 +318,25 @@ class ResellKitCopy(BaseModel):
     )
 
 
+class BargainReply(BaseModel):
+    """One counter offer. The price is clamped by code before anyone sees it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    counter_price_per_piece_pkr: int = Field(description="Within the range you were given")
+    message: str = Field(description="The reply to the buyer, in their language")
+    language: str = Field(description="en, ur or ur_roman")
+
+
+class MarkdownDecision(BaseModel):
+    """How far to lower one lot this time. Clamped by code to the brand's step."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    reduce_by_percent: float = Field(description="Between 0 and the step you were given")
+    reason: str = Field(description="One sentence, from the facts given")
+
+
 SCHEMA_BY_FEATURE: dict[str, type[BaseModel]] = {
     "listing_from_photos": ListingDraft,
     "logo_detection": LogoDetection,
@@ -327,4 +346,6 @@ SCHEMA_BY_FEATURE: dict[str, type[BaseModel]] = {
     "assistant_buyer": AssistantAnswer,
     "assistant_brand": AssistantAnswer,
     "resell_kit": ResellKitCopy,
+    "bargaining": BargainReply,
+    "markdown": MarkdownDecision,
 }
