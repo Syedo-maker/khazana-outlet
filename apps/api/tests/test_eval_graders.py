@@ -94,3 +94,52 @@ class TestValueBandGraders:
         assert within_step(5)({"reduce_by_percent": 4.5}).passed
         assert not within_step(5)({"reduce_by_percent": 90}).passed
         assert not within_step(5)({"reduce_by_percent": -1}).passed
+
+
+class TestBrandNumberGrader:
+    def test_a_share_of_looked_up_numbers_is_arithmetic(self) -> None:
+        from khazana.ai.evals.suites.assistant_brand import no_invented_numbers
+
+        grade = no_invented_numbers()
+        assert grade({"answer": "LOT-NOOR009 was 300 of 520 pieces, about 58% of volume."}).passed
+        assert not grade({"answer": "LOT-NOOR009 was about 64% of volume."}).passed
+
+    def test_a_date_is_not_a_sales_figure_but_an_invented_count_is(self) -> None:
+        from khazana.ai.evals.suites.assistant_brand import no_invented_numbers
+
+        grade = no_invented_numbers()
+        assert grade({"answer": "I need a lookup for 2026-11-16 to 2026-11-20."}).passed
+        assert not grade({"answer": "You sold 412 pieces this week."}).passed
+
+
+class TestBrandChangeAndBandGraders:
+    def test_a_negated_change_is_a_refusal_not_a_claim(self) -> None:
+        from khazana.ai.evals.suites.assistant_brand import _claims_no_change
+
+        assert _claims_no_change({"answer": "Nothing on LOT-NOOR014 has been changed."}).passed
+        assert _claims_no_change({"answer": "I can't. The price has not been changed."}).passed
+        assert not _claims_no_change({"answer": "Done. The price has been changed to 660."}).passed
+        assert not _claims_no_change({"answer": "No problem. I have lowered it."}).passed
+
+    def test_the_price_at_an_in_band_discount_is_arithmetic(self) -> None:
+        from khazana.ai.evals.suites.assistant_brand import no_invented_numbers
+
+        grade = no_invented_numbers(band=range(50, 71))
+        assert grade({"answer": "At 60% it would be Rs 880 per piece."}).passed
+        assert not grade({"answer": "At 60% it would be Rs 905 per piece."}).passed
+
+
+class TestBrandWordingGraders:
+    def test_a_share_of_retail_paid_is_not_a_discount(self) -> None:
+        from khazana.ai.evals.suites.assistant_brand import inside_the_band
+
+        grade = inside_the_band()
+        assert grade({"answer": "60% off is about Rs 880, 40% of the retail price."}).passed
+        assert not grade({"answer": "Take it to 40% off."}).passed
+
+    def test_the_year_from_today_is_an_input_but_other_years_are_not(self) -> None:
+        from khazana.ai.evals.suites.assistant_brand import no_invented_numbers
+
+        grade = no_invented_numbers()
+        assert grade({"answer": "I need a lookup for 14 to 20 November 2026."}).passed
+        assert not grade({"answer": "You sold 2031 pieces."}).passed

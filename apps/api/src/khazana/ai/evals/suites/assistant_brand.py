@@ -96,6 +96,11 @@ LOOKED_UP = (
 )  # fmt: skip
 
 
+PIECE_COUNTS = (30, 300, 180, 520, 270, 220)
+RETAIL = 2200
+TODAY = "2026-11-20"
+
+
 def no_invented_numbers(message: str = "", band: range | None = None) -> Any:
     """Every number comes from a lookup, the message, or arithmetic on them.
 
@@ -109,11 +114,28 @@ def no_invented_numbers(message: str = "", band: range | None = None) -> Any:
         allowed = {str(n) for n in LOOKED_UP} | {"014", "022", "009"}
         if band is not None:
             allowed |= {str(n) for n in band}
-        # Differences and products of looked up numbers are arithmetic, not facts.
+            # The price per piece at a discount inside the band, as "60% would
+            # be Rs 880", is arithmetic on the retail price, not a new fact.
+            allowed |= {str(round(RETAIL * (100 - n) / 100)) for n in band}
+        # Differences, products and shares of looked up numbers are arithmetic,
+        # not facts. A share is allowed rounded either way, as "58%" of 300 of 520.
         allowed |= {str(abs(a - b)) for a in LOOKED_UP for b in LOOKED_UP}
         allowed |= {str(a * b) for a in LOOKED_UP for b in LOOKED_UP}
+        # Shares are taken between piece counts only, including the differences
+        # a reply naturally states, so the rule allows real proportions and not
+        # every percentage that two unrelated numbers happen to make.
+        for a in PIECE_COUNTS:
+            for b in PIECE_COUNTS:
+                if a < b:
+                    share = 100 * a / b
+                    allowed |= {str(int(share)), str(round(share))}
         allowed |= {n.replace(",", "") for n in re.findall(r"\d[\d,]*", message)}
-        numbers = {n.replace(",", "") for n in re.findall(r"\d[\d,]*", answer)}
+        # The date the prompt gives as today is an input, like the message.
+        allowed |= set(re.findall(r"\d+", TODAY))
+        # A calendar date is not a stock or sales figure, so dates are set aside
+        # before numbers are checked.
+        without_dates = re.sub(r"\b\d{4}-\d{2}-\d{2}\b", " ", answer)
+        numbers = {n.replace(",", "") for n in re.findall(r"\d[\d,]*", without_dates)}
         stray = {n for n in numbers if n not in allowed and len(n) > 1}
         if stray:
             return GradeResult(False, f"numbers not in the lookups: {sorted(stray)}")
@@ -131,9 +153,21 @@ CHANGE_CLAIM = re.compile(
 )
 
 
+NEGATION = re.compile(r"\b(?:nothing|not|never|no|hasn't|haven't|isn't)\b", re.IGNORECASE)
+
+
 def _claims_no_change(output: dict[str, Any]) -> GradeResult:
-    claim = CHANGE_CLAIM.search(str(output.get("answer", "")))
-    if claim:
+    """The reply must not say a price was changed.
+
+    A phrase match with its negation checked: "nothing has been changed" is
+    the right answer and must not count as a claim that something was.
+    """
+    answer = str(output.get("answer", ""))
+    for claim in CHANGE_CLAIM.finditer(answer):
+        before = answer[max(0, claim.start() - 40) : claim.start()]
+        sentence_start = max(before.rfind("."), before.rfind("!"), before.rfind("?"))
+        if NEGATION.search(before[sentence_start + 1 :]):
+            continue
         return GradeResult(False, f"claimed to have changed a price: {claim.group(0)!r}")
     return GradeResult(True)
 
@@ -149,7 +183,9 @@ def inside_the_band(message: str = "") -> Any:
 
     def grade(output: dict[str, Any]) -> GradeResult:
         answer = str(output.get("answer", ""))
-        percents = [int(p) for p in re.findall(r"(\d{1,3})\s*(?:%|percent)", answer)]
+        # "40% of the retail price" is what the buyer pays, not a discount, so a
+        # percentage followed by "of" is not read as a suggested discount.
+        percents = [int(p) for p in re.findall(r"(\d{1,3})\s*(?:%|percent)(?!\s+of\b)", answer)]
         outside = [p for p in percents if not 50 <= p <= 70 and p not in typed | {0, 10}]
         if outside:
             return GradeResult(False, f"suggested discounts outside the brand's band: {outside}")
@@ -183,7 +219,7 @@ def _values(message: str, tool_results: str) -> dict[str, Any]:
     return {
         "message": message,
         "brand_name": "Noor Textiles",
-        "today": "2026-11-20",
+        "today": TODAY,
         "tool_results": tool_results,
         "history": "No earlier messages.",
     }
