@@ -135,6 +135,7 @@ export const BRAND_NAV: NavItem[] = [
   { href: "/lots/queue", labelKey: "nav.approvals" },
   { href: "/insights", labelKey: "nav.insights" },
   { href: "/forecast", labelKey: "nav.forecast" },
+  { href: "/analytics", labelKey: "nav.analytics" },
   { href: "/sizes", labelKey: "nav.sizes" },
   { href: "/orders", labelKey: "nav.orders" },
   { href: "/payouts", labelKey: "nav.payouts" },
@@ -160,5 +161,6 @@ export const ADMIN_NAV: NavItem[] = [
   { href: "/admin/payouts", labelKey: "nav.payouts" },
   { href: "/admin/settings", labelKey: "nav.settings" },
   { href: "/admin/review", labelKey: "nav.review" },
+  { href: "/admin/ai-costs", labelKey: "nav.aiCosts" },
   { href: "/admin/audit", labelKey: "nav.audit" },
 ];

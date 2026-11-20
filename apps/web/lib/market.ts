@@ -651,6 +651,10 @@ export const market = {
     lotId: string,
     body: { partner_id: string; route: "donation" | "upcycle_sale"; price_pkr?: number },
   ) => request<unknown>(`/lots/${lotId}/redirections`, { method: "POST", token, body }),
+  brandAnalytics: (token: string, brandId: string) =>
+    request<BrandAnalytics>(`/brands/${brandId}/analytics`, { token }),
+  brandImpact: (token: string, brandId: string) =>
+    request<BrandImpact>(`/brands/${brandId}/impact`, { token }),
   pools: (token: string) => request<Pool[]>("/pools", { token }),
   openPool: (token: string, body: PoolMembership & { lot_id: string }) =>
     request<Pool>("/pools", { method: "POST", token, body }),
@@ -915,6 +919,61 @@ export type AuditEntry = {
   created_at: string;
 };
 
+export type BrandAnalytics = {
+  days: number;
+  orders: number;
+  pieces: number;
+  goods_pkr: number;
+  payout_pkr: number;
+  average_price_per_piece_pkr: number;
+  average_discount_percent: number;
+  by_city: { city: string; pieces: number }[];
+  by_category: { category: string; pieces: number }[];
+  by_month: { month: string; pieces: number; goods_pkr: number }[];
+  lots_by_status: Record<string, number>;
+};
+
+type ImpactTotals = { pieces: number; kg: number; water_litres: number; co2_kg: number };
+
+export type BrandImpact = {
+  days: number;
+  sold: ImpactTotals;
+  second_life: ImpactTotals;
+  factors: { keyword: string; kg_per_piece: number; source: string }[];
+  assumption: string;
+};
+
+export type PlatformReport = {
+  days: number;
+  gmv_pkr: number;
+  orders: number;
+  commission_pkr: number;
+  active_buyers: number;
+  new_accounts: number;
+  brands: number;
+  live_lots: number;
+  change_percent: Record<"gmv" | "orders" | "active_buyers" | "new_accounts", number | null>;
+};
+
+export type AiCosts = {
+  days: number;
+  total_usd: string;
+  features: {
+    feature: string;
+    calls: number;
+    cost_usd: string;
+    average_usd: string;
+    input_tokens: number;
+    output_tokens: number;
+  }[];
+  listings: number;
+  orders: number;
+  cost_per_listing_usd: string | null;
+  cost_per_order_usd: string | null;
+  listing_features: string[];
+  order_features: string[];
+};
+
 export type ReviewCase = {
   id: string;
   subject_type: "account" | "listing" | "order";
@@ -928,6 +987,8 @@ export type ReviewCase = {
 };
 
 export const adminApi = {
+  aiCosts: (token: string) => request<AiCosts>("/admin/ai-costs", { token }),
+  analytics: (token: string) => request<PlatformReport>("/admin/analytics", { token }),
   reviewCases: (token: string) => request<ReviewCase[]>("/admin/review-cases", { token }),
   decideCase: (
     token: string,
