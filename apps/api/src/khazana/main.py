@@ -19,6 +19,7 @@ from .ai.gateway.limits import feature_switches
 from .api.routers import (
     admin,
     ai,
+    analytics,
     assistant,
     auth,
     brands,
@@ -109,6 +110,7 @@ def create_app() -> FastAPI:
     app.include_router(forecasts.router)
     app.include_router(redirections.router)
     app.include_router(review.router)
+    app.include_router(analytics.router)
     app.include_router(logistics.router)
     app.include_router(resellers.router)
     app.include_router(admin.router)
