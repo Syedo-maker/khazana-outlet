@@ -75,7 +75,60 @@ export type CatalogItem = {
   similarity?: number | null;
 };
 
+export type Recommendation = CatalogItem & { score: number; reasons: string[] };
+
+export type ProfitScenario = {
+  name: string;
+  price_per_piece_pkr: number;
+  revenue_pkr: number;
+  profit_pkr: number;
+  margin_percent: number;
+};
+
+export type ProfitEstimate = {
+  lot_code: string;
+  city: string;
+  pieces: number;
+  goods_pkr: number;
+  shipping_pkr: number | null;
+  cost_pkr: number;
+  cost_per_piece_pkr: number;
+  scenarios: ProfitScenario[];
+  break_even_pieces: number | null;
+  benchmark: string;
+  assumptions: string[];
+};
+
 export type LineChoice = { size: string; color: string; pieces: number };
+
+export type MixedLotRequest = {
+  budget_pkr: number;
+  target_pieces: number;
+  category_ids: string[];
+  max_brands: number;
+  city?: string;
+};
+
+export type MixedLotPart = {
+  item: CatalogItem;
+  pieces: number;
+  lines: LineChoice[];
+  subtotal_pkr: number;
+  shipping_pkr: number;
+  total_pkr: number;
+  reason: string;
+};
+
+export type MixedLot = {
+  components: MixedLotPart[];
+  pieces: number;
+  total_pkr: number;
+  brand_count: number;
+  budget_pkr: number;
+  target_pieces: number;
+  notes: string[];
+  added_to_cart: boolean;
+};
 
 export type CatalogDetail = CatalogItem & {
   photos: { id: string; kind: PhotoKind; sort_order: number }[];
@@ -404,6 +457,18 @@ export const market = {
     request<void>(`/catalog/saved-searches/${id}`, { method: "DELETE", token }),
   runSavedSearch: (token: string, id: string) =>
     request<SearchResult>(`/catalog/saved-searches/${id}/results`, { token }),
+
+  buildMixedLot: (token: string, body: MixedLotRequest) =>
+    request<MixedLot>("/catalog/mixed-lots", { method: "POST", token, body }),
+  mixedLotToCart: (token: string, body: MixedLotRequest) =>
+    request<MixedLot>("/catalog/mixed-lots/cart", { method: "POST", token, body }),
+  recommendations: (token: string) =>
+    request<Recommendation[]>("/catalog/recommendations", { token }),
+  profit: (
+    token: string,
+    lotId: string,
+    params: { city?: string; pieces?: number; selling_price_pkr?: number },
+  ) => request<ProfitEstimate>(`/catalog/${lotId}/profit${queryString(params)}`, { token }),
 
   listing: (token: string, lotId: string) =>
     request<CatalogDetail>(`/catalog/${lotId}`, { token }),

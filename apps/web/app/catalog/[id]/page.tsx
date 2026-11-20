@@ -1,5 +1,6 @@
 "use client";
 
+import { ProfitCard } from "@/components/ProfitCard";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
@@ -225,6 +226,9 @@ function ListingContent({ session, lotId }: { session: Session; lotId: string })
                   <PurchaseCard detail={detail} session={session} />
                 </CardBody>
               </Card>
+              {session.me.user.role === "reseller" ? (
+                <ProfitCard session={session} lotId={lotId} />
+              ) : null}
             </aside>
           </div>
         )}

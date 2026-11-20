@@ -140,6 +140,7 @@ export const BRAND_NAV: NavItem[] = [
 
 export const RESELLER_NAV: NavItem[] = [
   { href: "/catalog", labelKey: "nav.catalog" },
+  { href: "/mixed-lot", labelKey: "nav.mixedLot" },
   { href: "/assistant", labelKey: "nav.assistant" },
   { href: "/cart", labelKey: "nav.cart" },
   { href: "/orders", labelKey: "nav.orders" },
