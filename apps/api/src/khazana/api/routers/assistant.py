@@ -11,11 +11,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
 from ...config import get_settings
+from ...core.tenancy import assert_owns
 from ...models import AssistantConversation, AssistantMessage, WhatsAppMessage
 from ...models.enums import ChatChannel, ChatRole, MessageDirection
 from ...services import chat_service, whatsapp_providers, whatsapp_service
 from ...services.whatsapp_providers import VoiceNote
-from ..deps import AdminOnly, CurrentPrincipal, Db
+from ..deps import AdminOnly, CurrentBrand, CurrentPrincipal, Db
 
 router = APIRouter(tags=["assistant"])
 
@@ -143,6 +144,84 @@ def send_message(payload: SendIn, principal: CurrentPrincipal, db: Db) -> SendOu
         text=payload.message,
         conversation_id=payload.conversation_id,
         city=payload.city,
+    )
+    db.commit()
+    return SendOut(
+        conversation=conversation_out(exchange.conversation),
+        buyer_message=message_out(exchange.buyer_message),
+        reply=message_out(exchange.reply),
+        usage=_usage(db, principal.user_id),
+        cost_usd=exchange.reply.cost_usd,
+    )
+
+
+# ---------- Brand assistant ----------
+
+
+class BrandSendIn(BaseModel):
+    message: str = Field(min_length=1, max_length=2_000)
+    conversation_id: str | None = Field(default=None, max_length=36)
+
+
+@router.get(
+    "/brands/{brand_id}/assistant/conversations",
+    operation_id="brand_assistant_conversations",
+    response_model=list[ConversationOut],
+    responses={404: {"description": "No such brand, or it belongs to someone else"}},
+)
+def brand_conversations(brand_id: str, principal: CurrentBrand, db: Db) -> list[ConversationOut]:
+    """The caller's own threads with the assistant about this brand."""
+    assert_owns(principal, brand_id)
+    return [
+        conversation_out(c)
+        for c in chat_service.list_conversations(db, principal.user_id, brand_id=brand_id)
+    ]
+
+
+@router.get(
+    "/brands/{brand_id}/assistant/conversations/{conversation_id}",
+    operation_id="brand_assistant_conversation_detail",
+    response_model=ConversationDetailOut,
+    responses={404: {"description": "No such conversation for this account and brand"}},
+)
+def brand_conversation(
+    brand_id: str, conversation_id: str, principal: CurrentBrand, db: Db
+) -> ConversationDetailOut:
+    assert_owns(principal, brand_id)
+    conversation = chat_service.get_conversation(
+        db, principal.user_id, conversation_id, brand_id=brand_id
+    )
+    return ConversationDetailOut(
+        **conversation_out(conversation).model_dump(),
+        messages=[message_out(m) for m in conversation.messages],
+    )
+
+
+@router.post(
+    "/brands/{brand_id}/assistant/messages",
+    operation_id="brand_assistant_send_message",
+    response_model=SendOut,
+    responses={
+        402: {"description": "An AI spend cap was reached before the call was made"},
+        404: {"description": "No such brand or conversation for this account"},
+        429: {"description": "The daily message limit for this account was reached"},
+    },
+)
+def brand_send_message(
+    brand_id: str, payload: BrandSendIn, principal: CurrentBrand, db: Db
+) -> SendOut:
+    """Ask about this brand's own stock and sales.
+
+    Every lookup is restricted to this brand by code. The assistant suggests
+    and never changes a price.
+    """
+    assert_owns(principal, brand_id)
+    exchange = chat_service.send(
+        db,
+        user_id=principal.user_id,
+        text=payload.message,
+        conversation_id=payload.conversation_id,
+        brand_id=brand_id,
     )
     db.commit()
     return SendOut(

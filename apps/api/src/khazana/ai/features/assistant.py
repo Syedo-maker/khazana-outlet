@@ -36,7 +36,7 @@ from sqlalchemy.orm import Session
 from ...core.errors import ValidationFailed
 from ...models.enums import AiFeature
 from ..gateway import AiResult, run_feature
-from ..schemas import AssistantAnswer, ToolPlan
+from ..schemas import AssistantAnswer, BrandToolPlan, ToolPlan
 from ..tools import catalog_tools
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ TOOL_PARAMETERS = {
 @dataclass(slots=True)
 class AssistantTurn:
     answer: AssistantAnswer
-    plan: ToolPlan
+    plan: ToolPlan | BrandToolPlan
     tool_results: dict[str, Any]
     plan_result: AiResult
     answer_result: AiResult

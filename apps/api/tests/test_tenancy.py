@@ -64,7 +64,16 @@ class TestSchemaInvariants:
         }
         # These legitimately carry a nullable brand_id but are not tenant
         # owned rows: they are platform records that reference a brand.
-        allowed_extras = {"brands", "ai_jobs", "ai_spend", "embeddings", "audit_log"}
+        # assistant_conversations is owned by a user; its brand_id says which
+        # brand a brand assistant thread is about and is checked on every read.
+        allowed_extras = {
+            "brands",
+            "ai_jobs",
+            "ai_spend",
+            "embeddings",
+            "audit_log",
+            "assistant_conversations",
+        }
         unregistered = with_brand_id - set(BRAND_SCOPED_TABLES) - allowed_extras
         assert not unregistered, (
             f"These tables have a brand_id but are not in BRAND_SCOPED_TABLES: "

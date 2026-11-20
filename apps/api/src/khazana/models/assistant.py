@@ -1,8 +1,9 @@
 """Conversations with the buyer assistant, on the web and on WhatsApp.
 
-A conversation belongs to one user and is never shared. Nothing here carries
-a brand_id: the buyer assistant answers from the public catalogue, and what a
-buyer asked is the buyer's data, not a brand's.
+A conversation belongs to one user and is never shared. A buyer conversation
+has no brand. A brand assistant conversation records the brand it is about,
+so it is only ever continued or read in that brand's context, and only by the
+user who started it.
 """
 
 from __future__ import annotations
@@ -24,6 +25,10 @@ class AssistantConversation(UUIDPrimaryKey, TimestampMixin, Base):
 
     user_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    # Set for the brand assistant, null for the buyer assistant.
+    brand_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("brands.id", ondelete="CASCADE"), default=None
     )
     channel: Mapped[ChatChannel] = mapped_column(nullable=False, default=ChatChannel.WEB)
     # The first buyer message, shortened. Written by code, never by the model.

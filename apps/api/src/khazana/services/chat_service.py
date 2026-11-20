@@ -19,11 +19,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ..ai.features import assistant
+from ..ai.features import assistant, brand_assistant
 from ..ai.features.assistant import AssistantTurn
 from ..config import get_settings
 from ..core.errors import NotFound, RateLimited, ValidationFailed
@@ -73,11 +74,20 @@ def remaining_today(db: Session, user_id: str, now: datetime | None = None) -> i
     return max(0, limit - messages_sent_today(db, user_id, now))
 
 
-def list_conversations(db: Session, user_id: str, limit: int = 30) -> list[AssistantConversation]:
+def _brand_filter(brand_id: str | None) -> Any:
+    if brand_id is None:
+        return AssistantConversation.brand_id.is_(None)
+    return AssistantConversation.brand_id == brand_id
+
+
+def list_conversations(
+    db: Session, user_id: str, limit: int = 30, *, brand_id: str | None = None
+) -> list[AssistantConversation]:
+    """The user's threads in one context: the buyer assistant, or one brand."""
     return list(
         db.scalars(
             select(AssistantConversation)
-            .where(AssistantConversation.user_id == user_id)
+            .where(AssistantConversation.user_id == user_id, _brand_filter(brand_id))
             .order_by(
                 AssistantConversation.last_message_at.desc(),
                 AssistantConversation.created_at.desc(),
@@ -87,9 +97,16 @@ def list_conversations(db: Session, user_id: str, limit: int = 30) -> list[Assis
     )
 
 
-def get_conversation(db: Session, user_id: str, conversation_id: str) -> AssistantConversation:
+def get_conversation(
+    db: Session, user_id: str, conversation_id: str, *, brand_id: str | None = None
+) -> AssistantConversation:
+    """One thread, only for its owner and only in the context it belongs to.
+
+    A brand thread asked for through the buyer assistant, or through another
+    brand, is not found, the same as a thread that does not exist.
+    """
     conversation = db.get(AssistantConversation, conversation_id)
-    if conversation is None or conversation.user_id != user_id:
+    if conversation is None or conversation.user_id != user_id or conversation.brand_id != brand_id:
         raise NotFound("That conversation does not exist.")
     return conversation
 
@@ -99,7 +116,11 @@ def latest_conversation(
 ) -> AssistantConversation | None:
     return db.scalar(
         select(AssistantConversation)
-        .where(AssistantConversation.user_id == user_id, AssistantConversation.channel == channel)
+        .where(
+            AssistantConversation.user_id == user_id,
+            AssistantConversation.channel == channel,
+            AssistantConversation.brand_id.is_(None),
+        )
         .order_by(AssistantConversation.last_message_at.desc())
         .limit(1)
     )
@@ -150,8 +171,12 @@ def send(
     channel: ChatChannel = ChatChannel.WEB,
     city: str = "",
     conversation: AssistantConversation | None = None,
+    brand_id: str | None = None,
 ) -> ChatExchange:
     """Send one buyer message and store it with the assistant's reply.
+
+    With ``brand_id`` the brand assistant answers, about that brand only. The
+    caller must already have checked that the user belongs to the brand.
 
     The caller commits. The model calls inside commit their own cost records,
     which is why nothing is added to the session until the reply is back.
@@ -160,8 +185,10 @@ def send(
         raise ValidationFailed("Type a message first.")
 
     if conversation is None and conversation_id is not None:
-        conversation = get_conversation(db, user_id, conversation_id)
-    if conversation is not None and conversation.user_id != user_id:
+        conversation = get_conversation(db, user_id, conversation_id, brand_id=brand_id)
+    if conversation is not None and (
+        conversation.user_id != user_id or conversation.brand_id != brand_id
+    ):
         raise NotFound("That conversation does not exist.")
 
     limit = get_settings().assistant_daily_message_limit
@@ -175,10 +202,19 @@ def send(
     if conversation is not None:
         keep = get_settings().assistant_history_messages
         history = render_history(recent_messages(db, conversation.id, keep))
-    turn = assistant.ask(db, message=text, buyer_user_id=user_id, buyer_city=city, history=history)
+    if brand_id is None:
+        turn = assistant.ask(
+            db, message=text, buyer_user_id=user_id, buyer_city=city, history=history
+        )
+    else:
+        turn = brand_assistant.ask(
+            db, message=text, brand_id=brand_id, user_id=user_id, history=history
+        )
 
     if conversation is None:
-        conversation = AssistantConversation(user_id=user_id, channel=channel, title=_title(text))
+        conversation = AssistantConversation(
+            user_id=user_id, brand_id=brand_id, channel=channel, title=_title(text)
+        )
         db.add(conversation)
         db.flush()
 

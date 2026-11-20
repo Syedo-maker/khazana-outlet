@@ -309,6 +309,37 @@ function queryString(values: Record<string, unknown>): string {
 }
 
 /** A protected file, read with the bearer token an image tag cannot send. */
+export type ChatRole = "buyer" | "assistant";
+
+export type ChatMessage = {
+  id: string;
+  role: ChatRole;
+  body: string;
+  language: string | null;
+  lot_codes: string[];
+  grounded: boolean | null;
+  declined: boolean | null;
+  created_at: string;
+};
+
+export type Conversation = {
+  id: string;
+  channel: "web" | "whatsapp";
+  title: string;
+  last_message_at: string | null;
+};
+
+export type ConversationDetail = Conversation & { messages: ChatMessage[] };
+
+export type AssistantUsage = { limit: number; used: number; remaining: number };
+
+export type ChatExchange = {
+  conversation: Conversation;
+  buyer_message: ChatMessage;
+  reply: ChatMessage;
+  usage: AssistantUsage;
+};
+
 export async function fetchFile(path: string, token: string, signal?: AbortSignal): Promise<Blob> {
   let response: Response;
   try {
@@ -325,6 +356,30 @@ export async function fetchFile(path: string, token: string, signal?: AbortSigna
 }
 
 export const market = {
+  conversations: (token: string) =>
+    request<Conversation[]>("/assistant/conversations", { token }),
+  conversation: (token: string, id: string) =>
+    request<ConversationDetail>(`/assistant/conversations/${id}`, { token }),
+  assistantUsage: (token: string) => request<AssistantUsage>("/assistant/usage", { token }),
+  sendAssistantMessage: (
+    token: string,
+    body: { message: string; conversation_id?: string; city?: string },
+  ) => request<ChatExchange>("/assistant/messages", { method: "POST", token, body }),
+  brandConversations: (token: string, brandId: string) =>
+    request<Conversation[]>(`/brands/${brandId}/assistant/conversations`, { token }),
+  brandConversation: (token: string, brandId: string, id: string) =>
+    request<ConversationDetail>(`/brands/${brandId}/assistant/conversations/${id}`, { token }),
+  sendBrandAssistantMessage: (
+    token: string,
+    brandId: string,
+    body: { message: string; conversation_id?: string },
+  ) =>
+    request<ChatExchange>(`/brands/${brandId}/assistant/messages`, {
+      method: "POST",
+      token,
+      body,
+    }),
+
   categories: (token: string) => request<Category[]>("/catalog/categories", { token }),
 
   search: (token: string, filters: SearchFilters, offset = 0) =>

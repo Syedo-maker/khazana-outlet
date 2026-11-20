@@ -133,12 +133,14 @@ export const BRAND_NAV: NavItem[] = [
   { href: "/dashboard", labelKey: "nav.dashboard" },
   { href: "/lots", labelKey: "nav.lots" },
   { href: "/lots/queue", labelKey: "nav.approvals" },
+  { href: "/insights", labelKey: "nav.insights" },
   { href: "/orders", labelKey: "nav.orders" },
   { href: "/payouts", labelKey: "nav.payouts" },
 ];
 
 export const RESELLER_NAV: NavItem[] = [
   { href: "/catalog", labelKey: "nav.catalog" },
+  { href: "/assistant", labelKey: "nav.assistant" },
   { href: "/cart", labelKey: "nav.cart" },
   { href: "/orders", labelKey: "nav.orders" },
   { href: "/account", labelKey: "nav.account" },

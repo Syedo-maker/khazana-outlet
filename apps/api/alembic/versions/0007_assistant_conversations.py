@@ -41,6 +41,7 @@ def upgrade() -> None:
     op.create_table(
         "assistant_conversations",
         sa.Column("user_id", sa.String(length=36), nullable=False),
+        sa.Column("brand_id", sa.String(length=36), nullable=True),
         sa.Column("channel", sa.String(length=32), nullable=False),
         sa.Column("title", sa.String(length=120), nullable=False),
         sa.Column("last_message_at", sa.DateTime(timezone=True), nullable=True),
@@ -50,6 +51,12 @@ def upgrade() -> None:
             ["user_id"],
             ["users.id"],
             name=op.f("fk_assistant_conversations_user_id_users"),
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["brand_id"],
+            ["brands.id"],
+            name=op.f("fk_assistant_conversations_brand_id_brands"),
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_assistant_conversations")),
