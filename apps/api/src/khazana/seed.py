@@ -60,8 +60,11 @@ from .models import (
     PaymentEvent,
     Payout,
     PayoutRun,
+    Pool,
+    PoolMember,
     ResaleBenchmark,
     ResellerProfile,
+    ResellKit,
     SavedSearch,
     Shipment,
     ShipmentEvent,
@@ -257,6 +260,9 @@ def _wipe(db: Session) -> None:
         raise RuntimeError("Refusing to wipe data in production.")
 
     models = (
+        PoolMember,
+        Pool,
+        ResellKit,
         ResaleBenchmark,
         OtpChallenge,
         WhatsAppMessage,

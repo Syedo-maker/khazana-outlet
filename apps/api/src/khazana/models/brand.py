@@ -104,6 +104,9 @@ class BrandPolicy(UUIDPrimaryKey, TimestampMixin, Base):
     require_brand_approval: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     allow_cod: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     allow_part_lot_orders: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Whether several resellers may buy a lot together, each below the minimum
+    # order, as long as together they meet it. Off until the brand turns it on.
+    allow_pooled_orders: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # AI behaviour per brand. Some brands will want the AI draft applied
     # automatically, most will want to review it first.

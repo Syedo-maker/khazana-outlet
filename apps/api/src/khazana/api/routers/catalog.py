@@ -417,6 +417,7 @@ class CatalogDetailOut(BrowseItemOut):
     available_lines: list[CatalogAvailableLineOut]
     allows_part_lot: bool
     allows_cod: bool
+    allows_pooling: bool = False
     defects: list[CatalogDefectOut]
 
 
@@ -1183,6 +1184,7 @@ def catalog_detail(
         ],
         allows_part_lot=bool(policy and policy.allow_part_lot_orders),
         allows_cod=bool(policy and policy.allow_cod),
+        allows_pooling=bool(policy and policy.allow_pooled_orders),
         defects=[
             CatalogDefectOut(
                 issue=defect.issue,

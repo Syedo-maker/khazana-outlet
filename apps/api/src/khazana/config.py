@@ -70,6 +70,11 @@ class Settings(BaseSettings):
     # so yesterday's search does not colour today's question.
     whatsapp_conversation_idle_hours: int = Field(default=12, ge=1)
 
+    # ---------- Committee pools ----------
+    pool_min_members: int = Field(default=3, ge=2, le=10)
+    pool_max_members: int = Field(default=4, ge=2, le=10)
+    pool_open_days: int = Field(default=7, ge=1, le=60)
+
     # ---------- Storage ----------
     storage_backend: Literal["local", "s3"] = "local"
     storage_local_path: str = "./uploads"

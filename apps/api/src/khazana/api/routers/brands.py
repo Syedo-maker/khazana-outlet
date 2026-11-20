@@ -65,6 +65,7 @@ class PolicyOut(BaseModel):
     require_brand_approval: bool
     allow_cod: bool
     allow_part_lot_orders: bool
+    allow_pooled_orders: bool
     auto_apply_ai_draft: bool
     ai_monthly_budget_usd: float
 
@@ -87,6 +88,7 @@ class PolicyUpdateIn(BaseModel):
     default_visibility: Visibility | None = None
     allow_cod: bool | None = None
     allow_part_lot_orders: bool | None = None
+    allow_pooled_orders: bool | None = None
     auto_apply_ai_draft: bool | None = None
     ai_monthly_budget_usd: float | None = Field(default=None, ge=0)
 

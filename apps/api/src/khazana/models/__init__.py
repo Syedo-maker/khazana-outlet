@@ -44,7 +44,8 @@ from .commerce import (
     ShippingRate,
 )
 from .identity import OtpChallenge, ResellerProfile, Session, User
-from .insight import ResaleBenchmark
+from .insight import ResaleBenchmark, ResellKit
+from .pool import Pool, PoolMember
 
 # Tables that carry a brand_id and are therefore subject to tenant isolation.
 # The isolation test suite reads this list, so adding a brand owned table
@@ -103,7 +104,10 @@ __all__ = [
     "PaymentEvent",
     "Payout",
     "PayoutRun",
+    "Pool",
+    "PoolMember",
     "ResaleBenchmark",
+    "ResellKit",
     "ResellerProfile",
     "SavedSearch",
     "Session",

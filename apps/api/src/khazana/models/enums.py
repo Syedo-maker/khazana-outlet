@@ -189,6 +189,8 @@ class AiFeature(StrEnum):
     DEMAND_FORECAST = "demand_forecast"
     TRANSLATION = "translation"
     RESELL_KIT = "resell_kit"
+    BARGAINING = "bargaining"
+    MARKDOWN = "markdown"
 
 
 class ChatChannel(StrEnum):
@@ -206,6 +208,13 @@ class ChatRole(StrEnum):
 class MessageDirection(StrEnum):
     INBOUND = "inbound"
     OUTBOUND = "outbound"
+
+
+class PoolStatus(StrEnum):
+    OPEN = "open"
+    ORDERED = "ordered"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"
 
 
 class AiJobStatus(StrEnum):

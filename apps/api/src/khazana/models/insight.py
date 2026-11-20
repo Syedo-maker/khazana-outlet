@@ -6,7 +6,9 @@ produced. The features that read them compute; they do not invent.
 
 from __future__ import annotations
 
-from sqlalchemy import CheckConstraint, ForeignKey, Numeric, String, UniqueConstraint
+from typing import Any
+
+from sqlalchemy import CheckConstraint, ForeignKey, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base, TimestampMixin, UUIDPrimaryKey
@@ -39,3 +41,22 @@ class ResaleBenchmark(UUIDPrimaryKey, TimestampMixin, Base):
             name="resale_percents_ordered",
         ),
     )
+
+
+class ResellKit(UUIDPrimaryKey, TimestampMixin, Base):
+    """The marketing kit generated for one purchased order.
+
+    Kept so that opening the kit again costs nothing. Regenerating replaces it,
+    for example after the buyer changes their selling price.
+    """
+
+    __tablename__ = "resell_kits"
+
+    order_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    selling_price_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
+    copy: Mapped[dict[str, Any]] = mapped_column(nullable=False)

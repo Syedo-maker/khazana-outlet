@@ -94,6 +94,7 @@ POLICY_AUDIT_FIELDS = (
     "require_brand_approval",
     "allow_cod",
     "allow_part_lot_orders",
+    "allow_pooled_orders",
     "auto_apply_ai_draft",
     "ai_monthly_budget_usd",
 )
@@ -473,6 +474,7 @@ def update_policy(
         "default_visibility",
         "allow_cod",
         "allow_part_lot_orders",
+        "allow_pooled_orders",
         "auto_apply_ai_draft",
         "ai_monthly_budget_usd",
     }
