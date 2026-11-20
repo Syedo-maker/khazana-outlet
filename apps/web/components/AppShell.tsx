@@ -134,6 +134,8 @@ export const BRAND_NAV: NavItem[] = [
   { href: "/lots", labelKey: "nav.lots" },
   { href: "/lots/queue", labelKey: "nav.approvals" },
   { href: "/insights", labelKey: "nav.insights" },
+  { href: "/forecast", labelKey: "nav.forecast" },
+  { href: "/sizes", labelKey: "nav.sizes" },
   { href: "/orders", labelKey: "nav.orders" },
   { href: "/payouts", labelKey: "nav.payouts" },
 ];

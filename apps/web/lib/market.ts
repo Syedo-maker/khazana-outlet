@@ -154,6 +154,60 @@ export type PriceMove = {
   note: string | null;
 };
 
+export type ForecastLot = {
+  lot_id: string;
+  lot_code: string;
+  title: string;
+  weekly_pieces: number;
+  weeks_to_clear: number | null;
+  at_risk: boolean;
+  reason: string;
+};
+
+export type SeasonEvent = {
+  id: string;
+  name: string;
+  starts_on: string;
+  ends_on: string;
+  lead_days: number;
+  demand_factor: number;
+  keywords: string[];
+  note: string;
+};
+
+export type BrandForecast = {
+  computed_at: string | null;
+  at_risk: ForecastLot[];
+  on_track: ForecastLot[];
+  warnings: {
+    category: string;
+    live_pieces: number;
+    weekly_demand: number;
+    weeks_of_demand: number | null;
+    message: string;
+  }[];
+  upcoming: SeasonEvent[];
+};
+
+export type SizeGuide = {
+  size: string;
+  standard: string | null;
+  match: "close" | "approximate" | "no chart";
+  measurements: string;
+};
+
+export type SizeRow = {
+  audience: string;
+  label: string;
+  chest_min_cm: number | null;
+  chest_max_cm: number | null;
+  waist_min_cm: number | null;
+  waist_max_cm: number | null;
+  hip_min_cm: number | null;
+  hip_max_cm: number | null;
+  standard: string | null;
+};
+
 export type PoolLine = { size: string; color: string; pieces: number };
 
 export type Pool = {
@@ -221,6 +275,7 @@ export type CatalogDetail = CatalogItem & {
   allows_cod: boolean;
   allows_pooling: boolean;
   allows_bargaining: boolean;
+  size_guide: SizeGuide[];
   defects: { issue: string; pieces_affected: number; photo_id: string | null }[];
 };
 
@@ -574,6 +629,12 @@ export const market = {
   ) => request<unknown>(`/lots/${lotId}/agents`, { method: "PATCH", token, body }),
   priceHistory: (token: string, lotId: string) =>
     request<PriceMove[]>(`/lots/${lotId}/price-history`, { token }),
+  brandForecast: (token: string, brandId: string) =>
+    request<BrandForecast>(`/brands/${brandId}/forecast`, { token }),
+  sizeChart: (token: string, brandId: string) =>
+    request<SizeRow[]>(`/brands/${brandId}/size-chart`, { token }),
+  saveSizeChart: (token: string, brandId: string, rows: Record<string, unknown>[]) =>
+    request<SizeRow[]>(`/brands/${brandId}/size-chart`, { method: "PUT", token, body: rows }),
   pools: (token: string) => request<Pool[]>("/pools", { token }),
   openPool: (token: string, body: PoolMembership & { lot_id: string }) =>
     request<Pool>("/pools", { method: "POST", token, body }),

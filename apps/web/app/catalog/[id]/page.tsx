@@ -1,5 +1,6 @@
 "use client";
 
+import { SizeGuideCard } from "@/components/SizeGuideCard";
 import { NegotiationCard } from "@/components/NegotiationCard";
 import { OpenPoolCard } from "@/components/pools/OpenPoolCard";
 import { ProfitCard } from "@/components/ProfitCard";
@@ -171,6 +172,7 @@ function ListingContent({ session, lotId }: { session: Session; lotId: string })
                 </ul>
               ) : null}
 
+              <SizeGuideCard guide={detail.size_guide} locale={locale} />
               <Card className="mb-6">
                 <CardHeader>
                   <CardTitle as="h2">{t(locale, "manifest.title")}</CardTitle>
