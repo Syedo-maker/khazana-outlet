@@ -47,6 +47,10 @@ def upgrade() -> None:
                 server_default=sa.false(),
             )
         )
+    # The default fills existing rows; the model sets the value from then on,
+    # so the server default is dropped to keep the schema matching the model.
+    with op.batch_alter_table("brand_policies") as batch:
+        batch.alter_column("allow_pooled_orders", server_default=None)
 
     op.create_table(
         "pools",

@@ -74,6 +74,18 @@ def upgrade() -> None:
             sa.Column("markdown_floor_percent", sa.Numeric(precision=5, scale=2), nullable=True)
         )
 
+    # The defaults fill existing rows; the model sets the values from then on,
+    # so the server defaults are dropped to keep the schema matching the model.
+    with op.batch_alter_table("brand_policies") as batch:
+        for column in (
+            "allow_bargaining",
+            "bargain_step_percent",
+            "allow_auto_markdown",
+            "markdown_step_percent",
+            "markdown_interval_days",
+        ):
+            batch.alter_column(column, server_default=None)
+
     with op.batch_alter_table("lots") as batch:
         batch.add_column(sa.Column("bargaining_enabled", sa.Boolean(), nullable=True))
         batch.add_column(sa.Column("auto_markdown_enabled", sa.Boolean(), nullable=True))
