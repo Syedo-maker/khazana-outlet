@@ -297,6 +297,27 @@ class BrandToolPlan(BaseModel):
     language: str = Field(description="en, ur or ur_roman")
 
 
+class ResellKitCopy(BaseModel):
+    """The words in a resell kit. Prices, sizes and photos are added by code.
+
+    The model never sees the brand's retail price or, for an unbranded lot,
+    the brand. What it was not given it cannot repeat, which is a stronger
+    guarantee than an instruction not to.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    caption_en: str = Field(description="Two or three sentences, English")
+    caption_ur_roman: str = Field(description="The same, Roman Urdu in Latin letters")
+    caption_ur: str = Field(description="The same, Urdu script")
+    social_post: str = Field(description="A Facebook or Instagram post, English and Roman Urdu")
+    whatsapp_status: str = Field(description="One short line for a WhatsApp status")
+    hashtags: list[str] = Field(default_factory=list, max_length=10)
+    selling_points: list[str] = Field(
+        default_factory=list, max_length=5, description="Each taken from the facts given"
+    )
+
+
 SCHEMA_BY_FEATURE: dict[str, type[BaseModel]] = {
     "listing_from_photos": ListingDraft,
     "logo_detection": LogoDetection,
@@ -305,4 +326,5 @@ SCHEMA_BY_FEATURE: dict[str, type[BaseModel]] = {
     "risk_scoring": RiskScore,
     "assistant_buyer": AssistantAnswer,
     "assistant_brand": AssistantAnswer,
+    "resell_kit": ResellKitCopy,
 }

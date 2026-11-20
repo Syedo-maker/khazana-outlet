@@ -108,6 +108,16 @@ ROUTES: dict[AiFeature, Route] = {
         cache_prefix=True,
         max_tokens=2_000,
     ),
+    # Marketing copy for a lot the buyer already owns. Nobody's money moves on
+    # it, so the small model writes it and the eval guards the claims.
+    AiFeature.RESELL_KIT: Route(
+        feature=AiFeature.RESELL_KIT,
+        model_id=HAIKU_4_5,
+        effort=None,
+        mode=AiMode.LIVE,
+        cache_prefix=True,
+        max_tokens=1_500,
+    ),
     AiFeature.DEMAND_FORECAST: Route(
         feature=AiFeature.DEMAND_FORECAST,
         model_id=OPUS_5_5,

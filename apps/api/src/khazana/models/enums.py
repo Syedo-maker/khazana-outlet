@@ -188,6 +188,7 @@ class AiFeature(StrEnum):
     EMBEDDING = "embedding"
     DEMAND_FORECAST = "demand_forecast"
     TRANSLATION = "translation"
+    RESELL_KIT = "resell_kit"
 
 
 class ChatChannel(StrEnum):
