@@ -204,12 +204,17 @@ def price_purchase(
     purchase: Purchase,
     destination_city: str,
     pooled: bool = False,
+    agreed_unit_price: int | None = None,
 ) -> Pricing:
     """Price one purchase exactly as checkout will.
 
     ``pooled`` is for one member's share of a committee pool. The per order
     minimums are then the pool's to meet as a whole, and the pool service
     checks them across all members before any order exists.
+
+    ``agreed_unit_price`` is a price per piece agreed with the bargaining bot,
+    already checked against the brand's floor by the bargaining service. It
+    replaces the listed price for a whole lot order.
     """
     policy = _policy(db, lot.brand_id)
     lines = _chosen_lines(db, lot, purchase, policy, pooled=pooled)
@@ -224,7 +229,10 @@ def price_purchase(
 
     unit_price = ceil(lot.lot_price_pkr / lot.total_pieces)
     subtotal = pieces * unit_price
-    if takes_the_rest:
+    if agreed_unit_price is not None:
+        unit_price = agreed_unit_price
+        subtotal = pieces * unit_price
+    elif takes_the_rest:
         # The orders on one lot always add up to its listed price.
         subtotal = max(pieces, lot.lot_price_pkr - _money_already_committed(db, lot.id))
     elif subtotal < policy.min_lot_value_pkr and not pooled:
@@ -297,6 +305,7 @@ def place_orders(
     delivery: Delivery,
     method: PaymentMethod,
     ip: str | None = None,
+    agreed_prices: dict[str, int] | None = None,
 ) -> list[Order]:
     """Create one order per lot, all of them or none.
 
@@ -319,7 +328,13 @@ def place_orders(
         if method == PaymentMethod.COD and not policy.allow_cod:
             raise ValidationFailed(f"Cash on delivery is not available for {lot.lot_code}.")
 
-        pricing = price_purchase(db, lot=lot, purchase=purchase, destination_city=cleaned.city)
+        pricing = price_purchase(
+            db,
+            lot=lot,
+            purchase=purchase,
+            destination_city=cleaned.city,
+            agreed_unit_price=(agreed_prices or {}).get(lot.id),
+        )
         orders.append(
             create_order(
                 db, buyer=buyer, lot=lot, pricing=pricing, delivery=cleaned, method=method, ip=ip

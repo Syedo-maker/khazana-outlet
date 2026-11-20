@@ -210,6 +210,14 @@ class MessageDirection(StrEnum):
     OUTBOUND = "outbound"
 
 
+class NegotiationStatus(StrEnum):
+    OPEN = "open"
+    AGREED = "agreed"
+    ORDERED = "ordered"
+    EXPIRED = "expired"
+    WITHDRAWN = "withdrawn"
+
+
 class PoolStatus(StrEnum):
     OPEN = "open"
     ORDERED = "ordered"

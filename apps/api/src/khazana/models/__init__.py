@@ -45,6 +45,7 @@ from .commerce import (
 )
 from .identity import OtpChallenge, ResellerProfile, Session, User
 from .insight import ResaleBenchmark, ResellKit
+from .negotiation import Negotiation, NegotiationMessage
 from .pool import Pool, PoolMember
 
 # Tables that carry a brand_id and are therefore subject to tenant isolation.
@@ -69,6 +70,8 @@ BRAND_SCOPED_TABLES: tuple[str, ...] = (
     "shipments",
     "shipment_events",
     "disputes",
+    "negotiations",
+    "negotiation_messages",
 )
 
 __all__ = [
@@ -95,6 +98,8 @@ __all__ = [
     "LotExcludedCity",
     "LotPhoto",
     "ManifestLine",
+    "Negotiation",
+    "NegotiationMessage",
     "Order",
     "OrderEvent",
     "OrderLine",

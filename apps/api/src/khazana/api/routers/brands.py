@@ -66,6 +66,13 @@ class PolicyOut(BaseModel):
     allow_cod: bool
     allow_part_lot_orders: bool
     allow_pooled_orders: bool
+    allow_bargaining: bool
+    bargain_floor_percent: float | None
+    bargain_step_percent: float
+    allow_auto_markdown: bool
+    markdown_step_percent: float
+    markdown_interval_days: int
+    markdown_floor_percent: float | None
     auto_apply_ai_draft: bool
     ai_monthly_budget_usd: float
 
@@ -89,6 +96,13 @@ class PolicyUpdateIn(BaseModel):
     allow_cod: bool | None = None
     allow_part_lot_orders: bool | None = None
     allow_pooled_orders: bool | None = None
+    allow_bargaining: bool | None = None
+    bargain_floor_percent: float | None = Field(default=None, ge=0, le=95)
+    bargain_step_percent: float | None = Field(default=None, gt=0, le=20)
+    allow_auto_markdown: bool | None = None
+    markdown_step_percent: float | None = Field(default=None, gt=0, le=20)
+    markdown_interval_days: int | None = Field(default=None, ge=1, le=90)
+    markdown_floor_percent: float | None = Field(default=None, ge=0, le=95)
     auto_apply_ai_draft: bool | None = None
     ai_monthly_budget_usd: float | None = Field(default=None, ge=0)
 

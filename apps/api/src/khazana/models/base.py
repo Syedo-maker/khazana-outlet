@@ -91,6 +91,7 @@ ENUM_TYPES: tuple[type[StrEnum], ...] = (
     enums.EmbeddingOwner,
     enums.LotStatus,
     enums.MessageDirection,
+    enums.NegotiationStatus,
     enums.OrderStatus,
     enums.OtpPurpose,
     enums.PaymentMethod,

@@ -51,6 +51,8 @@ from .models import (
     LotDefect,
     LotPhoto,
     ManifestLine,
+    Negotiation,
+    NegotiationMessage,
     Order,
     OrderEvent,
     OrderLine,
@@ -260,6 +262,8 @@ def _wipe(db: Session) -> None:
         raise RuntimeError("Refusing to wipe data in production.")
 
     models = (
+        NegotiationMessage,
+        Negotiation,
         PoolMember,
         Pool,
         ResellKit,

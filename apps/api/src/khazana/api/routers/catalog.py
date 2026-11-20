@@ -42,6 +42,7 @@ from ...models.enums import (
 )
 from ...services import (
     approval_service,
+    bargaining_service,
     catalog_service,
     order_service,
     photo_protection_service,
@@ -258,6 +259,9 @@ class LotOut(BaseModel):
     discount_percent: float
     manifest_total: int
     is_manifest_balanced: bool
+    # The per lot switches for the value band agents. Null inherits the brand.
+    bargaining_enabled: bool | None = None
+    auto_markdown_enabled: bool | None = None
 
 
 class LotDetailOut(LotOut):
@@ -418,6 +422,7 @@ class CatalogDetailOut(BrowseItemOut):
     allows_part_lot: bool
     allows_cod: bool
     allows_pooling: bool = False
+    allows_bargaining: bool = False
     defects: list[CatalogDefectOut]
 
 
@@ -1185,6 +1190,7 @@ def catalog_detail(
         allows_part_lot=bool(policy and policy.allow_part_lot_orders),
         allows_cod=bool(policy and policy.allow_cod),
         allows_pooling=bool(policy and policy.allow_pooled_orders),
+        allows_bargaining=bargaining_service.bargaining_allowed(lot, policy),
         defects=[
             CatalogDefectOut(
                 issue=defect.issue,
