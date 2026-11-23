@@ -25,6 +25,11 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
+# The base image's own packaging tools carry published advisories, found by
+# pip-audit in week 51. They are upgraded before anything is installed with
+# them, and the runtime image inherits the fixed versions.
+RUN pip install --upgrade "pip>=26.2" "setuptools>=84.1" "wheel>=0.46.2"
+
 # libpq is what psycopg needs to talk to PostgreSQL. curl is for the health
 # check. Both are tiny and both are removed from the runtime image's build
 # layer by the multi stage split.
