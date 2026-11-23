@@ -73,6 +73,7 @@ def run_feature(
     prompt_version: int | None = None,
     output_schema: type[BaseModel] | None = None,
     record_fixture: bool = False,
+    use_response_cache: bool = True,
 ) -> AiResult:
     """Run one AI feature end to end.
 
@@ -129,7 +130,7 @@ def run_feature(
     system_text = prompt.render_system(**prompt_values)
     schema_json = _json_schema(schema_model)
     cache_key: str | None = None
-    if route.response_cache_hours and not record_fixture:
+    if route.response_cache_hours and use_response_cache and not record_fixture:
         cache_key = response_cache.cache_key(
             feature=feature,
             model=route.model_id,

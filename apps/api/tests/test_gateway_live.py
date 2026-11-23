@@ -127,3 +127,15 @@ def test_a_cache_that_never_engages_is_reported(live, caplog) -> None:  # type: 
     with caplog.at_level("WARNING", logger=gateway_client.__name__):
         _call(HAIKU_5_5)
     assert "prompt cache did not engage" in caplog.text
+
+
+def test_a_dated_snapshot_name_is_priced_as_its_model(live) -> None:  # type: ignore[no-untyped-def]
+    # Haiku 4.5 reports its snapshot; before this, every Haiku 4.5 reply failed
+    # with an unknown model error after it had already been paid for.
+    live(lambda kwargs: _response("claude-haiku-4-5-20251001"))
+    assert _call(HAIKU_4_5, effort=None).model == HAIKU_4_5
+
+
+def test_an_unknown_served_name_falls_back_to_the_requested_model(live) -> None:  # type: ignore[no-untyped-def]
+    live(lambda kwargs: _response("some-future-model"))
+    assert _call(HAIKU_5_5).model == HAIKU_5_5

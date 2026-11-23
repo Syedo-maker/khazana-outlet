@@ -26,7 +26,7 @@ from fastapi import status
 from ...config import get_settings
 from ...core.errors import AppError
 from .cost import Usage
-from .models import REFUSAL_FALLBACK, spec_for
+from .models import CATALOGUE, REFUSAL_FALLBACK, spec_for
 
 # The beta that enables server side refusal fallback on the Messages API.
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
@@ -267,7 +267,7 @@ def reply_from_message(
     The model that served it is read from the response, so a reply a
     fallback model produced is priced at that model's rates.
     """
-    served_by = str(getattr(response, "model", None) or model)
+    served_by = catalogue_id(str(getattr(response, "model", None) or model), requested=model)
     if served_by != model:
         logger.warning("model=%s declined; the reply was served by %s", model, served_by)
 
@@ -311,6 +311,23 @@ def reply_from_message(
         latency_ms=latency_ms,
         raw_text=text,
     )
+
+
+def catalogue_id(reported: str, *, requested: str) -> str:
+    """The catalogue entry for the model a response says served it.
+
+    Some models report a dated snapshot, ``claude-haiku-4-5-20251001`` for a
+    request to ``claude-haiku-4-5``. That is the same model and the same price,
+    so it maps to its catalogue entry. A name with no entry at all falls back
+    to the model that was asked for, rather than failing a reply that arrived.
+    """
+    if reported in CATALOGUE:
+        return reported
+    for model_id in CATALOGUE:
+        if reported.startswith(f"{model_id}-"):
+            return model_id
+    logger.warning("unknown served model %s; pricing it as %s", reported, requested)
+    return requested
 
 
 def _first_text(response: Any) -> str:

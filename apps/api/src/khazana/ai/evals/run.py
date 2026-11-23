@@ -74,12 +74,18 @@ def run_suite(db: Session, suite: EvalSuite, *, record: bool) -> list[CaseOutcom
                 images=images,
                 output_schema=suite.output_schema,
                 record_fixture=record,
+                # An eval measures the model, so a stored reply must not stand
+                # in for a fresh one.
+                use_response_cache=False,
             )
         except Exception as exc:
             outcomes.append(
                 CaseOutcome(case=case, passed=False, error=f"{type(exc).__name__}: {exc}")
             )
             continue
+
+        if record:
+            _stamp_fixture(suite, case.name, case.prompt_values, len(images))
 
         output = result.output.model_dump(mode="json")
         reasons: list[str] = []
@@ -133,6 +139,34 @@ def report(suite: EvalSuite, outcomes: list[CaseOutcome]) -> bool:
     )
     print(f"  suite: {'PASS' if suite_passed else 'FAIL'}")
     return suite_passed
+
+
+def _stamp_fixture(
+    suite: EvalSuite, case_name: str, prompt_values: dict[str, object], images: int
+) -> None:
+    """Write the case name into a fixture just recorded.
+
+    Fixture filenames are hashes, so without the name inside, a fixture left
+    behind by a deleted case cannot be told from a live one.
+    """
+    import json
+
+    from ..gateway import client, prompts
+
+    prompt = prompts.load(suite.prompt_name)
+    key = client.fixture_key(
+        feature=suite.feature.value,
+        prompt_name=prompt.name,
+        prompt_version=prompt.version,
+        user_text=prompt.render(**prompt_values),
+        images=images,
+    )
+    path = client.FIXTURE_DIR / suite.feature.value / f"{key}.json"
+    if not path.exists():
+        return
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["_case"] = case_name
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
 
 def _ensure_schema(engine: Engine) -> None:

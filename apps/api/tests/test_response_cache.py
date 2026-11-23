@@ -154,3 +154,17 @@ def test_offline_fixtures_are_never_stored(db: Session, two_brands, monkeypatch)
     )
     _score(db, brand.id)
     assert db.scalars(select(AiResponseCache)).first() is None
+
+
+def test_an_eval_always_asks_the_model(db: Session, api, two_brands) -> None:  # type: ignore[no-untyped-def]
+    (brand, _), _ = two_brands
+    for _ in range(2):
+        run_feature(
+            db,
+            AiFeature.RISK_SCORING,
+            prompt_name="risk_scoring",
+            prompt_values=VALUES,
+            brand_id=brand.id,
+            use_response_cache=False,
+        )
+    assert len(api) == 2
