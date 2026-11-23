@@ -1,0 +1,5 @@
+# Khazana Outlet. The marketplace sits behind sign in; only the landing pages are public.
+User-agent: *
+Allow: /$
+Allow: /login
+Disallow: /

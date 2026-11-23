@@ -46,7 +46,12 @@ FROM deps AS build
 
 COPY . .
 
-ENV NEXT_TELEMETRY_DISABLED=1
+# The browser calls the API at this address, and Next.js writes it into the
+# JavaScript at build time, so it is a build argument, not a runtime setting.
+# Production builds pass the public HTTPS address of the API.
+ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL} \
+    NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 
@@ -63,10 +68,12 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
+# The standalone output: a server.js plus only the modules it imports. The
+# static assets and the public folder are copied beside it, as Next.js
+# expects. A fraction of the size of copying node_modules whole.
+COPY --from=build --chown=node:node /app/.next/standalone ./
+COPY --from=build --chown=node:node /app/.next/static ./.next/static
 COPY --from=build --chown=node:node /app/public ./public
-COPY --from=build --chown=node:node /app/.next ./.next
-COPY --from=build --chown=node:node /app/node_modules ./node_modules
-COPY --from=build --chown=node:node /app/package.json ./package.json
 
 USER node
 
@@ -75,4 +82,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD curl --fail --silent http://localhost:3000/ || exit 1
 
-CMD ["npm", "run", "start"]
+ENV HOSTNAME=0.0.0.0
+CMD ["node", "server.js"]

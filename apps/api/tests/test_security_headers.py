@@ -31,3 +31,15 @@ def test_the_interactive_docs_keep_working(client: TestClient) -> None:
 def test_production_adds_hsts(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(get_settings(), "environment", "production")
     assert "max-age=31536000" in client.get("/health").headers["Strict-Transport-Security"]
+
+
+def test_a_preflight_answer_is_cached_for_two_hours(client: TestClient) -> None:
+    response = client.options(
+        "/catalog",
+        headers={
+            "Origin": get_settings().web_base_url,
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization",
+        },
+    )
+    assert response.headers["Access-Control-Max-Age"] == "7200"

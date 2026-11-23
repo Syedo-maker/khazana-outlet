@@ -104,6 +104,10 @@ export function AppShell({
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    // No prefetch: on a metered phone connection, fetching
+                    // every page in the menu up front spends the buyer's data
+                    // and competes with the page they are actually reading.
+                    prefetch={false}
                     className="inline-flex min-h-touch items-center whitespace-nowrap border-b-2 border-transparent px-3 text-sm font-semibold text-ink-soft hover:border-line hover:text-ink"
                   >
                     {t(locale, item.labelKey)}

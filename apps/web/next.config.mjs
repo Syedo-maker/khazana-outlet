@@ -1,4 +1,8 @@
-const API_ORIGIN = new URL(process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000").origin;
+// In production the API is served under the web app's own origin, at /api, so
+// the base URL is a path and the API counts as 'self'. In development it is a
+// separate origin on port 8000.
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const API_ORIGIN = API_BASE.startsWith("/") ? "'self'" : new URL(API_BASE).origin;
 
 /**
  * Content Security Policy for the production build.
@@ -29,6 +33,10 @@ const PRODUCTION = process.env.NODE_ENV === "production";
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // A self contained server with only the files it needs, so the production
+  // image carries no development packages. See the runtime stage of the
+  // Dockerfile.
+  output: "standalone",
   // Phone first audience on metered data: ship the smallest possible payload.
   productionBrowserSourceMaps: false,
   images: {

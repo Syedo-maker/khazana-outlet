@@ -79,6 +79,11 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],
+        # How long a browser may reuse a preflight answer. The default is ten
+        # minutes; on a 300 ms connection every repeated preflight is a wasted
+        # round trip. Chrome caps this at two hours. Production removes
+        # preflights entirely by serving the API under the web app's origin.
+        max_age=7200,
     )
 
     @app.middleware("http")

@@ -150,6 +150,27 @@ def prepare(raw: bytes) -> PreparedImage:
     )
 
 
+# A catalogue card is at most about 200 CSS pixels wide on a phone, so 400
+# pixels covers a 2x screen. A card photo drops from roughly 120 KB to 20 KB,
+# which on a 3G connection is the difference between a page of twenty cards
+# loading in seconds and in most of a minute.
+THUMB_EDGE_PX = 400
+THUMB_QUALITY = 72
+
+
+def thumbnail(raw: bytes) -> bytes:
+    """A small JPEG copy of an already prepared photograph, for list views."""
+    from PIL import Image
+
+    opened = _open(raw)
+    assert isinstance(opened, Image.Image)
+    image = opened.convert("RGB")
+    image.thumbnail((THUMB_EDGE_PX, THUMB_EDGE_PX), Image.Resampling.LANCZOS)
+    buffer = io.BytesIO()
+    image.save(buffer, format="JPEG", quality=THUMB_QUALITY, optimize=True, progressive=True)
+    return buffer.getvalue()
+
+
 def blur_regions(raw: bytes, boxes: Sequence[Box]) -> bytes:
     """Return a copy of a photograph with each box made unreadable.
 
