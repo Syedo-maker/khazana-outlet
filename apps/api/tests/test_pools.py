@@ -210,3 +210,10 @@ class TestEndpoints:
         outsider = _member(db, "03001000005", city="Karachi")
         assert client.get(f"/pools/{pool.id}", headers=auth(outsider)).status_code == 404
         assert client.get("/pools", headers=auth(outsider)).json() == []
+
+
+def test_a_wildcard_city_does_not_list_other_cities_pools(db: Session, lot) -> None:  # type: ignore[no-untyped-def]
+    """The city is matched exactly, so a profile city of "%" matches nothing else."""
+    _open(db, lot, _member(db, "03001000001"), S=20)
+    stranger = _member(db, "03001000009", city="%")
+    assert pool_service.open_pools_for(db, stranger) == []

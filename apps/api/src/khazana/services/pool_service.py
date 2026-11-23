@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..config import get_settings
@@ -359,7 +359,7 @@ def open_pools_for(db: Session, user: User) -> list[Pool]:
     now = utcnow()
     pools = db.scalars(
         select(Pool)
-        .where(Pool.status == PoolStatus.OPEN, Pool.city.ilike(city))
+        .where(Pool.status == PoolStatus.OPEN, func.lower(Pool.city) == city.lower())
         .order_by(Pool.closes_at)
     ).all()
     return [
