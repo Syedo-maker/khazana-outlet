@@ -295,6 +295,8 @@ def search(
     limit: int = 20,
     visible_only: bool = True,
     exclude_brand_id: str | None = None,
+    exclude_private: bool = True,
+    exclude_unbranded: bool = False,
 ) -> list[SearchHit]:
     """Nearest lots by cosine distance.
 
@@ -306,6 +308,9 @@ def search(
 
     ``exclude_brand_id`` supports the brand facing use of this search, where a
     brand looking for comparable lots must not be shown another brand's stock.
+
+    ``exclude_unbranded`` is for photograph search. Without it, a photograph of
+    a brand's logo could be used to find the lots that brand sells unbranded.
     """
     if not supports_similarity(db):
         raise EmbeddingError(
@@ -333,11 +338,16 @@ def search(
     if visible_only:
         conditions.append("l.status = :live")
         conditions.append("l.approved_at IS NOT NULL")
-        conditions.append("l.visibility <> :unbranded_hidden")
         params["live"] = LotStatus.LIVE.value
-        # Private lots are excluded from general search. They are reachable
-        # only through the verified reseller path, which is a Phase 3 query.
-        params["unbranded_hidden"] = Visibility.PRIVATE.value
+
+    # Applied in SQL, so the nearest matches are not all rows the caller then
+    # has to throw away.
+    if visible_only and exclude_private:
+        conditions.append("l.visibility <> :private")
+        params["private"] = Visibility.PRIVATE.value
+    if exclude_unbranded:
+        conditions.append("l.visibility <> :unbranded")
+        params["unbranded"] = Visibility.UNBRANDED.value
 
     if exclude_brand_id is not None:
         conditions.append("l.brand_id <> :exclude_brand")

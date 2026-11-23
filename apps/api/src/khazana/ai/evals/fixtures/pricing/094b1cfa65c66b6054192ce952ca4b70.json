@@ -1,0 +1,21 @@
+{
+  "_case": "admits_there_is_no_sales_history",
+  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
+  "content": {
+    "based_on_rules_only": true,
+    "comparable_lot_ids": [],
+    "confidence": 0.4,
+    "expected_days_to_sell_high": 50,
+    "expected_days_to_sell_low": 21,
+    "reasoning": "There is no sales history on this platform yet, so nothing here is a prediction. The band reflects the category, the season and grade A condition. It should be treated as a starting point for the brand to adjust, and it will become a real estimate once lots start selling.",
+    "suggested_discount_percent_high": 75.0,
+    "suggested_discount_percent_low": 67.0
+  },
+  "model": "claude-opus-5-5",
+  "usage": {
+    "cache_read_tokens": 1800,
+    "cache_write_tokens": 0,
+    "input_tokens": 2400,
+    "output_tokens": 420
+  }
+}

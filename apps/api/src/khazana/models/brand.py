@@ -89,6 +89,8 @@ class BrandPolicy(UUIDPrimaryKey, TimestampMixin, Base):
     # Commercial terms.
     commission_percent: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False, default=15.00)
     payout_terms_days: Mapped[int] = mapped_column(Integer, nullable=False, default=7)
+    # How long a buyer has after delivery to report a problem.
+    dispute_window_days: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
     min_lot_value_pkr: Mapped[int] = mapped_column(Integer, nullable=False, default=25_000)
     min_discount_percent: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False, default=50)
     max_discount_percent: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False, default=85)
@@ -102,6 +104,22 @@ class BrandPolicy(UUIDPrimaryKey, TimestampMixin, Base):
     require_brand_approval: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     allow_cod: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     allow_part_lot_orders: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Whether several resellers may buy a lot together, each below the minimum
+    # order, as long as together they meet it. Off until the brand turns it on.
+    allow_pooled_orders: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    # Value bands under docs/decisions/0001-ai-value-bands.md. Every one is
+    # the brand's own setting, and both agents are off until the brand turns
+    # them on. A null floor means the agent has no room at all.
+    allow_bargaining: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    bargain_floor_percent: Mapped[float | None] = mapped_column(Numeric(5, 2), default=None)
+    bargain_step_percent: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False, default=3.00)
+    allow_auto_markdown: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    markdown_step_percent: Mapped[float] = mapped_column(
+        Numeric(5, 2), nullable=False, default=5.00
+    )
+    markdown_interval_days: Mapped[int] = mapped_column(Integer, nullable=False, default=14)
+    markdown_floor_percent: Mapped[float | None] = mapped_column(Numeric(5, 2), default=None)
 
     # AI behaviour per brand. Some brands will want the AI draft applied
     # automatically, most will want to review it first.
@@ -123,6 +141,7 @@ class BrandPolicy(UUIDPrimaryKey, TimestampMixin, Base):
         ),
         CheckConstraint("min_lot_value_pkr >= 0", name="min_lot_value_non_negative"),
         CheckConstraint("payout_terms_days >= 0", name="payout_terms_non_negative"),
+        CheckConstraint("dispute_window_days >= 0", name="dispute_window_non_negative"),
         CheckConstraint("require_brand_approval = true", name="approval_gate_mandatory"),
     )
 

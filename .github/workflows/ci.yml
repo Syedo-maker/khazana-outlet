@@ -113,12 +113,19 @@ jobs:
           alembic downgrade base
           alembic upgrade head
 
+      - name: Create the disposable test database
+        env:
+          PGPASSWORD: khazana
+        # A separate database, because these tests drop every table. Pointing
+        # them at the working database destroys it, which has happened once.
+        run: psql -h localhost -U khazana -d khazana -c "CREATE DATABASE khazana_test"
+
       - name: PostgreSQL only tests, meaning vector search and the triggers
         env:
           # The suite runs on SQLite for speed, so the cosine ranking, the
           # visibility filter and the brand exclusion all live in SQL that
           # SQLite never executes. This job is where they are actually proved.
-          TEST_DATABASE_URL: postgresql+psycopg://khazana:khazana@localhost:5432/khazana
+          TEST_DATABASE_URL: postgresql+psycopg://khazana:khazana@localhost:5432/khazana_test
           DATABASE_URL: postgresql+psycopg://khazana:khazana@localhost:5432/khazana
           SECRET_KEY: test-secret-not-a-real-key
           AI_OFFLINE: "true"
@@ -134,7 +141,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
       - run: npm ci || npm install
@@ -161,3 +168,26 @@ jobs:
           AI_OFFLINE: "true"
           SECRET_KEY: test-secret-not-a-real-key
         run: python -m khazana.ai.evals.run --offline
+
+  scan:
+    name: Dependency vulnerability scan
+    runs-on: ubuntu-latest
+    # Advisory only. A finding here is usually a transitive dependency with no
+    # fixed version yet, which is not something the pull request that triggered
+    # the run can do anything about. It reports, it does not block.
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan the repository for vulnerable dependencies
+        # Pinned to the commit behind v0.36.0, released 2026-04-22. A third
+        # party action gets a commit, not a tag: a tag can be moved to point at
+        # new code, and this one runs with access to the checkout.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          scan-type: fs
+          scanners: vuln,secret
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0"

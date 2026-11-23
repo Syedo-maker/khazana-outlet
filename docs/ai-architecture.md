@@ -40,6 +40,38 @@ from tool calls against real data. It is instructed and tested to say it does
 not know rather than to produce a plausible number. A hallucinated stock
 level or price in a B2B negotiation costs you the brand.
 
+### The one exception, added 2026-10-14
+
+The week 42 bargaining bot and the week 43 markdown agent both change a price,
+so the boundary above needed stating more precisely rather than being quietly
+broken.
+
+**AI may choose a value inside a band the brand set, where the code enforces
+the band.** It may not set the band, and it may not decide what something is
+worth.
+
+The distinction is between a request and arithmetic. A prompt telling a model
+to stay above a floor is a request, and the pricing eval has six mandatory
+cases precisely because a model that is merely asked will sometimes not
+comply. A clamp in the service is arithmetic, and it makes that
+non compliance harmless instead of expensive.
+
+This is not new behaviour. `catalog_service._validate_commercials` has refused
+any lot price outside the brand's own discount band since week 19. The
+exception writes down a line the code was already holding.
+
+Four conditions, all four required: the floor and step size are brand policy
+rows; the service clamps every proposal before it is shown or applied; every
+move goes to the append only audit trail; and the agent is off until the brand
+turns it on per lot. The full reasoning, the rejected alternatives and the
+schema this implies are in
+[docs/decisions/0001-ai-value-bands.md](decisions/0001-ai-value-bands.md).
+
+Pay after sale credit is deliberately outside this exception. Deciding who may
+borrow is not choosing inside a band. A human approves every credit limit, AI
+only suggests, and the State Bank of Pakistan position is settled by a lawyer
+before any code is written.
+
 ## 3. The AI gateway, built in Phase 1 week 5
 
 Every model call in the platform goes through one service. No module calls
@@ -99,12 +131,16 @@ is your decision to make, after the eval shows quality holds.
 | Task | Model | Effort | Mode | Why |
 | --- | --- | --- | --- | --- |
 | Photo to listing | `claude-opus-5-5` | medium | live | Vision quality decides listing quality, and listing quality decides whether a brand trusts the platform |
+| Logo detection for unbranded listings | `claude-opus-5-5` | medium | live | A missed logo exposes a brand that was promised anonymity |
 | Manifest extraction from Excel | `claude-opus-5-5`, with `claude-haiku-4-5` as the bulk option | low | batch | Nobody is waiting, so batch at half price |
 | Pricing suggestion | `claude-opus-5-5` | medium | live | Reasoning task, and a wrong price is expensive |
 | Risk and quality scoring | `claude-haiku-4-5` | n/a | live | High volume classification on every listing, the cheapest place to use a small model |
 | Buyer assistant | `claude-opus-5-5` | low | live, streaming | Tool calling and three languages, but a chat turn needs no deep reasoning |
 | Brand assistant over own data | `claude-opus-5-5` | medium | live, streaming | Analytical questions over real numbers |
 | Demand prediction | `claude-opus-5-5` | high | batch, scheduled | Runs weekly, quality matters more than latency |
+| Resell kit copy | `claude-haiku-4-5` | n/a | live | Marketing copy for stock the buyer owns; the eval guards the claims and no money moves on it |
+| Bargaining bot | `claude-opus-5-5` | low | live | Chooses inside a range code computed; the clamp decides what is allowed, the model only how well it negotiates |
+| Markdown agent | `claude-haiku-4-5` | n/a | batch, scheduled | One small decision per lot, clamped to the brand's step |
 | Translation and copy cleanup | `claude-haiku-4-5` | n/a | batch | Bulk, low judgement |
 
 Notes that matter when writing the code:
@@ -255,6 +291,32 @@ completeness, manifest consistency, photo quality, price plausibility and
 counterfeit signals. Output is a score plus reasons, and a score never blocks
 anything by itself, it orders the admin queue.
 
+## 6b. Phase 4: what uses a model and what deliberately does not
+
+Phase 4 added three model features and several that look like AI work but are
+built as arithmetic, because the numbers feed money or plans.
+
+Model features, each behind its own eval:
+
+- **Brand assistant.** The same plan and answer shape as the buyer assistant.
+  Its lookups take the brand from the session, and the plan schema has no
+  field for a brand, so the access boundary does not depend on the prompt.
+- **Resell kit.** Copy only. Prices, sizes and photographs are added by code,
+  and the model is never given the retail price or a hidden brand.
+- **Bargaining and markdown.** Value choices under ADR 0001: the model picks
+  inside a range code computed, the clamp enforces it, every move is audited.
+
+Built without a model, on purpose:
+
+- **Demand forecasts and dead stock flags.** Statistics over sales history and
+  a season calendar. AI never quotes demand or stock, and a brand planning
+  production needs numbers it can check. The `demand_forecast` route stays
+  unused until there is a summarising task that suits a model.
+- **Recommendations, the profit helper, the mixed lot builder, size
+  translation and the risk rules.** Rankings and arithmetic with stated
+  reasons. The AI risk score from Phase 2 is one input to the risk queue,
+  never a verdict.
+
 ## 7. Evals, and why they come first
 
 Phase 1 week 6 builds the harness, and every feature in Phase 2 has its eval
@@ -263,6 +325,7 @@ written before the feature.
 | Feature | What the eval measures | Graded by |
 | --- | --- | --- |
 | Photo to listing | Field by field accuracy against human labelled listings | Exact match on category and attributes, human or model scoring on text |
+| Logo detection | Every mark hidden after padding or sent to a person, with the blurred area bounded | Deterministic, against synthetic photographs with known mark positions |
 | Manifest extraction | Line count, totals reconciliation, flagged changes correct | Deterministic comparison |
 | Pricing | Suggestion inside the band a human expert accepts | Human rating, then real sales in Phase 6 |
 | Assistant | Grounded answer rate, tool call correctness, refusal when data is missing, across three languages | Mixed deterministic and model grading |

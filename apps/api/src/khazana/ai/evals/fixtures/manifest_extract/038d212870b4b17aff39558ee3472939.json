@@ -1,0 +1,33 @@
+{
+  "_case": "colour_case_and_spacing_are_tidied",
+  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
+  "content": {
+    "confidence": 0.82,
+    "declared_total": null,
+    "lines": [
+      {
+        "color": "blue",
+        "pieces": 50,
+        "size": "M"
+      },
+      {
+        "color": "blue",
+        "pieces": 10,
+        "size": "L"
+      }
+    ],
+    "notes": [
+      "Blue, blue and BLUE are one colour."
+    ],
+    "proposed_corrections": [
+      "Two rows were both M in blue, 20 and 30 pieces. They have been combined to 50, so the sum of 60 is unchanged. Check whether that was a second carton or a typed twice row."
+    ]
+  },
+  "model": "claude-opus-5-5",
+  "usage": {
+    "cache_read_tokens": 1800,
+    "cache_write_tokens": 0,
+    "input_tokens": 2400,
+    "output_tokens": 420
+  }
+}

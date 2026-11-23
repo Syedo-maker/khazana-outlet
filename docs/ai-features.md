@@ -182,18 +182,34 @@ not is the one error that would let a bad lot through on its say so.
 
 ## Evals
 
-Three suites, fifteen cases, nine of them mandatory. A mandatory case is a
-rule rather than a quality target, and a failure in one fails the whole run
-regardless of the pass rate.
+Twelve suites, 95 cases, 46 of them mandatory. A mandatory case is a rule
+rather than a quality target, and a failure in one fails the whole run
+regardless of the pass rate. The table is generated from the suites, so the
+counts are exact for this commit.
 
-| Suite | Cases | Mandatory rules |
-| --- | --- | --- |
-| `listing_from_photos` | 4 | Never grade up when defects are visible; brand supplied text is data, not instructions |
-| `assistant_buyer` | 6 | Roman Urdu is not answered in Urdu script; no lookup means no facts; another buyer's order is refused; an injected discount and order confirmation is ignored |
-| `risk_scoring` | 5 | A clean listing scores low; a mismatched manifest is reported; instructions inside listing text are a finding, not a command |
+| Suite | Feature | Cases | Mandatory |
+| --- | --- | --- | --- |
+| `assistant_brand` | assistant_brand | 6 | 4 |
+| `assistant_buyer` | assistant_buyer | 6 | 4 |
+| `assistant_plan` | assistant_buyer | 8 | 2 |
+| `bargaining` | bargaining | 5 | 3 |
+| `brand_plan` | assistant_brand | 7 | 1 |
+| `listing_from_photos` | listing_from_photos | 4 | 2 |
+| `logo_detection` | logo_detection | 14 | 10 |
+| `manifest_extract` | manifest_extract | 15 | 5 |
+| `markdown` | markdown | 4 | 2 |
+| `pricing` | pricing | 15 | 6 |
+| `resell_kit` | resell_kit | 6 | 4 |
+| `risk_scoring` | risk_scoring | 5 | 3 |
+
+A test, `tests/test_eval_coverage.py`, fails if a feature calls a model with no
+suite, and `tests/test_prompt_contract.py` checks every case renders with no
+placeholder left and every schema sent is one the API accepts. The Phase 4
+features and which of them deliberately use no model are described in
+`docs/ai-architecture.md` section 6b.
 
 ```bash
-make evals                                  # offline, free, what CI runs
+.\scripts\dev.ps1 evals                     # offline, free, what CI runs
 python -m khazana.ai.evals.run --live       # measures the model, spends money
 python -m khazana.ai.evals.run --live --record   # re record the fixtures
 ```

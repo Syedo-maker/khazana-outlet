@@ -32,7 +32,9 @@ build/
 *.sqlite
 *.sqlite3
 /data/
-/uploads/
+# Any depth, not just the repository root. The API writes uploads under
+# apps/api/uploads when it runs there.
+uploads/
 
 # Editors and OS
 .vscode/
@@ -45,9 +47,10 @@ desktop.ini
 *.log
 logs/
 
-# AI gateway local artifacts
-/apps/ai/.cache/
-/apps/ai/evals/results/
+# AI gateway local artifacts. The AI layer lives in apps/api/src/khazana/ai;
+# the apps/ai directory in the original plan was never created.
+/apps/api/.cache/
+/apps/api/src/khazana/ai/evals/results/
 
 # Source planning material, kept locally and not part of the codebase.
 # These are saved web pages, several megabytes each, and they contain

@@ -18,6 +18,34 @@ sys.path.insert(0, str(ROOT / "apps" / "api" / "src"))
 from khazana.models import BRAND_SCOPED_TABLES, Base  # noqa: E402
 
 PURPOSES = {
+    "saved_searches": "A buyer's saved catalogue search.",
+    "cart_items": "What a buyer intends to order, before checkout.",
+    "order_events": "Append only history of every order status change.",
+    "order_returns": "Returned pieces recorded against an order.",
+    "payment_events": "Provider callbacks, stored once per event id.",
+    "payout_runs": "A batch of brand payouts released together.",
+    "couriers": "Delivery companies; one is the default.",
+    "shipping_rates": "Configured delivery prices between city groups.",
+    "shipment_events": "Tracking updates for a shipment.",
+    "assistant_conversations": "A thread with the buyer or brand assistant.",
+    "assistant_messages": "One message in a thread, with its cost and grounding.",
+    "whatsapp_messages": "Every WhatsApp message in or out, idempotent by provider id.",
+    "resale_benchmarks": "Resale value as a share of retail, for the profit helper.",
+    "resell_kits": "The generated resell kit for a paid order.",
+    "pools": "Committee pools: shops in one city buying one lot together.",
+    "pool_members": "One member's sizes, delivery and resulting order.",
+    "negotiations": "One buyer bargaining over one lot, with the floor kept server side.",
+    "negotiation_messages": "Each round, with what the model proposed and whether it was clamped.",
+    "season_events": "The season and event calendar that lifts demand.",
+    "demand_forecasts": "Expected pieces per category, city and week.",
+    "lot_forecasts": "How long a live lot will take to sell, and whether it is stuck.",
+    "production_warnings": "A brand holding more of a category than the market buys.",
+    "standard_sizes": "The platform's reference size chart.",
+    "size_chart_rows": "A brand's own size chart in centimetres.",
+    "partners": "Tailors, artisans, NGOs and recyclers who take unsellable stock.",
+    "redirections": "A lot offered to a partner, and what happened.",
+    "impact_factors": "Weight, water and carbon per piece for the impact report.",
+    "review_cases": "Fraud and counterfeit flags for a person to decide.",
     "users": "One row per phone number. The identity anchor.",
     "otp_challenges": "Pending phone verifications, code stored hashed.",
     "sessions": "Refresh tokens, stored hashed.",
@@ -108,7 +136,9 @@ def table_summary() -> str:
     for name in sorted(Base.metadata.tables):
         table = Base.metadata.tables[name]
         scoped = "yes" if name in BRAND_SCOPED_TABLES else "no"
-        rows.append(f"| `{name}` | {len(table.columns)} | {scoped} | {PURPOSES.get(name, '')} |")
+        rows.append(
+            f"| `{name}` | {len(table.columns)} | {scoped} | {PURPOSES.get(name, '')} |"
+        )
     return "\n".join(rows)
 
 

@@ -18,8 +18,12 @@ repos:
       - id: no-commit-to-branch
         args: ["--branch", "main"]
 
+  # Kept in step with the exact pin in apps/api/pyproject.toml. A different
+  # version here formats the same file differently from CI, which is the
+  # confusing failure CLAUDE.md section 3c exists to prevent. Change both
+  # together or neither.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.4
+    rev: v0.16.10
     hooks:
       - id: ruff
         args: ["--fix"]
@@ -32,6 +36,7 @@ repos:
       - id: no-em-dashes
         name: no em dashes or en dashes
         language: system
+        stages: [pre-commit]
         # Byte patterns, because grep -P in Windows git bash cannot take
         # code points above 0xFF.
         entry: bash -c 'if grep -rnIP "\xe2\x80\x93|\xe2\x80\x94" "$@"; then echo "Em or en dash found. Use a comma, colon, full stop or hyphen."; exit 1; fi' --
@@ -40,6 +45,12 @@ repos:
       - id: no-ai-attribution
         name: no AI attribution
         language: system
+        stages: [pre-commit]
+        # Three files are allowed to name the thing they forbid: this config,
+        # the pre push gate and the rules file itself. Without the exclusion
+        # the hook matches its own pattern and blocks every commit that
+        # touches it, which is how it behaved the first time it ran.
+        exclude: ^(\.pre-commit-config\.yaml|scripts/prepush-check\.sh|scripts/check-commit-msg\.sh|CLAUDE\.md|CHANGELOG\.md|docs/audits/.*)$
         entry: bash -c 'if grep -rniE "co-authored-by|generated with claude|assisted by claude" "$@"; then echo "AI attribution found. The author is the repository owner only."; exit 1; fi' --
 
       - id: no-env-file
@@ -47,3 +58,21 @@ repos:
         language: fail
         entry: .env must never be committed. Use .env.example.
         files: ^\.env$
+
+  # The commit message itself. Everything above looks at files, so until this
+  # existed a message could carry an em dash or an AI co-author line and no
+  # hook would notice. The message is where the rules actually get broken,
+  # because it is the part nothing lints.
+  #
+  # The logic lives in a script rather than inline here on purpose. The first
+  # version was inline and silently matched nothing: the byte escapes do not
+  # survive the YAML and shlex round trip, so the hook reported Passed on a
+  # message containing an em dash. A check that always passes is worse than no
+  # check, and a script can be tested on its own.
+  - repo: local
+    hooks:
+      - id: commit-message-rules
+        name: commit message follows the repository rules
+        language: system
+        stages: [commit-msg]
+        entry: bash scripts/check-commit-msg.sh

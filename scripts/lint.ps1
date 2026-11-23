@@ -1,105 +1,177 @@
 <#
 .SYNOPSIS
-    Lint, format and type check the API without needing ruff to run on Windows.
+    Lint, format and type check the API.
 
 .DESCRIPTION
-    Smart App Control on this machine blocks unsigned executables, which is
-    what ruff, mypy and black ship as. They cannot run directly here.
+    Runs the pinned ruff and mypy natively when they work, which is fast and
+    needs no network. Falls back to Linux containers when they do not, which
+    happens when Windows Smart App Control blocks unsigned executables.
 
-    This script runs the same tools inside Linux containers, where Windows
-    application control does not apply. It pins the same ruff version as CI,
-    so a pass here means a pass there.
+    You should not have to care which path runs. The script picks.
 
-    It also does not need `make`, which is not installed on this machine.
+    The container fallback caches downloaded Python packages in a named Docker
+    volume, so the slow first run happens once rather than every time.
 
 .PARAMETER Fix
     Apply fixes instead of only reporting them.
 
 .PARAMETER Types
-    Also run mypy. Slower, because it installs the dependencies first.
+    Also run mypy.
+
+.PARAMETER Docker
+    Force the container path even when the native tools work. Useful for
+    checking that the containers still agree with CI.
 
 .EXAMPLE
     .\scripts\lint.ps1
-    Check lint and formatting.
+    Lint and format check.
 
 .EXAMPLE
-    .\scripts\lint.ps1 -Fix
-    Fix what can be fixed automatically.
-
-.EXAMPLE
-    .\scripts\lint.ps1 -Types
-    Check lint, formatting and types.
+    .\scripts\lint.ps1 -Fix -Types
+    Fix what can be fixed, then type check.
 #>
 
 [CmdletBinding()]
 param(
     [switch]$Fix,
-    [switch]$Types
+    [switch]$Types,
+    [switch]$Docker
 )
 
 $ErrorActionPreference = 'Stop'
 
-# Keep this in step with .github/workflows/ci.yml and apps/api/pyproject.toml.
+# Keep in step with apps/api/pyproject.toml, which pins the same versions.
 $RuffImage = 'ghcr.io/astral-sh/ruff:0.16.10'
+$PythonImage = 'python:3.11-slim'
+$PipCacheVolume = 'khazana-pip-cache'
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $apiPath = Join-Path $repoRoot 'apps\api'
+$venvPython = Join-Path $apiPath '.venv\Scripts\python.exe'
 
 if (-not (Test-Path $apiPath)) {
     Write-Error "Could not find $apiPath. Run this from inside the repository."
 }
 
-# Fail early with something actionable rather than a raw Docker error.
-try {
-    docker info --format '{{.ServerVersion}}' 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'engine not reachable' }
-}
-catch {
-    Write-Host ''
-    Write-Host 'Docker is not running.' -ForegroundColor Yellow
-    Write-Host 'Start Docker Desktop, wait until its whale icon stops animating, then run this again.'
-    Write-Host ''
-    Write-Host 'Why Docker: ruff cannot run directly on this machine because Smart App'
-    Write-Host 'Control blocks unsigned executables. Inside a Linux container it runs fine.'
-    exit 1
+$script:failed = $false
+
+function Test-NativeTools {
+    <#  Can ruff and mypy actually run on this machine?
+        Smart App Control blocks unsigned executables, and when it does these
+        fail with an Application Control error rather than a normal one. #>
+    if (-not (Test-Path $venvPython)) { return $false }
+    try {
+        & $venvPython -m ruff --version *> $null
+        if ($LASTEXITCODE -ne 0) { return $false }
+        & $venvPython -m mypy --version *> $null
+        return $LASTEXITCODE -eq 0
+    }
+    catch { return $false }
 }
 
-$mount = "${apiPath}:/io"
-$failed = $false
-
-function Invoke-Ruff {
-    param([string[]]$RuffArgs, [string]$Label)
+function Invoke-Step {
+    param([string]$Label, [scriptblock]$Action)
 
     Write-Host "== $Label ==" -ForegroundColor Cyan
-    docker run --rm -v $mount -w /io $RuffImage @RuffArgs
+    & $Action
     if ($LASTEXITCODE -ne 0) {
         $script:failed = $true
         Write-Host "$Label failed" -ForegroundColor Red
     }
 }
 
-if ($Fix) {
-    Invoke-Ruff -RuffArgs @('check', '--fix', '.') -Label 'Lint, fixing what it can'
-    Invoke-Ruff -RuffArgs @('format', '.') -Label 'Formatting'
+# ----------------------------------------------------------------- native
+
+$useNative = (-not $Docker) -and (Test-NativeTools)
+
+if ($useNative) {
+    Write-Host 'Running the pinned tools natively.' -ForegroundColor DarkGray
+    Push-Location $apiPath
+    try {
+        if ($Fix) {
+            Invoke-Step 'Lint, fixing what it can' { & $venvPython -m ruff check --fix . }
+            Invoke-Step 'Formatting' { & $venvPython -m ruff format . }
+        }
+        else {
+            Invoke-Step 'Lint' { & $venvPython -m ruff check . }
+            Invoke-Step 'Format check' { & $venvPython -m ruff format --check . }
+        }
+
+        if ($Types) {
+            Invoke-Step 'Type check' { & $venvPython -m mypy src }
+        }
+    }
+    finally { Pop-Location }
 }
 else {
-    Invoke-Ruff -RuffArgs @('check', '.') -Label 'Lint'
-    Invoke-Ruff -RuffArgs @('format', '--check', '.') -Label 'Format check'
-}
 
-if ($Types) {
-    Write-Host '== Type check, this installs dependencies first ==' -ForegroundColor Cyan
-    docker run --rm -v $mount -w /io python:3.11-slim bash -c "pip install -q -e '.[dev]' && mypy src"
-    if ($LASTEXITCODE -ne 0) {
-        $failed = $true
-        Write-Host 'Type check failed' -ForegroundColor Red
+    # ------------------------------------------------------------- container
+
+    if ($Docker) {
+        Write-Host 'Container path requested.' -ForegroundColor DarkGray
+    }
+    else {
+        Write-Host 'Native ruff or mypy cannot run here, using containers instead.' -ForegroundColor Yellow
+    }
+
+    try {
+        docker info --format '{{.ServerVersion}}' 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'engine not reachable' }
+    }
+    catch {
+        Write-Host ''
+        Write-Host 'Docker is not running.' -ForegroundColor Yellow
+        Write-Host 'Start Docker Desktop, wait for the whale icon to settle, then run this again.'
+        exit 1
+    }
+
+    $mount = "${apiPath}:/io"
+
+    if ($Fix) {
+        Invoke-Step 'Lint, fixing what it can' {
+            docker run --rm -v $mount -w /io $RuffImage check --fix .
+        }
+        Invoke-Step 'Formatting' { docker run --rm -v $mount -w /io $RuffImage format . }
+    }
+    else {
+        Invoke-Step 'Lint' { docker run --rm -v $mount -w /io $RuffImage check . }
+        Invoke-Step 'Format check' { docker run --rm -v $mount -w /io $RuffImage format --check . }
+    }
+
+    if ($Types) {
+        # A named volume keeps the downloaded wheels between runs, so the slow
+        # first run happens once instead of every time. The longer timeout and
+        # extra retries are for connections where a 100 MB download does not
+        # reliably complete in pip's default 15 seconds per read.
+        docker volume create $PipCacheVolume 2>&1 | Out-Null
+
+        Write-Host '== Type check in a container ==' -ForegroundColor Cyan
+        Write-Host '   First run downloads dependencies and can take a few minutes.' -ForegroundColor DarkGray
+        Write-Host '   Later runs reuse the cache and are quick.' -ForegroundColor DarkGray
+
+        docker run --rm `
+            -v $mount -w /io `
+            -v "${PipCacheVolume}:/root/.cache/pip" `
+            -e PIP_DEFAULT_TIMEOUT=120 `
+            -e PIP_RETRIES=10 `
+            -e PIP_DISABLE_PIP_VERSION_CHECK=1 `
+            -e PIP_ROOT_USER_ACTION=ignore `
+            $PythonImage `
+            bash -c "pip install -q -e '.[dev]' && mypy src"
+
+        if ($LASTEXITCODE -ne 0) {
+            $script:failed = $true
+            Write-Host ''
+            Write-Host 'Type check failed.' -ForegroundColor Red
+            Write-Host 'If that was a network timeout rather than a type error, run it again:' -ForegroundColor Yellow
+            Write-Host 'the packages it managed to download are cached, so each attempt gets further.'
+        }
     }
 }
 
 Write-Host ''
-if ($failed) {
+if ($script:failed) {
     Write-Host 'Something needs attention. Run with -Fix to apply the automatic fixes.' -ForegroundColor Red
     exit 1
 }
-
 Write-Host 'All checks passed. Safe to push.' -ForegroundColor Green

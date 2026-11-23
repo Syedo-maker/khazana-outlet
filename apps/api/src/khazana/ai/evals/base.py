@@ -21,6 +21,8 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from pydantic import BaseModel
+
 from ...models.enums import AiFeature
 
 
@@ -45,6 +47,9 @@ class EvalCase:
     # here fail the build.
     must_pass: bool = False
     note: str = ""
+    # Builds the real photographs for a suite that grades what the model sees,
+    # one per image. Without it the runner sends placeholder bytes instead.
+    image_factory: Callable[[], Sequence[bytes]] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +59,9 @@ class EvalSuite:
     cases: Sequence[EvalCase]
     # The share of non mandatory cases that must pass for the suite to pass.
     pass_threshold: float = 0.8
+    # For a feature that makes more than one kind of call, the schema this
+    # suite's prompt answers with. None means the feature's own schema.
+    output_schema: type[BaseModel] | None = None
 
 
 @dataclass(slots=True)

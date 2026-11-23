@@ -1,0 +1,24 @@
+{
+  "_case": "comparables_are_cited_when_given",
+  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
+  "content": {
+    "based_on_rules_only": true,
+    "comparable_lot_ids": [
+      "LOT-AAA111",
+      "LOT-BBB222"
+    ],
+    "confidence": 0.5,
+    "expected_days_to_sell_high": 40,
+    "expected_days_to_sell_low": 21,
+    "reasoning": "Two comparable lots were provided. LOT-AAA111 sold at 72 percent in 21 days and LOT-BBB222 at 66 percent in 34 days, both similar in category and size. The band spans those two outcomes rather than guessing outside them.",
+    "suggested_discount_percent_high": 73.0,
+    "suggested_discount_percent_low": 66.0
+  },
+  "model": "claude-opus-5-5",
+  "usage": {
+    "cache_read_tokens": 1800,
+    "cache_write_tokens": 0,
+    "input_tokens": 2400,
+    "output_tokens": 420
+  }
+}

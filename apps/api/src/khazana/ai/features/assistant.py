@@ -36,7 +36,7 @@ from sqlalchemy.orm import Session
 from ...core.errors import ValidationFailed
 from ...models.enums import AiFeature
 from ..gateway import AiResult, run_feature
-from ..schemas import AssistantAnswer, ToolPlan
+from ..schemas import AssistantAnswer, BrandToolPlan, ToolPlan
 from ..tools import catalog_tools
 
 logger = logging.getLogger(__name__)
@@ -45,6 +45,7 @@ PLAN_PROMPT = "assistant_plan"
 ANSWER_PROMPT = "assistant_buyer"
 
 MAX_MESSAGE_CHARS = 1_500
+NO_HISTORY = "No earlier messages."
 MAX_TOOL_CALLS = 6
 # A tool result goes back into the model's context and is paid for per token,
 # so the rendered block is capped. A truncated result is better than a bill
@@ -52,12 +53,18 @@ MAX_TOOL_CALLS = 6
 MAX_TOOL_RESULT_CHARS = 6_000
 
 KNOWN_TOOLS = {schema["name"] for schema in catalog_tools.TOOL_SCHEMAS}
+# The arguments each tool accepts. A plan fills in every field it likes, so the
+# ones a tool does not take are left out before it runs.
+TOOL_PARAMETERS = {
+    schema["name"]: set(schema["input_schema"]["properties"])
+    for schema in catalog_tools.TOOL_SCHEMAS
+}
 
 
 @dataclass(slots=True)
 class AssistantTurn:
     answer: AssistantAnswer
-    plan: ToolPlan
+    plan: ToolPlan | BrandToolPlan
     tool_results: dict[str, Any]
     plan_result: AiResult
     answer_result: AiResult
@@ -87,16 +94,22 @@ def ask(
     message: str,
     buyer_user_id: str,
     buyer_city: str = "",
+    history: str = "",
     record_fixture: bool = False,
 ) -> AssistantTurn:
-    """Answer one buyer message."""
+    """Answer one buyer message, given the conversation so far."""
     cleaned = _clean_message(message)
+    earlier = history.strip() or NO_HISTORY
 
     plan_result = run_feature(
         db,
         AiFeature.ASSISTANT_BUYER,
         prompt_name=PLAN_PROMPT,
-        prompt_values={"message": cleaned, "buyer_city": buyer_city or "not given"},
+        prompt_values={
+            "message": cleaned,
+            "buyer_city": buyer_city or "not given",
+            "history": earlier,
+        },
         output_schema=ToolPlan,
         user_id=buyer_user_id,
         entity_type="assistant_turn",
@@ -116,6 +129,7 @@ def ask(
             "buyer_city": buyer_city or "not given",
             "today": catalog_tools.now_iso(),
             "tool_results": render_results(results),
+            "history": earlier,
         },
         output_schema=AssistantAnswer,
         user_id=buyer_user_id,
@@ -167,8 +181,13 @@ def execute_plan(
 
         label = f"{call.tool}#{index + 1}"
         try:
+            arguments = {
+                name: value
+                for name, value in call.arguments.items()
+                if name in TOOL_PARAMETERS[call.tool]
+            }
             results[label] = catalog_tools.run_tool(
-                db, call.tool, call.arguments, buyer_user_id=buyer_user_id
+                db, call.tool, arguments, buyer_user_id=buyer_user_id
             )
             executed.append(call.tool)
         except TypeError as exc:

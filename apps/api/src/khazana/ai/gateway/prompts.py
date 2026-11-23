@@ -43,6 +43,18 @@ class Prompt:
     system: str
     user_template: str
 
+    def render_system(self, **values: object) -> str:
+        """Fill the placeholders a prompt keeps in its stable prefix.
+
+        Plain replacement rather than ``str.format``, because system text can
+        contain literal braces. A value placed here must not vary between
+        calls, or the prefix stops being cacheable.
+        """
+        text = self.system
+        for name, value in values.items():
+            text = text.replace(f"{{{name}}}", str(value))
+        return text
+
     def render(self, **values: object) -> str:
         """Fill the variable part.
 

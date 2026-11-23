@@ -29,10 +29,16 @@ class Settings(BaseSettings):
     web_base_url: str = "http://localhost:3000"
 
     # ---------- Database ----------
-    database_url: str = "postgresql+psycopg://khazana:khazana@localhost:5432/khazana"
+    # 55432 to match .env.example and what compose publishes, not 5432.
+    # Inside the containers compose sets this to db:5432 and none of it
+    # applies. It matters for a native run: a developer with no .env would
+    # otherwise reach whatever else is listening on 5432, which on at least
+    # one development machine is a separate PostgreSQL install holding none of
+    # this data and looking identical.
+    database_url: str = "postgresql+psycopg://khazana:khazana@localhost:55432/khazana"
 
     # ---------- Redis ----------
-    redis_url: str = "redis://localhost:6379/0"
+    redis_url: str = "redis://localhost:56379/0"
 
     # ---------- Auth ----------
     access_token_ttl_minutes: int = 60
@@ -49,6 +55,29 @@ class Settings(BaseSettings):
     ai_daily_spend_limit_usd: float = 5.00
     ai_brand_monthly_spend_limit_usd: float = 20.00
     ai_offline: bool = True
+
+    # ---------- Assistant ----------
+    # Each buyer message costs two model calls, so a per user daily cap is the
+    # control that keeps one chatty account from spending the whole budget.
+    assistant_daily_message_limit: int = Field(default=40, ge=1)
+    # How many earlier messages the model sees. Older turns are dropped, not
+    # summarised, so the cost of a long conversation stays flat.
+    assistant_history_messages: int = Field(default=6, ge=0, le=20)
+    # Below this, a voice note transcript is not trusted and the buyer is asked
+    # to type instead. A wrong lot code or quantity costs more than a retype.
+    voice_min_confidence: float = Field(default=0.6, ge=0, le=1)
+    # A WhatsApp message after this long a silence starts a new conversation,
+    # so yesterday's search does not colour today's question.
+    whatsapp_conversation_idle_hours: int = Field(default=12, ge=1)
+
+    # ---------- Committee pools ----------
+    pool_min_members: int = Field(default=3, ge=2, le=10)
+    pool_max_members: int = Field(default=4, ge=2, le=10)
+    pool_open_days: int = Field(default=7, ge=1, le=60)
+
+    # ---------- Risk review ----------
+    # A score at or above this opens a case for a person to review.
+    risk_case_threshold: int = Field(default=40, ge=1, le=100)
 
     # ---------- Storage ----------
     storage_backend: Literal["local", "s3"] = "local"
@@ -69,6 +98,12 @@ class Settings(BaseSettings):
     default_commission_percent: float = Field(default=15.0, ge=0, le=50)
     default_min_lot_value_pkr: int = 25_000
     dispute_window_days: int = 3
+
+    # ---------- Payments ----------
+    # Shown to buyers paying by bank transfer. The defaults are obviously fake,
+    # and production refuses to start with them.
+    bank_account_title: str = "Khazana Outlet Sandbox"
+    bank_account_iban: str = "PK00SANDBOX0000000000000"
 
     @property
     def is_production(self) -> bool:
@@ -104,6 +139,8 @@ class Settings(BaseSettings):
             problems.append("ANTHROPIC_API_KEY is not set")
         if self.database_url.startswith("sqlite"):
             problems.append("DATABASE_URL points at SQLite")
+        if "SANDBOX" in self.bank_account_iban.upper():
+            problems.append("BANK_ACCOUNT_IBAN is still the sandbox value")
         if problems:
             raise RuntimeError("Unsafe production configuration: " + "; ".join(problems))
 

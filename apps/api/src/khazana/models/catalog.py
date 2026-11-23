@@ -19,6 +19,7 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -33,7 +34,14 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base, SoftDeleteMixin, TimestampMixin, UUIDPrimaryKey
-from .enums import ApprovalAction, ConditionGrade, LotStatus, PhotoKind, Visibility
+from .enums import (
+    ApprovalAction,
+    ConditionGrade,
+    LotStatus,
+    PhotoKind,
+    PhotoProtectionStatus,
+    Visibility,
+)
 
 if TYPE_CHECKING:
     from .brand import Brand
@@ -84,6 +92,9 @@ class Lot(UUIDPrimaryKey, TimestampMixin, SoftDeleteMixin, Base):
     condition_grade: Mapped[ConditionGrade] = mapped_column(nullable=False)
 
     total_pieces: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Pieces held by orders that have not been cancelled or refunded. Changed
+    # only under a row lock, so the same stock cannot be sold twice.
+    reserved_pieces: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     retail_price_per_piece_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
     lot_price_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
     min_order_pieces: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -95,6 +106,11 @@ class Lot(UUIDPrimaryKey, TimestampMixin, SoftDeleteMixin, Base):
     available_until: Mapped[date | None] = mapped_column(Date, default=None)
 
     status: Mapped[LotStatus] = mapped_column(nullable=False, default=LotStatus.DRAFT)
+    # Per lot switches for the two value band agents. Null inherits the
+    # brand's setting; False refuses even when the brand allows it.
+    bargaining_enabled: Mapped[bool | None] = mapped_column(Boolean, default=None)
+    auto_markdown_enabled: Mapped[bool | None] = mapped_column(Boolean, default=None)
+    last_markdown_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     visibility: Mapped[Visibility] = mapped_column(nullable=False)
 
     # Set when the brand approves. Null means it has never been live, and the
@@ -139,6 +155,10 @@ class Lot(UUIDPrimaryKey, TimestampMixin, SoftDeleteMixin, Base):
         return round((1 - self.lot_price_pkr / retail_total) * 100, 2)
 
     @property
+    def available_pieces(self) -> int:
+        return self.total_pieces - self.reserved_pieces
+
+    @property
     def manifest_total(self) -> int:
         return sum(line.pieces for line in self.manifest_lines)
 
@@ -153,6 +173,10 @@ class Lot(UUIDPrimaryKey, TimestampMixin, SoftDeleteMixin, Base):
 
     __table_args__ = (
         CheckConstraint("total_pieces > 0", name="total_pieces_positive"),
+        CheckConstraint(
+            "reserved_pieces >= 0 and reserved_pieces <= total_pieces",
+            name="reserved_within_lot",
+        ),
         CheckConstraint("lot_price_pkr > 0", name="lot_price_positive"),
         CheckConstraint("retail_price_per_piece_pkr > 0", name="retail_price_positive"),
         CheckConstraint(
@@ -263,10 +287,55 @@ class LotPhoto(UUIDPrimaryKey, TimestampMixin, Base):
     bytes_stored: Mapped[int | None] = mapped_column(Integer, default=None)
     # True once the compressed, model ready derivative has been generated.
     is_optimised: Mapped[bool] = mapped_column(nullable=False, default=False)
+    # SHA-256 of the bytes as uploaded, so the same photograph submitted twice
+    # is caught before it is stored. Brands re-upload constantly when a phone
+    # upload looks like it failed, and every duplicate otherwise gets paid for
+    # twice: once in storage and again in vision tokens.
+    checksum: Mapped[str | None] = mapped_column(String(64), default=None)
+
+    # Unbranded listings only. The original stays in `file_key` for the brand,
+    # and a buyer is served `blurred_file_key` once the brand has reviewed it.
+    protection_status: Mapped[PhotoProtectionStatus] = mapped_column(
+        nullable=False, default=PhotoProtectionStatus.PENDING
+    )
+    blurred_file_key: Mapped[str | None] = mapped_column(String(500), default=None)
+    # What was found or chosen, so the review screen can show why.
+    protection_detail: Mapped[dict[str, object] | None] = mapped_column(default=None)
+    protection_reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
+    protection_reviewed_by_user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), default=None
+    )
 
     lot: Mapped[Lot] = relationship(back_populates="photos")
 
-    __table_args__ = (Index("ix_photos_lot_order", "lot_id", "sort_order"),)
+    __table_args__ = (
+        CheckConstraint(
+            "protection_status in ('pending', 'clear', 'blurred', 'needs_review', 'failed')",
+            name="protection_status_valid",
+        ),
+        Index("ix_photos_lot_order", "lot_id", "sort_order"),
+        # Not unique across the table. The same product shot legitimately
+        # appears on two lots of the same garment in different sizes, and the
+        # duplicate check is per lot.
+        Index("ix_photos_lot_checksum", "lot_id", "checksum"),
+    )
+
+
+class SavedSearch(UUIDPrimaryKey, TimestampMixin, Base):
+    """A buyer's search, kept so new matching stock is easy to find again."""
+
+    __tablename__ = "saved_searches"
+
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    filters: Mapped[dict[str, object]] = mapped_column(nullable=False)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+
+    __table_args__ = (UniqueConstraint("user_id", "name", name="one_saved_search_name_per_user"),)
 
 
 class LotExcludedCity(UUIDPrimaryKey, TimestampMixin, Base):

@@ -38,7 +38,9 @@ const config: Config = {
         ink: {
           DEFAULT: "#16211d",
           soft: "#4c5a54",
-          faint: "#6e7d76",
+          // Darkened from #6e7d76, which measured 3.8:1 on the card colour.
+          // This is 5.3:1 on cards, 5.8:1 on white and 4.7:1 on sunk panels.
+          faint: "#5b6862",
         },
         line: "#d9d4ca",
         ok: "#1c6b45",

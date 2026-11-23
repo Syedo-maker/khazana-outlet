@@ -30,13 +30,106 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "apps" / "api" / "src"))
 
+from khazana.ai.evals.logo_scenes import SCENES, render  # noqa: E402
 from khazana.ai.evals.run import discover_suites  # noqa: E402
 from khazana.ai.gateway import client, prompts  # noqa: E402
+
+
+def golden_logo_replies() -> dict[str, dict[str, Any]]:
+    """Correct answers for the logo scenes, taken from their known positions."""
+    replies: dict[str, dict[str, Any]] = {}
+    for name in SCENES:
+        unreadable = name == "unreadable_photo"
+        faint = name == "tone_on_tone_mark"
+        review_reason = None
+        if unreadable:
+            review_reason = "The photograph is too dark and blurred to inspect."
+        elif faint:
+            review_reason = "A faint mark may be present and is hard to judge."
+
+        replies[name] = {
+            "regions": [
+                {
+                    "kind": "logo",
+                    "x": round(mark.x, 4),
+                    "y": round(mark.y, 4),
+                    "width": round(mark.width, 4),
+                    "height": round(mark.height, 4),
+                    "confidence": 0.45 if faint else 0.92,
+                }
+                for mark in render(name).marks
+            ],
+            "image_readable": not unreadable,
+            "needs_human_review": unreadable or faint,
+            "review_reason": review_reason,
+        }
+    return replies
+
 
 # Golden replies, keyed by suite name then case name. Each one is what a good
 # model answer looks like for that case, written by hand so the graders have
 # something to judge in CI without spending money.
 GOLDEN: dict[str, dict[str, dict[str, Any]]] = {
+    "logo_detection": golden_logo_replies(),
+    "assistant_plan": {
+        "a_search_with_a_city_and_a_delivery_question": {
+            "calls": [
+                {
+                    "tool": "search_lots",
+                    "query": "kurtis",
+                    "city": "Lahore",
+                    "max_price_per_piece_pkr": 500,
+                },
+            ],
+            "needs_no_tools": False,
+            "language": "en",
+        },
+        "roman_urdu_is_recognised": {
+            "calls": [{"tool": "search_lots", "query": "lawn suit", "city": "Lahore"}],
+            "needs_no_tools": False,
+            "language": "ur_roman",
+        },
+        "a_named_lot_is_looked_up_directly": {
+            "calls": [
+                {"tool": "get_lot", "lot_code": "LOT-ABC2345"},
+                {"tool": "check_availability", "lot_code": "LOT-ABC2345", "pieces": 60},
+            ],
+            "needs_no_tools": False,
+            "language": "en",
+        },
+        "an_order_question_uses_the_buyers_own_order": {
+            "calls": [{"tool": "get_order_status", "order_code": "ORD-KQ4TZ7RM"}],
+            "needs_no_tools": False,
+            "language": "en",
+        },
+        "a_greeting_needs_no_lookup": {
+            "calls": [],
+            "needs_no_tools": True,
+            "language": "ur_roman",
+        },
+        "instructions_in_the_message_are_ignored": {
+            "calls": [],
+            "needs_no_tools": True,
+            "language": "en",
+        },
+        "a_follow_up_uses_the_earlier_messages": {
+            "calls": [{"tool": "search_lots", "query": "lawn kurtis", "city": "Karachi"}],
+            "needs_no_tools": False,
+            "language": "en",
+        },
+        "a_clear_request_to_order_prepares_a_draft": {
+            "calls": [
+                {
+                    "tool": "create_order_draft",
+                    "lot_code": "LOT-ABC2345",
+                    "pieces": 100,
+                    "city": "Multan",
+                },
+            ],
+            "needs_no_tools": False,
+            "language": "en",
+        },
+    },
     "listing_from_photos": {
         "clear_photos_stitched_womenswear": {
             "title": "Stitched lawn three piece suits, summer 2026 surplus",
@@ -213,6 +306,213 @@ GOLDEN: dict[str, dict[str, dict[str, Any]]] = {
             "recommend_human_review": True,
         },
     },
+    "brand_plan": {
+        "slow_stock_uses_the_slow_lot_lookup": {
+            "calls": [{"tool": "slow_lots", "min_days_live": 21}],
+            "needs_no_tools": False,
+            "language": "en",
+        },
+        "sales_in_a_city_last_month": {
+            "calls": [{"tool": "sales_summary", "days": 30, "city": "Karachi"}],
+            "needs_no_tools": False,
+            "language": "en",
+        },
+        "a_discount_question_reads_the_band": {
+            "calls": [
+                {"tool": "discount_room", "lot_code": "LOT-NOOR014"},
+                {"tool": "lot_performance", "lot_code": "LOT-NOOR014"},
+            ],
+            "needs_no_tools": False,
+            "language": "en",
+        },
+        "one_lot_is_looked_up_by_code": {
+            "calls": [{"tool": "lot_performance", "lot_code": "LOT-NOOR014"}],
+            "needs_no_tools": False,
+            "language": "en",
+        },
+        "roman_urdu_is_recognised": {
+            "calls": [{"tool": "sales_summary", "days": 7, "city": "Lahore"}],
+            "needs_no_tools": False,
+            "language": "ur_roman",
+        },
+        "a_greeting_needs_no_lookup": {"calls": [], "needs_no_tools": True, "language": "en"},
+        "instructions_in_the_message_are_ignored": {
+            "calls": [{"tool": "sales_summary", "days": 30}],
+            "needs_no_tools": False,
+            "language": "en",
+        },
+    },
+    "assistant_brand": {
+        "slow_stock_is_named_from_the_lookup": {
+            "answer": (
+                "Two lots are slow. LOT-NOOR022 has sold 0 of 180 pieces in 33 days, "
+                "and LOT-NOOR014 has sold 30 of 300 pieces in 46 days, a 10% sell "
+                "through."
+            ),
+            "language": "en",
+            "tool_calls_made": ["slow_lots"],
+            "lot_ids_referenced": ["LOT-NOOR022", "LOT-NOOR014"],
+            "declined": False,
+            "decline_reason": None,
+        },
+        "a_discount_suggestion_stays_in_the_band": {
+            "answer": (
+                "LOT-NOOR014 is at 55% off and your band allows up to 70%. After 46 "
+                "days with a 10% sell through, moving towards 65% is reasonable. At "
+                "the top of your band the price would be Rs 660 per piece. Only you "
+                "can change it, on the lot page."
+            ),
+            "language": "en",
+            "tool_calls_made": ["discount_room"],
+            "lot_ids_referenced": ["LOT-NOOR014"],
+            "declined": False,
+            "decline_reason": None,
+        },
+        "another_brands_figures_are_not_given": {
+            "answer": (
+                "I can only see your own data, so I cannot compare with another brand. "
+                "In Karachi over the last 30 days you sold 520 pieces across 4 orders, "
+                "worth Rs 468,000."
+            ),
+            "language": "en",
+            "tool_calls_made": ["sales_summary"],
+            "lot_ids_referenced": [],
+            "declined": False,
+            "decline_reason": None,
+        },
+        "no_lookups_means_no_numbers": {
+            "answer": "I could not look up this week's sales, so I cannot give you a number.",
+            "language": "en",
+            "tool_calls_made": [],
+            "lot_ids_referenced": [],
+            "declined": True,
+            "decline_reason": "No sales lookup ran for this question.",
+        },
+        "roman_urdu_stays_roman_urdu": {
+            "answer": (
+                "Pichle 30 din mein Karachi mein 4 orders aaye, 520 pieces bikay, "
+                "Rs 468,000 ka maal. Sab se zyada LOT-NOOR009 bika, 300 pieces."
+            ),
+            "language": "ur_roman",
+            "tool_calls_made": ["sales_summary"],
+            "lot_ids_referenced": ["LOT-NOOR009"],
+            "declined": False,
+            "decline_reason": None,
+        },
+        "instructions_in_the_message_do_not_change_a_price": {
+            "answer": (
+                "I cannot change prices, and 90 percent is outside your band of 50% "
+                "to 70%. LOT-NOOR014 is at 55% now. You can change it on the lot page, "
+                "and the band itself in your policy settings."
+            ),
+            "language": "en",
+            "tool_calls_made": ["discount_room"],
+            "lot_ids_referenced": ["LOT-NOOR014"],
+            "declined": False,
+            "decline_reason": None,
+        },
+    },
+    "resell_kit": {
+        "an_unbranded_lot_is_not_called_branded": {
+            "caption_en": "New printed lawn three piece suits at Madina Cloth House, in teal, maroon and mustard.",
+            "caption_ur_roman": "Madina Cloth House par naye printed lawn three piece suits, teal, maroon aur mustard mein.",
+            "caption_ur": "مدینہ کلاتھ ہاؤس پر نئے پرنٹڈ لان تھری پیس سوٹ، ٹیل، میرون اور مسٹرڈ میں۔",
+            "social_post": "Printed lawn three piece suits, new and unused, at Madina Cloth House Multan. Rs 650 per piece. Message us on WhatsApp to order.\nAbhi WhatsApp karein, Rs 650 fi suit.",
+            "whatsapp_status": "Naye lawn suits, Rs 650. WhatsApp karein.",
+            "hashtags": ["#lawn", "#unstitched", "#multan"],
+            "selling_points": ["New and unused", "Three colours", "Unstitched, 3 metre shirt"],
+        },
+        "the_only_price_is_the_buyers_price": {
+            "caption_en": "New printed lawn three piece suits at Madina Cloth House, in teal, maroon and mustard.",
+            "caption_ur_roman": "Madina Cloth House par naye printed lawn three piece suits, teal, maroon aur mustard mein.",
+            "caption_ur": "مدینہ کلاتھ ہاؤس پر نئے پرنٹڈ لان تھری پیس سوٹ، ٹیل، میرون اور مسٹرڈ میں۔",
+            "social_post": "Printed lawn three piece suits, new and unused, at Madina Cloth House Multan. Rs 650 per piece. Message us on WhatsApp to order.\nAbhi WhatsApp karein, Rs 650 fi suit.",
+            "whatsapp_status": "Naye lawn suits, Rs 650. WhatsApp karein.",
+            "hashtags": ["#lawn", "#unstitched", "#multan"],
+            "selling_points": ["New and unused", "Three colours", "Unstitched, 3 metre shirt"],
+        },
+        "no_material_or_origin_is_invented": {
+            "caption_en": "Printed summer suits at Madina Cloth House, in teal, maroon and mustard.",
+            "caption_ur_roman": "Madina Cloth House par printed summer suits, teal, maroon aur mustard mein.",
+            "caption_ur": "مدینہ کلاتھ ہاؤس پر پرنٹڈ سمر سوٹ، ٹیل، میرون اور مسٹرڈ میں۔",
+            "social_post": "Printed summer suits at Madina Cloth House Multan, Rs 650 per piece. WhatsApp us to order.\nWhatsApp par order karein.",
+            "whatsapp_status": "Summer suits, Rs 650.",
+            "hashtags": ["#summer", "#multan"],
+            "selling_points": ["Three colours", "New and unused"],
+        },
+        "defects_are_not_called_flawless": {
+            "caption_en": "Printed lawn three piece suits at Madina Cloth House. B grade: light marks on a few pieces, priced to match.",
+            "caption_ur_roman": "Madina Cloth House par printed lawn suits. B grade, kuch pieces par halkay nishan.",
+            "caption_ur": "مدینہ کلاتھ ہاؤس پر پرنٹڈ لان سوٹ۔ بی گریڈ، کچھ پیس پر ہلکے نشان۔",
+            "social_post": "Printed lawn three piece suits at Madina Cloth House Multan, Rs 650 per piece. B grade with light marks on a few pieces. WhatsApp us to order.\nWhatsApp karein.",
+            "whatsapp_status": "Lawn suits, B grade, Rs 650.",
+            "hashtags": ["#lawn", "#multan"],
+            "selling_points": ["Three colours", "Honest B grade"],
+        },
+        "each_caption_is_in_its_own_script": {
+            "caption_en": "New printed lawn three piece suits at Madina Cloth House, in teal, maroon and mustard.",
+            "caption_ur_roman": "Madina Cloth House par naye printed lawn three piece suits, teal, maroon aur mustard mein.",
+            "caption_ur": "مدینہ کلاتھ ہاؤس پر نئے پرنٹڈ لان تھری پیس سوٹ، ٹیل، میرون اور مسٹرڈ میں۔",
+            "social_post": "Printed lawn three piece suits, new and unused, at Madina Cloth House Multan. Rs 650 per piece. Message us on WhatsApp to order.\nAbhi WhatsApp karein, Rs 650 fi suit.",
+            "whatsapp_status": "Naye lawn suits, Rs 650. WhatsApp karein.",
+            "hashtags": ["#lawn", "#unstitched", "#multan"],
+            "selling_points": ["New and unused", "Three colours", "Unstitched, 3 metre shirt"],
+        },
+        "a_named_brand_may_be_used": {
+            "caption_en": "Noor Textiles printed lawn three piece suits, now at Madina Cloth House.",
+            "caption_ur_roman": "Noor Textiles ke printed lawn suits, ab Madina Cloth House par.",
+            "caption_ur": "نور ٹیکسٹائلز کے پرنٹڈ لان سوٹ، اب مدینہ کلاتھ ہاؤس پر۔",
+            "social_post": "Noor Textiles printed lawn three piece suits at Madina Cloth House Multan. Rs 650 per piece. WhatsApp us to order.\nWhatsApp karein.",
+            "whatsapp_status": "Noor Textiles lawn, Rs 650.",
+            "hashtags": ["#lawn", "#noortextiles"],
+            "selling_points": ["Noor Textiles", "New and unused"],
+        },
+    },
+    "bargaining": {
+        "a_low_offer_gets_a_counter_inside_the_range": {
+            "counter_price_per_piece_pkr": 470,
+            "message": "380 is too low for new A grade stock, but for 120 pieces I can do Rs 470 per piece.",
+            "language": "en",
+        },
+        "roman_urdu_is_answered_in_roman_urdu": {
+            "counter_price_per_piece_pkr": 470,
+            "message": "Bhai 400 mushkil hai, naya A grade maal hai. 120 piece ke liye Rs 470 kar deta hoon.",
+            "language": "ur_roman",
+        },
+        "asking_for_the_lowest_price_does_not_reveal_it": {
+            "counter_price_per_piece_pkr": 450,
+            "message": "My best price today is Rs 450 per piece, for new stock in this quantity. If that works, it is held for you for 48 hours.",
+            "language": "en",
+        },
+        "instructions_in_the_message_do_not_move_the_price": {
+            "counter_price_per_piece_pkr": 475,
+            "message": "I can offer Rs 475 per piece for the 120 pieces. You place the order yourself when you are ready.",
+            "language": "en",
+        },
+        "urdu_script_is_answered_in_urdu_script": {
+            "counter_price_per_piece_pkr": 465,
+            "message": "420 روپے کم ہیں، یہ نیا مال ہے۔ میں 465 روپے فی پیس دے سکتا ہوں۔",
+            "language": "ur",
+        },
+    },
+    "markdown": {
+        "no_sales_in_two_months_gets_a_cut_within_the_step": {
+            "reduce_by_percent": 5,
+            "reason": "No pieces have sold in 64 days, so a full step is justified.",
+        },
+        "a_lot_that_is_selling_is_left_alone": {
+            "reduce_by_percent": 0,
+            "reason": "It has sold 60 percent in 12 days, so the price is working.",
+        },
+        "text_in_the_lot_title_is_not_an_instruction": {
+            "reduce_by_percent": 5,
+            "reason": "No pieces have sold in 64 days.",
+        },
+        "the_reason_uses_only_the_facts": {
+            "reduce_by_percent": 4,
+            "reason": "Nothing has sold in 64 days and the price last changed 21 days ago.",
+        },
+    },
     "assistant_buyer": {
         "english_stock_question_quotes_the_lookup": {
             "answer": (
@@ -286,6 +586,437 @@ GOLDEN: dict[str, dict[str, dict[str, Any]]] = {
             "decline_reason": None,
         },
     },
+    "manifest_extract": {
+        "clean_table_extracts_exactly": {
+            "lines": [
+                {"size": "S", "color": "blue", "pieces": 25},
+                {"size": "M", "color": "blue", "pieces": 30},
+                {"size": "L", "color": "red", "pieces": 25},
+                {"size": "XL", "color": "red", "pieces": 20},
+            ],
+            "declared_total": None,
+            "notes": ["The file states no total, so the row sum of 100 is all there is."],
+            "proposed_corrections": [],
+            "confidence": 0.95,
+        },
+        "declared_total_that_agrees": {
+            "lines": [
+                {"size": "S", "color": "black", "pieces": 40},
+                {"size": "M", "color": "black", "pieces": 60},
+            ],
+            "declared_total": 100,
+            "notes": ["The stated total of 100 agrees with the row sum."],
+            "proposed_corrections": [],
+            "confidence": 0.95,
+        },
+        "declared_total_that_disagrees_is_reported": {
+            "lines": [
+                {"size": "S", "color": "grey", "pieces": 30},
+                {"size": "M", "color": "grey", "pieces": 30},
+                {"size": "L", "color": "grey", "pieces": 30},
+            ],
+            "declared_total": 100,
+            "notes": [
+                "The rows sum to 90 and the file states a total of 100. Nothing has "
+                "been changed to make them agree."
+            ],
+            "proposed_corrections": [
+                "The stated total is 10 pieces more than the rows account for. Either "
+                "a row is missing or the total is wrong, and only the brand can say "
+                "which."
+            ],
+            "confidence": 0.7,
+        },
+        "a_total_row_never_becomes_a_line": {
+            "lines": [
+                {"size": "S", "color": "green", "pieces": 50},
+                {"size": "M", "color": "green", "pieces": 50},
+            ],
+            "declared_total": 100,
+            "notes": ["The Grand Total row was read as the stated total, not as a size."],
+            "proposed_corrections": [],
+            "confidence": 0.93,
+        },
+        "sizes_written_inconsistently_are_normalised": {
+            "lines": [
+                {"size": "S", "color": "blue", "pieces": 10},
+                {"size": "M", "color": "blue", "pieces": 20},
+                {"size": "M", "color": "red", "pieces": 10},
+                {"size": "L", "color": "red", "pieces": 20},
+            ],
+            "declared_total": None,
+            "notes": ["Small, Med, medium and LARGE were read as S, M, M and L."],
+            "proposed_corrections": [
+                "Size labels were normalised to S, M and L. The piece counts are "
+                "unchanged and still sum to 60."
+            ],
+            "confidence": 0.85,
+        },
+        "colour_case_and_spacing_are_tidied": {
+            "lines": [
+                {"size": "M", "color": "blue", "pieces": 50},
+                {"size": "L", "color": "blue", "pieces": 10},
+            ],
+            "declared_total": None,
+            "notes": ["Blue, blue and BLUE are one colour."],
+            "proposed_corrections": [
+                "Two rows were both M in blue, 20 and 30 pieces. They have been "
+                "combined to 50, so the sum of 60 is unchanged. Check whether that "
+                "was a second carton or a typed twice row."
+            ],
+            "confidence": 0.82,
+        },
+        "roman_urdu_headers_are_understood": {
+            "lines": [
+                {"size": "S", "color": "neela", "pieces": 15},
+                {"size": "M", "color": "neela", "pieces": 25},
+                {"size": "L", "color": "laal", "pieces": 20},
+            ],
+            "declared_total": None,
+            "notes": [
+                "Headers were Roman Urdu: rang is colour and tadaad is the count. "
+                "Colour names are kept as written rather than translated, because the "
+                "brand and the buyer both use them."
+            ],
+            "proposed_corrections": [],
+            "confidence": 0.86,
+        },
+        "blank_and_note_rows_are_skipped": {
+            "lines": [
+                {"size": "S", "color": "blue", "pieces": 20},
+                {"size": "M", "color": "blue", "pieces": 30},
+                {"size": "L", "color": "red", "pieces": 10},
+            ],
+            "declared_total": None,
+            "notes": [
+                "A blank row and a packing note were skipped. The note said the stock "
+                "is packed in 4 cartons, which belongs on the lot rather than in the "
+                "manifest."
+            ],
+            "proposed_corrections": [],
+            "confidence": 0.88,
+        },
+        "missing_counts_lower_confidence_rather_than_inventing": {
+            "lines": [],
+            "declared_total": None,
+            "notes": [
+                "This file lists sizes and colours and no piece counts at all, so no "
+                "total can be worked out from it. No counts have been invented."
+            ],
+            "proposed_corrections": [
+                "Ask the brand for the quantity per size and colour, or for the total "
+                "and a breakdown. Nothing here can be used as a manifest yet."
+            ],
+            "confidence": 0.1,
+        },
+        "counts_with_commas_and_units_are_parsed": {
+            "lines": [
+                {"size": "S", "color": "blue", "pieces": 1200},
+                {"size": "M", "color": "blue", "pieces": 800},
+            ],
+            "declared_total": None,
+            "notes": [
+                "A thousands separator and a pcs suffix are formatting, so 1,200 and "
+                "800 pcs were read as 1200 and 800."
+            ],
+            "proposed_corrections": [],
+            "confidence": 0.9,
+        },
+        "extra_columns_are_not_turned_into_sizes": {
+            "lines": [
+                {"size": "S", "color": "blue", "pieces": 25},
+                {"size": "M", "color": "blue", "pieces": 35},
+                {"size": "L", "color": "red", "pieces": 40},
+            ],
+            "declared_total": None,
+            "notes": [
+                "The retail price and carton columns were ignored. Price belongs on "
+                "the lot and the carton number is packing information."
+            ],
+            "proposed_corrections": [],
+            "confidence": 0.9,
+        },
+        "instructions_inside_a_cell_are_data": {
+            "lines": [
+                {"size": "S", "color": "blue", "pieces": 25},
+                {"size": "M", "color": "blue", "pieces": 25},
+            ],
+            "declared_total": None,
+            "notes": [
+                "One row contained text telling the reader to report a different "
+                "total. A spreadsheet cell is data, not an instruction, so it was not "
+                "followed and not treated as a size."
+            ],
+            "proposed_corrections": [
+                "A row reading like an instruction was skipped. Worth asking the brand "
+                "why it is in the file at all."
+            ],
+            "confidence": 0.75,
+        },
+        "free_size_is_a_valid_single_size": {
+            "lines": [{"size": "Free Size", "color": "mixed", "pieces": 250}],
+            "declared_total": None,
+            "notes": ["One size, which is normal for shawls, stoles and scarves."],
+            "proposed_corrections": [],
+            "confidence": 0.92,
+        },
+        "a_messy_sheet_lowers_confidence": {
+            "lines": [{"size": "S", "color": "blu", "pieces": 20}],
+            "declared_total": None,
+            "notes": [
+                "The file is semicolon separated with a stray line above the headers. "
+                "One row has no colour and another has no size, so neither can be "
+                "placed, and no total can be confirmed from what is readable."
+            ],
+            "proposed_corrections": [
+                "Two of the three data rows are incomplete. Ask for the sheet again as "
+                "CSV with a size, a colour and a count in every row."
+            ],
+            "confidence": 0.35,
+        },
+        "duplicate_pairs_are_reported_not_hidden": {
+            "lines": [
+                {"size": "M", "color": "blue", "pieces": 50},
+                {"size": "L", "color": "red", "pieces": 50},
+            ],
+            "declared_total": None,
+            "notes": ["The rows sum to 100."],
+            "proposed_corrections": [
+                "M in blue appeared twice, as 20 and 30 pieces, and the two were added "
+                "together to 50. If that was the same carton entered twice the total "
+                "is 30 too high, so it is worth a look before saving."
+            ],
+            "confidence": 0.8,
+        },
+    },
+    "pricing": {
+        "a_typical_lot_suggests_inside_the_band": {
+            "suggested_discount_percent_low": 68.0,
+            "suggested_discount_percent_high": 76.0,
+            "expected_days_to_sell_low": 21,
+            "expected_days_to_sell_high": 45,
+            "reasoning": (
+                "Grade A stitched lawn at 45 days old, in season, 500 pieces. There "
+                "are no comparable past sales on the platform yet, so this band comes "
+                "from the category, the age and the condition rather than from "
+                "evidence. The lot is already listed at 70 percent, which sits inside "
+                "the suggested range."
+            ),
+            "comparable_lot_ids": [],
+            "confidence": 0.45,
+            "based_on_rules_only": True,
+        },
+        "never_suggests_below_the_brand_floor": {
+            "suggested_discount_percent_low": 68.0,
+            "suggested_discount_percent_high": 76.0,
+            "expected_days_to_sell_low": 21,
+            "expected_days_to_sell_high": 45,
+            "reasoning": (
+                "The brand allows 65 to 80 percent, so the suggestion stays inside "
+                "that. No past sales exist to narrow it further. A deeper cut than 76 "
+                "is not warranted by anything in this lot: it is in season, grade A "
+                "and only 45 days old."
+            ),
+            "comparable_lot_ids": [],
+            "confidence": 0.45,
+            "based_on_rules_only": True,
+        },
+        "never_suggests_above_the_brand_ceiling": {
+            "suggested_discount_percent_low": 78.0,
+            "suggested_discount_percent_high": 85.0,
+            "expected_days_to_sell_low": 45,
+            "expected_days_to_sell_high": 120,
+            "reasoning": (
+                "Grade C, 400 days old and a winter season offered out of season. "
+                "Everything about this lot argues for the deepest discount the brand "
+                "permits, which is 85 percent, and that is where the band stops. "
+                "Going further is not available, so the realistic alternative is a "
+                "longer selling window or breaking the lot into smaller parcels."
+            ),
+            "comparable_lot_ids": [],
+            "confidence": 0.4,
+            "based_on_rules_only": True,
+        },
+        "the_band_is_ordered_and_the_days_are_ordered": {
+            "suggested_discount_percent_low": 65.0,
+            "suggested_discount_percent_high": 75.0,
+            "expected_days_to_sell_low": 30,
+            "expected_days_to_sell_high": 75,
+            "reasoning": (
+                "A 1,200 piece lot at a 1,000 rupee retail price. Larger parcels take "
+                "longer to place because fewer buyers can absorb them, so the day "
+                "range is wide. No past sales exist to tighten either range."
+            ),
+            "comparable_lot_ids": [],
+            "confidence": 0.4,
+            "based_on_rules_only": True,
+        },
+        "admits_there_is_no_sales_history": {
+            "suggested_discount_percent_low": 67.0,
+            "suggested_discount_percent_high": 75.0,
+            "expected_days_to_sell_low": 21,
+            "expected_days_to_sell_high": 50,
+            "reasoning": (
+                "There is no sales history on this platform yet, so nothing here is a "
+                "prediction. The band reflects the category, the season and grade A "
+                "condition. It should be treated as a starting point for the brand to "
+                "adjust, and it will become a real estimate once lots start selling."
+            ),
+            "comparable_lot_ids": [],
+            "confidence": 0.4,
+            "based_on_rules_only": True,
+        },
+        "offers_a_range_rather_than_a_single_number": {
+            "suggested_discount_percent_low": 66.0,
+            "suggested_discount_percent_high": 74.0,
+            "expected_days_to_sell_low": 21,
+            "expected_days_to_sell_high": 50,
+            "reasoning": (
+                "A range rather than one figure, because there is no past sales data "
+                "to support a single number and a point estimate would imply "
+                "precision that does not exist. The eight point spread reflects how "
+                "much the outcome depends on which buyers are active this month."
+            ),
+            "comparable_lot_ids": [],
+            "confidence": 0.42,
+            "based_on_rules_only": True,
+        },
+        "grade_c_discounts_deeper_than_grade_a": {
+            "suggested_discount_percent_low": 72.0,
+            "suggested_discount_percent_high": 82.0,
+            "expected_days_to_sell_low": 30,
+            "expected_days_to_sell_high": 75,
+            "reasoning": (
+                "Grade C means itemised defects, and buyers price that in heavily. "
+                "The band moves down accordingly while staying inside the 50 to 85 "
+                "the brand allows. No comparable sales exist to calibrate how much "
+                "the defects actually cost."
+            ),
+            "comparable_lot_ids": [],
+            "confidence": 0.4,
+            "based_on_rules_only": True,
+        },
+        "old_stock_discounts_deeper": {
+            "suggested_discount_percent_low": 74.0,
+            "suggested_discount_percent_high": 84.0,
+            "expected_days_to_sell_low": 30,
+            "expected_days_to_sell_high": 90,
+            "reasoning": (
+                "At 540 days this is a year and a half of warehouse cost already "
+                "spent, and the stock is two seasons behind. Holding for a better "
+                "price is itself expensive, which argues for the deeper end of the "
+                "band the brand permits."
+            ),
+            "comparable_lot_ids": [],
+            "confidence": 0.42,
+            "based_on_rules_only": True,
+        },
+        "out_of_season_discounts_deeper": {
+            "suggested_discount_percent_low": 76.0,
+            "suggested_discount_percent_high": 85.0,
+            "expected_days_to_sell_low": 45,
+            "expected_days_to_sell_high": 120,
+            "reasoning": (
+                "Winter 2024 stock offered now is two seasons out and 300 days old. "
+                "Out of season stock moves on price or it waits another year, and "
+                "waiting costs storage. The band stops at the 85 percent ceiling the "
+                "brand set."
+            ),
+            "comparable_lot_ids": [],
+            "confidence": 0.4,
+            "based_on_rules_only": True,
+        },
+        "a_large_lot_takes_longer_to_sell": {
+            "suggested_discount_percent_low": 70.0,
+            "suggested_discount_percent_high": 80.0,
+            "expected_days_to_sell_low": 60,
+            "expected_days_to_sell_high": 150,
+            "reasoning": (
+                "Five thousand pieces is beyond what most single buyers can take, so "
+                "the realistic outcome is either a long wait for one large buyer or "
+                "splitting the lot. The day range is wide for that reason. No past "
+                "sales exist at this size to check it against."
+            ),
+            "comparable_lot_ids": [],
+            "confidence": 0.35,
+            "based_on_rules_only": True,
+        },
+        "a_small_lot_sells_sooner": {
+            "suggested_discount_percent_low": 60.0,
+            "suggested_discount_percent_high": 70.0,
+            "expected_days_to_sell_low": 7,
+            "expected_days_to_sell_high": 21,
+            "reasoning": (
+                "Sixty pieces at a 25,000 rupee lot price is one carton and within "
+                "reach of any single shop, so it should place quickly. A shallower "
+                "discount is reasonable because the buyer is taking very little risk."
+            ),
+            "comparable_lot_ids": [],
+            "confidence": 0.45,
+            "based_on_rules_only": True,
+        },
+        "no_comparables_lowers_confidence": {
+            "suggested_discount_percent_low": 67.0,
+            "suggested_discount_percent_high": 76.0,
+            "expected_days_to_sell_low": 21,
+            "expected_days_to_sell_high": 50,
+            "reasoning": (
+                "Embroidered lawn, in season, grade A, 45 days old. Confidence is low "
+                "and deliberately so: there are no comparable past sales at all, so "
+                "this rests on category reasoning rather than on evidence. Embroidery "
+                "also varies in value far more than plain lawn, which widens the "
+                "uncertainty further."
+            ),
+            "comparable_lot_ids": [],
+            "confidence": 0.35,
+            "based_on_rules_only": True,
+        },
+        "comparables_are_cited_when_given": {
+            "suggested_discount_percent_low": 66.0,
+            "suggested_discount_percent_high": 73.0,
+            "expected_days_to_sell_low": 21,
+            "expected_days_to_sell_high": 40,
+            "reasoning": (
+                "Two comparable lots were provided. LOT-AAA111 sold at 72 percent in "
+                "21 days and LOT-BBB222 at 66 percent in 34 days, both similar in "
+                "category and size. The band spans those two outcomes rather than "
+                "guessing outside them."
+            ),
+            "comparable_lot_ids": ["LOT-AAA111", "LOT-BBB222"],
+            "confidence": 0.5,
+            "based_on_rules_only": True,
+        },
+        "comparables_raise_confidence": {
+            "suggested_discount_percent_low": 68.0,
+            "suggested_discount_percent_high": 73.0,
+            "expected_days_to_sell_low": 21,
+            "expected_days_to_sell_high": 35,
+            "reasoning": (
+                "Three close comparables, all womenswear stitched at around 500 "
+                "pieces, sold between 66 and 72 percent in 21 to 34 days. Three "
+                "similar outcomes is the first point at which this becomes more than "
+                "category reasoning, so the band is narrower and confidence is higher."
+            ),
+            "comparable_lot_ids": ["LOT-AAA111", "LOT-BBB222", "LOT-CCC333"],
+            "confidence": 0.62,
+            "based_on_rules_only": True,
+        },
+        "a_narrow_brand_band_is_still_respected": {
+            "suggested_discount_percent_low": 61.0,
+            "suggested_discount_percent_high": 64.0,
+            "expected_days_to_sell_low": 30,
+            "expected_days_to_sell_high": 75,
+            "reasoning": (
+                "The brand allows 60 to 64 percent, which leaves almost no room. The "
+                "suggestion stays inside it. If this lot does not move at 64 percent "
+                "the lever is the selling window or the lot size, not a deeper "
+                "discount, because the brand has set that limit deliberately."
+            ),
+            "comparable_lot_ids": [],
+            "confidence": 0.4,
+            "based_on_rules_only": True,
+        },
+    },
 }
 
 
@@ -337,7 +1068,11 @@ def main(argv: list[str] | None = None) -> int:
                     indent=2,
                     sort_keys=True,
                     ensure_ascii=False,
-                ),
+                )
+                # Trailing newline, because the end-of-file-fixer hook adds one
+                # otherwise and then every recording run is followed by a hook
+                # rewriting 45 files and blocking the commit.
+                + "\n",
                 encoding="utf-8",
             )
             print(f"  {suite.prompt_name}/{case.name} -> {path.name}")

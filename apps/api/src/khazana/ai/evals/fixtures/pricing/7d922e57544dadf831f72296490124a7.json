@@ -1,0 +1,21 @@
+{
+  "_case": "never_suggests_above_the_brand_ceiling",
+  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
+  "content": {
+    "based_on_rules_only": true,
+    "comparable_lot_ids": [],
+    "confidence": 0.4,
+    "expected_days_to_sell_high": 120,
+    "expected_days_to_sell_low": 45,
+    "reasoning": "Grade C, 400 days old and a winter season offered out of season. Everything about this lot argues for the deepest discount the brand permits, which is 85 percent, and that is where the band stops. Going further is not available, so the realistic alternative is a longer selling window or breaking the lot into smaller parcels.",
+    "suggested_discount_percent_high": 85.0,
+    "suggested_discount_percent_low": 78.0
+  },
+  "model": "claude-opus-5-5",
+  "usage": {
+    "cache_read_tokens": 1800,
+    "cache_write_tokens": 0,
+    "input_tokens": 2400,
+    "output_tokens": 420
+  }
+}

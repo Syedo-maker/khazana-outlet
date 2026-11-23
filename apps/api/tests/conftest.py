@@ -80,6 +80,31 @@ def client(engine, db) -> Iterator[TestClient]:  # type: ignore[no-untyped-def]
 # ------------------------------------------------------------------ helpers
 
 
+@pytest.fixture(autouse=True)
+def local_storage(tmp_path, monkeypatch):  # type: ignore[no-untyped-def]
+    """Point object storage at a temporary folder for every test.
+
+    Autouse, and deliberately so. The default `STORAGE_LOCAL_PATH` is
+    `./uploads` relative to the working directory, so without this any test
+    that uploads a photograph writes into the repository. The catalog tests
+    put 1213 JPEGs there before this fixture moved out of a single module and
+    became the default.
+
+    The settings cache has to be cleared on both sides: the backend is built
+    once and memoised, so a stale one would point at the previous test's
+    directory.
+    """
+    from khazana import storage
+    from khazana.config import get_settings
+
+    monkeypatch.setenv("STORAGE_LOCAL_PATH", str(tmp_path))
+    get_settings.cache_clear()
+    storage.reset_backend()
+    yield tmp_path
+    storage.reset_backend()
+    get_settings.cache_clear()
+
+
 @pytest.fixture
 def category(db: Session) -> Category:
     row = Category(name="Womenswear stitched", slug="womenswear-stitched")

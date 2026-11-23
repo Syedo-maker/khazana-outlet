@@ -53,6 +53,18 @@ ROUTES: dict[AiFeature, Route] = {
         max_tokens=2_000,
         requires_vision=True,
     ),
+    # A missed logo exposes a brand that was promised anonymity, so this route
+    # does not economise either. The prompt is too short to reach the minimum
+    # cacheable size, so asking for a cache would only log a warning per call.
+    AiFeature.LOGO_DETECTION: Route(
+        feature=AiFeature.LOGO_DETECTION,
+        model_id=OPUS_5_5,
+        effort="medium",
+        mode=AiMode.LIVE,
+        cache_prefix=False,
+        max_tokens=2_000,
+        requires_vision=True,
+    ),
     # Nobody waits for a spreadsheet to be cleaned, so it goes in a batch.
     AiFeature.MANIFEST_EXTRACT: Route(
         feature=AiFeature.MANIFEST_EXTRACT,
@@ -95,6 +107,36 @@ ROUTES: dict[AiFeature, Route] = {
         mode=AiMode.LIVE,
         cache_prefix=True,
         max_tokens=2_000,
+    ),
+    # Marketing copy for a lot the buyer already owns. Nobody's money moves on
+    # it, so the small model writes it and the eval guards the claims.
+    AiFeature.RESELL_KIT: Route(
+        feature=AiFeature.RESELL_KIT,
+        model_id=HAIKU_4_5,
+        effort=None,
+        mode=AiMode.LIVE,
+        cache_prefix=True,
+        max_tokens=1_500,
+    ),
+    # Both choose a price inside a band the brand set, which code enforces.
+    # See docs/decisions/0001-ai-value-bands.md. The model's choice is clamped
+    # before anything acts on it, so the model tier only affects how good the
+    # choice is, never whether it is permitted.
+    AiFeature.BARGAINING: Route(
+        feature=AiFeature.BARGAINING,
+        model_id=OPUS_5_5,
+        effort="low",
+        mode=AiMode.LIVE,
+        cache_prefix=True,
+        max_tokens=600,
+    ),
+    AiFeature.MARKDOWN: Route(
+        feature=AiFeature.MARKDOWN,
+        model_id=HAIKU_4_5,
+        effort=None,
+        mode=AiMode.BATCH,
+        cache_prefix=True,
+        max_tokens=400,
     ),
     AiFeature.DEMAND_FORECAST: Route(
         feature=AiFeature.DEMAND_FORECAST,

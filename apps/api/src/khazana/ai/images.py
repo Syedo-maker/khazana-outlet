@@ -17,9 +17,12 @@ from __future__ import annotations
 
 import io
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
+from math import ceil, floor
 
 from ..models.enums import PhotoKind
+from .logo_regions import Box
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +36,10 @@ JPEG_QUALITY = 80
 # The cost model assumes four photographs per listing. More than that is
 # usually several shots of the same garment and buys nothing.
 MAX_IMAGES_PER_CALL = 4
+
+# Coarse enough that a logo cannot be read back out of a protected photograph.
+BLUR_BLOCK_PX = 24
+BLUR_RADIUS_PX = 10
 
 # When a brand uploads a full set, these are the views that carry the most
 # information for a draft listing, in order. The label shot matters more than
@@ -111,6 +118,44 @@ def prepare(raw: bytes) -> PreparedImage:
         height=image.height,
         original_bytes=original_bytes,
     )
+
+
+def blur_regions(raw: bytes, boxes: Sequence[Box]) -> bytes:
+    """Return a copy of a photograph with each box made unreadable.
+
+    Pixelated first, then blurred. A blur alone can leave large lettering
+    legible, while reducing the region to a few blocks removes the detail
+    before the blur smooths the edges.
+    """
+    from PIL import Image, ImageFilter, UnidentifiedImageError
+
+    try:
+        opened = Image.open(io.BytesIO(raw))
+        opened.load()
+    except (UnidentifiedImageError, OSError) as exc:
+        raise ImageError("That file could not be read as an image.") from exc
+
+    image = opened.convert("RGB")
+    for box in boxes:
+        left = max(0, floor(box.x * image.width))
+        top = max(0, floor(box.y * image.height))
+        right = min(image.width, ceil(box.right * image.width))
+        bottom = min(image.height, ceil(box.bottom * image.height))
+        width = right - left
+        height = bottom - top
+        if width <= 0 or height <= 0:
+            continue
+
+        region = image.crop((left, top, right, bottom))
+        blocks = (max(1, width // BLUR_BLOCK_PX), max(1, height // BLUR_BLOCK_PX))
+        hidden = region.resize(blocks, Image.Resampling.BOX).resize(
+            (width, height), Image.Resampling.NEAREST
+        )
+        image.paste(hidden.filter(ImageFilter.GaussianBlur(BLUR_RADIUS_PX)), (left, top))
+
+    buffer = io.BytesIO()
+    image.save(buffer, format="JPEG", quality=JPEG_QUALITY, optimize=True)
+    return buffer.getvalue()
 
 
 def select_for_call(

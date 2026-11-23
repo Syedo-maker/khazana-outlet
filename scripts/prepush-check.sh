@@ -15,6 +15,13 @@
 #     file scan pipes `git ls-files` into real grep instead of using git grep.
 #   - The byte form is used rather than `\x{2014}` because grep -P in Windows
 #     git bash rejects code points above 0xFF outright.
+#
+# Some files have to name the thing they forbid: this script, the commit
+# message checker, the hook config, the rules file, the changelog and the audit
+# reports. They are excluded from the attribution scan by path. A new file that
+# states the rule has to be added there too, or the gate fails on its own
+# documentation, which is exactly how it failed when check-commit-msg.sh was
+# first committed.
 
 set -uo pipefail
 
@@ -23,7 +30,10 @@ DASHES='\xe2\x80\x93|\xe2\x80\x94'
 # project uses the Claude API, so "claude" legitimately appears in code, docs
 # and commit subjects such as "feat(ai): add gateway". What must never appear
 # is a credit line.
+# Used for the file scan, which is broad on purpose: a source file has no
+# reason to contain any of these phrases at all.
 ATTRIBUTION='co-authored-by|generated (with|by) claude|written by claude|assisted by (claude|ai)|claude code'
+
 
 fail=0
 
@@ -58,7 +68,7 @@ echo "== Checking tracked files for AI attribution =="
 attr_hits=$(
   git ls-files -z \
     | tr '\0' '\n' \
-    | grep -vE '^(scripts/prepush-check\.sh|\.pre-commit-config\.yaml|CLAUDE\.md)$' \
+    | grep -vE '^(scripts/prepush-check\.sh|scripts/check-commit-msg\.sh|\.pre-commit-config\.yaml|CLAUDE\.md|CHANGELOG\.md|docs/audits/.*)$' \
     | while IFS= read -r file; do
         [ -f "$file" ] || continue
         grep -nIHiE "$ATTRIBUTION" -- "$file" 2>/dev/null
@@ -95,19 +105,30 @@ echo "== Checking commit messages in $RANGE =="
 if [ -z "$COMMITS" ]; then
   echo "ok: no commits to check"
 else
-  if printf '%s\n' "$COMMITS" | grep -nP "$DASHES"; then
-    echo "FAIL: em or en dash in a commit message above."
+  # Delegated to the commit-msg hook's own script, so there is one definition
+  # of what a commit message may say rather than two that drift. They did
+  # drift, within the hour: this gate learned that an attribution has to be
+  # anchored to the start of a line, the hook had not, and the hook then
+  # refused the very commit that was teaching the gate.
+  msg_fail=0
+  msg_tmp=$(mktemp)
+  while read -r sha; do
+    [ -n "$sha" ] || continue
+    git log -1 --format=%B "$sha" > "$msg_tmp"
+    if ! bash "$(dirname "$0")/check-commit-msg.sh" "$msg_tmp" > "$msg_tmp.out" 2>&1; then
+      echo "  in commit $(git log -1 --format='%h %s' "$sha")"
+      sed 's/^/  /' "$msg_tmp.out"
+      msg_fail=1
+    fi
+  done <<< "$(git rev-list "$RANGE" 2>/dev/null || true)"
+  rm -f "$msg_tmp" "$msg_tmp.out"
+
+  if [ "$msg_fail" -ne 0 ]; then
+    echo "FAIL: a commit message breaks the rules. See above."
     echo "Fix the most recent one with: git commit --amend"
     fail=1
   else
-    echo "ok: no em or en dashes in commit messages"
-  fi
-
-  if printf '%s\n' "$COMMITS" | grep -niE "$ATTRIBUTION"; then
-    echo "FAIL: AI attribution in a commit message above."
-    fail=1
-  else
-    echo "ok: no AI attribution in commit messages"
+    echo "ok: commit messages follow the rules"
   fi
 fi
 

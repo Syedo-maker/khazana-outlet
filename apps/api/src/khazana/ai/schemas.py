@@ -8,9 +8,9 @@ the gateway rather than a strange bug three layers up.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..models.enums import ConditionGrade
 
@@ -42,6 +42,34 @@ class ListingDraft(BaseModel):
     # as the list of fields to check, which is far more useful than a silent
     # guess.
     uncertain_fields: list[str] = Field(default_factory=list)
+
+
+class LogoRegion(BaseModel):
+    """One possible brand mark, as fractions of the image."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["logo", "brand_text", "label", "packaging", "other"]
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+    width: float = Field(ge=0, le=1)
+    height: float = Field(ge=0, le=1)
+    confidence: float = Field(ge=0, le=1)
+
+
+class LogoDetection(BaseModel):
+    """Where the brand marks are in one photograph.
+
+    Every field is required, so a reply cannot pass by leaving out the signal
+    that a person needs to look.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    regions: list[LogoRegion] = Field(max_length=24)
+    image_readable: bool
+    needs_human_review: bool
+    review_reason: str | None = Field(max_length=300)
 
 
 class ManifestLineDraft(BaseModel):
@@ -144,14 +172,64 @@ class AssistantAnswer(BaseModel):
     decline_reason: str | None = None
 
 
+TOOL_ARGUMENT_FIELDS = (
+    "query",
+    "category",
+    "city",
+    "max_price_per_piece_pkr",
+    "lot_code",
+    "pieces",
+    "order_code",
+    "to_city",
+)
+
+
 class PlannedToolCall(BaseModel):
+    """One planned lookup, with each possible argument as its own field.
+
+    A free form arguments object cannot be expressed in the closed schema the
+    structured output API requires, so every argument any tool takes is listed
+    here and the ones a tool does not use stay null. Which ones apply is checked
+    against the tool itself when the plan runs, so a malformed plan becomes a
+    recoverable error rather than a lost turn.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     tool: str = Field(max_length=60)
-    # Arguments are validated against the tool's own signature when it runs,
-    # not here. A permissive shape at this layer keeps a malformed plan a
-    # recoverable error rather than a schema failure that loses the turn.
-    arguments: dict[str, Any] = Field(default_factory=dict)
+    query: str | None = Field(default=None, max_length=200)
+    category: str | None = Field(default=None, max_length=120)
+    city: str | None = Field(default=None, max_length=80)
+    max_price_per_piece_pkr: int | None = None
+    lot_code: str | None = Field(default=None, max_length=24)
+    pieces: int | None = None
+    order_code: str | None = Field(default=None, max_length=24)
+    to_city: str | None = Field(default=None, max_length=80)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _unpack_arguments(cls, value: Any) -> Any:
+        """Accept the older shape, an ``arguments`` object, and flatten it.
+
+        Keys that are not arguments of any tool are dropped here, and the call
+        then fails at the tool for the argument it is missing.
+        """
+        if isinstance(value, dict) and isinstance(value.get("arguments"), dict):
+            flattened = {key: item for key, item in value.items() if key != "arguments"}
+            for key, item in value["arguments"].items():
+                if key in TOOL_ARGUMENT_FIELDS:
+                    flattened.setdefault(key, item)
+            return flattened
+        return value
+
+    @property
+    def arguments(self) -> dict[str, Any]:
+        """The arguments that were filled in."""
+        return {
+            name: getattr(self, name)
+            for name in TOOL_ARGUMENT_FIELDS
+            if getattr(self, name) is not None
+        }
 
 
 class ToolPlan(BaseModel):
@@ -178,11 +256,96 @@ class ToolPlan(BaseModel):
     language: str = Field(description="en, ur or ur_roman")
 
 
+BRAND_TOOL_ARGUMENT_FIELDS = ("lot_code", "city", "category", "days", "min_days_live")
+
+
+class BrandToolCall(BaseModel):
+    """One planned lookup for the brand assistant.
+
+    There is no brand identifier among the fields, deliberately. Which brand's
+    data a lookup reads comes from the signed in session, so a plan cannot ask
+    for another brand's numbers however the message is worded.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    tool: str = Field(max_length=60)
+    lot_code: str | None = Field(default=None, max_length=24)
+    city: str | None = Field(default=None, max_length=80)
+    category: str | None = Field(default=None, max_length=120)
+    days: int | None = Field(default=None, description="Look back period in days")
+    min_days_live: int | None = Field(
+        default=None, description="Slow means live at least this long"
+    )
+
+    @property
+    def arguments(self) -> dict[str, Any]:
+        return {
+            name: getattr(self, name)
+            for name in BRAND_TOOL_ARGUMENT_FIELDS
+            if getattr(self, name) is not None
+        }
+
+
+class BrandToolPlan(BaseModel):
+    """Which lookups to run for one question from a brand."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    calls: list[BrandToolCall] = Field(default_factory=list, max_length=5)
+    needs_no_tools: bool = False
+    language: str = Field(description="en, ur or ur_roman")
+
+
+class ResellKitCopy(BaseModel):
+    """The words in a resell kit. Prices, sizes and photos are added by code.
+
+    The model never sees the brand's retail price or, for an unbranded lot,
+    the brand. What it was not given it cannot repeat, which is a stronger
+    guarantee than an instruction not to.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    caption_en: str = Field(description="Two or three sentences, English")
+    caption_ur_roman: str = Field(description="The same, Roman Urdu in Latin letters")
+    caption_ur: str = Field(description="The same, Urdu script")
+    social_post: str = Field(description="A Facebook or Instagram post, English and Roman Urdu")
+    whatsapp_status: str = Field(description="One short line for a WhatsApp status")
+    hashtags: list[str] = Field(default_factory=list, max_length=10)
+    selling_points: list[str] = Field(
+        default_factory=list, max_length=5, description="Each taken from the facts given"
+    )
+
+
+class BargainReply(BaseModel):
+    """One counter offer. The price is clamped by code before anyone sees it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    counter_price_per_piece_pkr: int = Field(description="Within the range you were given")
+    message: str = Field(description="The reply to the buyer, in their language")
+    language: str = Field(description="en, ur or ur_roman")
+
+
+class MarkdownDecision(BaseModel):
+    """How far to lower one lot this time. Clamped by code to the brand's step."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    reduce_by_percent: float = Field(description="Between 0 and the step you were given")
+    reason: str = Field(description="One sentence, from the facts given")
+
+
 SCHEMA_BY_FEATURE: dict[str, type[BaseModel]] = {
     "listing_from_photos": ListingDraft,
+    "logo_detection": LogoDetection,
     "manifest_extract": ManifestDraft,
     "pricing": PriceSuggestion,
     "risk_scoring": RiskScore,
     "assistant_buyer": AssistantAnswer,
     "assistant_brand": AssistantAnswer,
+    "resell_kit": ResellKitCopy,
+    "bargaining": BargainReply,
+    "markdown": MarkdownDecision,
 }

@@ -16,7 +16,27 @@ from fastapi.responses import JSONResponse
 
 from . import __version__
 from .ai.gateway.limits import feature_switches
-from .api.routers import ai, auth, health
+from .api.routers import (
+    admin,
+    ai,
+    analytics,
+    assistant,
+    auth,
+    brands,
+    catalog,
+    forecasts,
+    health,
+    logistics,
+    negotiations,
+    orders,
+    payments,
+    pools,
+    redirections,
+    resell_kits,
+    resellers,
+    review,
+    search,
+)
 from .config import get_settings
 from .core.errors import AppError, CrossTenant
 
@@ -56,7 +76,7 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=[settings.web_base_url],
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],
     )
 
@@ -77,6 +97,23 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(ai.router)
+    app.include_router(assistant.router)
+    app.include_router(brands.router)
+    # Before catalog, whose /catalog/{lot_id} would otherwise match these paths.
+    app.include_router(search.router)
+    app.include_router(catalog.router)
+    app.include_router(orders.router)
+    app.include_router(payments.router)
+    app.include_router(resell_kits.router)
+    app.include_router(pools.router)
+    app.include_router(negotiations.router)
+    app.include_router(forecasts.router)
+    app.include_router(redirections.router)
+    app.include_router(review.router)
+    app.include_router(analytics.router)
+    app.include_router(logistics.router)
+    app.include_router(resellers.router)
+    app.include_router(admin.router)
 
     @app.get(
         "/ai/status",
