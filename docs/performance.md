@@ -68,3 +68,91 @@ single development process can serve before queueing sets in, roughly 40
 requests a second. That process reloads on every file change and runs one
 worker. The production image runs several workers; its numbers are in the
 staging section below once it exists.
+
+## Week 52: slow connections, query plans and payload
+
+### How it was measured
+
+`e2e/perf/throttled.spec.ts` loads the main pages in a phone sized Chromium
+with Chrome DevTools' Regular 3G profile (750 kbit/s down, 250 kbit/s up,
+300 ms latency) and the CPU slowed four times, about a mid range Android
+phone. Every page is a first visit with an empty cache. It runs against the
+production build, never the dev server:
+
+```powershell
+docker build --target runtime -t khazana-web:runtime apps/web
+docker run --rm -p 3000:3000 khazana-web:runtime
+cd e2e; npx playwright test -c playwright.perf.config.ts perf/throttled.spec.ts
+```
+
+It is not in CI. Timings on a shared runner change run to run by more than
+the effects being measured, and a number that moves every run is worse than
+none. Repeat runs on this laptop vary by several hundred milliseconds too, so
+read the table for its shape.
+
+| Page | Heading on screen | LCP | Transferred | of which script | Requests |
+| --- | --- | --- | --- | --- | --- |
+| Login | 1.4 s | 1.2 s | 143 KB | 134 KB | 9 |
+| Catalogue | 3.2 s (was 4.1 s) | 4.5 s | 202 KB | 143 KB | 37 |
+| Lot | 4.1 s | 4.7 s | 223 KB | 149 KB | 33 |
+| Orders | 3.2 s | 3.8 s | 160 KB | 140 KB | 20 (was 28) |
+| Brand dashboard | 4.1 s | 4.1 s | 157 KB | 142 KB | 17 (was 20) |
+| Brand lots | 1.5 s | 4.2 s | 204 KB | 144 KB | 24 |
+
+Seed photographs are small placeholders, so the photo savings below were
+measured separately on realistic images.
+
+### What the request waterfall showed, and what changed
+
+1. **Every catalogue card downloaded the full 1024 pixel photo**, as soon as
+   it mounted, including cards far below the fold. Cards now ask for a 400
+   pixel copy, `?size=thumb`, made on first request and kept beside the
+   original. On a textured 1600 pixel photograph the stored copy is 165 KB
+   and the thumbnail 11 KB, 94% smaller; a page of 24 cards goes from about
+   4 MB of photos to about 260 KB. Photos also wait until they are within
+   300 pixels of the screen before downloading.
+2. **Next.js prefetched every visible link**: each lot card, and every page
+   in the menu. On a metered connection that spends the buyer's data on pages
+   they may never open, and competes with the page they are reading. Lot cards
+   and menu links no longer prefetch.
+3. **Every API call costs two round trips.** The web app and the API are on
+   different origins, and the `Authorization` header makes the browser send a
+   CORS preflight before each new URL, every photo included. At 300 ms
+   latency that is most of a second per call before any data moves. The
+   preflight answer is now cached for two hours instead of ten minutes, which
+   helps repeat calls. Production removes preflights entirely by serving the
+   API under the web app's own origin at `/api`; the web app already accepts
+   a path as its API base for that. Measured on the staging stack in week 56.
+4. **The JavaScript is about 140 to 160 KB compressed per page**, and takes
+   about two seconds to arrive on Regular 3G before the page can hydrate.
+   That is the floor for every page and the next thing to reduce: the shared
+   React and Next.js chunks are most of it.
+
+### Query plans and N plus 1 queries
+
+Every query behind the main pages was captured and run through `EXPLAIN
+ANALYZE` on the 510 lot database. No single statement took over 5 ms and none
+did a sequential scan over more than 200 rows; the indexes from migration
+0016 cover what the pages filter by.
+
+Counting statements per request found two more lists that grew with their
+length, both now fixed and guarded in `tests/test_query_counts.py`:
+
+| Request | Before | After |
+| --- | --- | --- |
+| A brand's order list, 50 orders | 204 queries, 210 ms | 8 queries, 110 ms |
+| The admin listing queue, 50 lots | 207 queries, 172 ms | 8 queries, 52 ms |
+
+Each order loaded its lot, the lot's brand, the buyer and the buyer's profile
+one at a time; each listing loaded its manifest, defects, photos and category
+again for the risk score, though the query had already loaded three of them.
+
+### Images and bundle
+
+- Uploaded photographs are resized to 1024 pixels and stored as JPEG at
+  quality 80; thumbnails are 400 pixels at quality 72, progressive.
+- The production web image now uses Next.js standalone output: 458 MB
+  against 2.27 GB for the development image, with no development packages
+  in it.
+- Static assets are served with Next.js's immutable cache headers; photos
+  are `private, max-age=300`, because every one sits behind sign in.

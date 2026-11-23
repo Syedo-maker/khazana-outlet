@@ -66,3 +66,4 @@ e2e/test-results/
 
 # Database dumps from scripts/backup.sh. They hold every row, so never commit one.
 backups/
+e2e/perf-results.json

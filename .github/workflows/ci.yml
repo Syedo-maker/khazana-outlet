@@ -191,7 +191,9 @@ jobs:
 
   e2e:
     name: Browser end to end
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moved to 26.04, which Playwright 1.58 does not
+    # install browsers for. Move this with the Playwright version.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -224,7 +226,10 @@ jobs:
         run: |
           npm ci --no-audit --no-fund
           npm run build
-          nohup npm start -- -p 3000 > ../../web.log 2>&1 &
+          # The standalone server, assembled the way the runtime image does it.
+          cp -r .next/static .next/standalone/.next/static
+          cp -r public .next/standalone/public
+          PORT=3000 HOSTNAME=0.0.0.0 nohup node .next/standalone/server.js > ../../web.log 2>&1 &
 
       - name: Wait for the API and the web app
         run: |
