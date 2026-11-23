@@ -81,7 +81,7 @@ The whole development environment runs in containers. One entry point:
 .\scripts\dev.ps1 up           # the stack: API on 8000, web on 3000
 ```
 
-`Get-Help .\scripts\dev.ps1 -Full` lists all sixteen commands, and
+`Get-Help .\scripts\dev.ps1 -Full` lists all eighteen commands, and
 `DEPLOYMENT.md` documents the environment, the troubleshooting notes and what
 is still missing before a real deployment. Run `check` before every push.
 

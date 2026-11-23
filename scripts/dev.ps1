@@ -28,6 +28,10 @@
     logs     Follow the logs.
     shell    A shell inside the API container.
     status   What is running.
+    e2e      Browser end to end tests against the running stack, in a phone
+             sized Chromium. Runs on the host's Node, see e2e/README.md.
+    loadtest Load test the catalogue and search with k6, against the running
+             stack. Settings are NAME=value pairs: VUS=100 THINK=0 HOLD=2m
 
 .EXAMPLE
     .\scripts\dev.ps1 build
@@ -39,7 +43,7 @@
 param(
     [Parameter(Position = 0)]
     [ValidateSet('build', 'up', 'down', 'reset', 'test', 'pgtest', 'lint', 'fix',
-        'types', 'check', 'evals', 'migrate', 'seed', 'logs', 'shell', 'status')]
+        'types', 'check', 'evals', 'migrate', 'seed', 'logs', 'shell', 'status', 'e2e', 'loadtest')]
     [string]$Command = 'status',
 
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -178,13 +182,40 @@ switch ($Command) {
 
     'logs' { docker compose logs -f @Rest }
 
+    'e2e' {
+        # On the host, not in a container: the browser has to reach the web app
+        # and the API at the same localhost addresses a person's browser uses.
+        Push-Location (Join-Path $repoRoot 'e2e')
+        try {
+            if (-not (Test-Path node_modules)) { npm ci --no-audit --no-fund }
+            npx playwright install chromium
+            npx playwright test @Rest
+            $code = $LASTEXITCODE
+        } finally { Pop-Location }
+        exit $code
+    }
+
+    'loadtest' {
+        # k6 from its own image, on the compose network, so it reaches the API
+        # at api:8000 the same way the web container does. Nothing to install.
+        # Settings arrive as NAME=value, because PowerShell would read a bare
+        # -e as its own -ErrorAction parameter. Each becomes a k6 -e flag.
+        $k6Env = @()
+        foreach ($pair in $Rest) { if ($pair -match '^[A-Z_]+=') { $k6Env += @('-e', $pair) } }
+        docker run --rm -i --network khazana_default `
+            -v "${repoRoot}/loadtest:/scripts" `
+            -e BASE_URL=http://api:8000 `
+            grafana/k6:1.4.2 run --quiet @k6Env /scripts/catalog-search.js
+        exit $LASTEXITCODE
+    }
+
     'shell' { docker compose run --rm api bash }
 
     'status' {
         docker compose ps
         Write-Host ''
         Write-Host 'Commands: build, up, down, reset, test, pgtest, lint, fix, types,' -ForegroundColor DarkGray
-        Write-Host '          check, evals, migrate, seed, logs, shell, status' -ForegroundColor DarkGray
+        Write-Host '          check, evals, migrate, seed, logs, shell, status, e2e, loadtest' -ForegroundColor DarkGray
         Write-Host 'Details:  Get-Help .\scripts\dev.ps1 -Full' -ForegroundColor DarkGray
     }
 }

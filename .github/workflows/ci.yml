@@ -169,6 +169,62 @@ jobs:
           SECRET_KEY: test-secret-not-a-real-key
         run: python -m khazana.ai.evals.run --offline
 
+  e2e:
+    name: Browser end to end
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start the stack the way a developer does
+        # The same compose file as local development, so a test that passes
+        # here passes on a laptop. AI stays offline: no key, no spend.
+        run: |
+          docker compose build api web
+          docker compose up -d db redis
+          docker compose run --rm api alembic upgrade head
+          docker compose run --rm api python -m khazana.seed --reset
+          docker compose up -d api web
+
+      - name: Wait for the API and the web app
+        run: |
+          for i in $(seq 1 90); do
+            if curl -fsS http://localhost:8000/health > /dev/null               && curl -fsS http://localhost:3000/login > /dev/null; then
+              echo "ready after $((i * 2)) seconds"; exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs api web | tail -80
+          exit 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install Playwright and Chromium
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run the money path in a phone sized browser
+        working-directory: e2e
+        env:
+          CI: "1"
+        run: npx playwright test
+
+      - name: Upload the report when a test failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 7
+
   scan:
     name: Dependency vulnerability scan
     runs-on: ubuntu-latest
