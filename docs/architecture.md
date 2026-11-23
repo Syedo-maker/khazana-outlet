@@ -1,6 +1,6 @@
 # Architecture
 
-What exists after Phase 1, how the pieces fit, and the decisions that would be
+What exists after Phase 4, how the pieces fit, and the decisions that would be
 expensive to reverse later.
 
 ## System shape
@@ -27,9 +27,11 @@ flowchart TB
     subgraph external["External"]
         claude["Claude API"]
         embed["Self hosted<br/>embedding model"]
-        sms["SMS and WhatsApp<br/>Phase 6"]
-        pay["JazzCash, Easypaisa<br/>Phase 3"]
-        courier["Courier APIs<br/>Phase 3"]
+        sms["SMS gateway<br/>Phase 6"]
+        wa["WhatsApp Business<br/>sandbox today"]
+        speech["Speech to text<br/>sandbox today"]
+        pay["JazzCash, Easypaisa<br/>sandbox today"]
+        courier["Courier APIs<br/>sandbox today"]
     end
 
     web -->|"bearer token"| routers
@@ -43,13 +45,16 @@ flowchart TB
     gateway --> embed
     gateway --> pg
     services -.->|"Phase 6"| sms
-    services -.->|"Phase 3"| pay
-    services -.->|"Phase 3"| courier
+    services -.->|"sandbox"| wa
+    services -.->|"sandbox"| speech
+    services -.->|"sandbox"| pay
+    services -.->|"sandbox"| courier
 ```
 
 Dotted lines are integrations that exist as interfaces with sandbox
-implementations, so no Phase 3 week is blocked waiting for a merchant account
-or a courier contract, both of which need a registered company.
+implementations, because the real ones need merchant accounts, a courier
+contract, a verified WhatsApp business and a speech service, all of which
+need a registered company. Production refuses every sandbox provider.
 
 ## Request lifecycle
 
@@ -143,42 +148,43 @@ No model touches any of it.
 A pull request that puts a query in a router or a commission constant in a
 service is wrong even if the tests pass.
 
-## Security posture after Phase 1
+## Security posture after Phase 4
 
 | Concern | Position today | Next step |
 | --- | --- | --- |
 | Authentication | Phone OTP, codes hashed and single use, attempts capped, requests rate limited | Add a second factor for admins |
-| Sessions | HMAC signed access token, refresh token stored hashed and rotated on use | Move the refresh token to an httpOnly cookie in Phase 3 |
+| Sessions | HMAC signed access token, refresh token stored hashed and rotated on use | Move the refresh token to an httpOnly cookie in the Phase 5 security pass |
 | Token storage in the browser | sessionStorage, which page scripts can read. Documented in `lib/session.ts` as a known limitation | Same cookie change |
-| Tenant isolation | Application scoping plus tests, row level policies as backstop | Connect as a non owner role in production |
+| Tenant isolation | Application scoping, a test that asks every brand scoped route as the wrong brand, row level policies as backstop | Buyer policies, then connect as a non owner role in production |
+| Route authentication | Every route needs a session except a short public list, checked by a test that walks every route | Keep the list short |
 | Secrets | Environment only, `.env` git ignored, a detect private key pre commit hook | GitHub Secrets in CI, a vault later |
 | Production misconfiguration | Startup refuses to boot with the sample secret, OTP echo on, AI offline, or SQLite | Keep extending the check |
 | Prompt injection | Untrusted text is passed as data, tools are read mostly, no tool moves money or changes a role | Adversarial cases in every eval suite |
-| AI cost | Caps checked before the call, per feature kill switches, every call priced and logged | Cost dashboard in Phase 4 |
-| Audit | Append only approvals and audit log, enforced by trigger | Log viewer in the admin panel, Phase 3 |
+| AI cost | Caps checked before the call, per feature kill switches, every call priced at the rate billed, a cost page per feature, listing and order | The response cache in Phase 5 |
+| AI and money | AI chooses a price only inside a brand set band that code clamps, under ADR 0001, every move audited | Keep every new agent inside the four conditions |
+| Audit | Append only approvals and audit log, enforced by trigger, with a viewer in the admin panel | Retention policy |
 
-## Deliberate limitations after Phase 1
+## Deliberate limitations after Phase 4
 
 Stated so they are decisions rather than surprises.
 
-- **No marketplace yet.** No catalogue, search, cart, orders, payments or
-  logistics endpoints. The schema and the gateway they will use are built and
-  tested; the endpoints are Phase 3.
-- **No AI features yet.** The gateway, routing, prompts, schemas, cost
-  accounting and eval harness are built, with two real prompts. The features
-  themselves are Phase 2.
+- **Sandbox providers.** Payments, couriers, WhatsApp and speech to text run on
+  sandbox implementations behind their real interfaces. Production refuses
+  them, so a deployment needs the real adapters first.
 - **Offline AI by default.** `AI_OFFLINE=true` means the eval suites and the
   tests read recorded fixtures. This pins the pipeline, not the model.
   Measuring the model is `python -m khazana.ai.evals.run --live`, which spends
   real money and is a deliberate act.
-- **Visual search needs PostgreSQL.** The portable vector column degrades to
-  JSON on SQLite, which stores and retrieves but cannot search.
-- **No background worker process.** Redis is configured and the job table
-  exists, but the queue consumer arrives with the first batch feature in
-  Phase 2.
-- **One language in the interface.** The locale machinery, the three
-  dictionaries and the direction handling are built; only English is wired to
-  the shell.
+- **Visual search needs PostgreSQL and a real embedding service.** The
+  portable vector column degrades to JSON on SQLite, and the default embedding
+  provider is a local stand in that only finds identical photographs.
+- **No scheduler.** The dispute window, markdown, forecast and risk jobs each
+  have an admin endpoint that runs them once; nothing calls them on a timer
+  yet.
+- **Server written sentences are English.** Forecast reasons, profit
+  assumptions and similar text built by the API reach Urdu pages in English,
+  shown with the right text direction. Interface copy is in all three
+  languages.
 
 ## Running tests
 
