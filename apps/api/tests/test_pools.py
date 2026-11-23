@@ -217,3 +217,31 @@ def test_a_wildcard_city_does_not_list_other_cities_pools(db: Session, lot) -> N
     _open(db, lot, _member(db, "03001000001"), S=20)
     stranger = _member(db, "03001000009", city="%")
     assert pool_service.open_pools_for(db, stranger) == []
+
+
+def test_a_members_phone_is_normalised_and_a_bad_address_refused(db: Session, lot) -> None:  # type: ignore[no-untyped-def]
+    from khazana.core.errors import ValidationFailed
+
+    organiser = _member(db, "03001000001")
+    pool = pool_service.open_pool(
+        db,
+        organiser=organiser,
+        lot_id=lot.id,
+        lines=_lines(S=10),
+        address="Shop 3,   Hussain   Agahi",
+        phone="+92 300 1234567",
+        method=PaymentMethod.JAZZCASH,
+    )
+    member = pool.members[0]
+    assert member.delivery_phone == "03001234567"
+    assert member.delivery_address == "Shop 3, Hussain Agahi"
+    with pytest.raises(ValidationFailed):
+        pool_service.join(
+            db,
+            user=_member(db, "03001000002"),
+            pool_id=pool.id,
+            lines=_lines(M=10),
+            address="    ",
+            phone="03007654321",
+            method=PaymentMethod.JAZZCASH,
+        )

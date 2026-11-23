@@ -22,7 +22,7 @@ from khazana.ai.features import assistant
 from khazana.ai.schemas import AssistantAnswer
 from khazana.config import get_settings
 from khazana.core.errors import RateLimited, SpendLimitReached
-from khazana.models import AssistantMessage, WhatsAppMessage
+from khazana.models import AssistantMessage, User, WhatsAppMessage
 from khazana.models.enums import ChatChannel, ChatRole, MessageDirection
 from khazana.services import chat_service, whatsapp_providers, whatsapp_service
 from khazana.services.whatsapp_providers import VoiceNote
@@ -391,3 +391,25 @@ class TestVoiceNotes:
         assert response.json()["status"] == "voice_unclear"
         log = client.get("/admin/whatsapp/messages", headers=auth(admin_user)).json()
         assert {row["direction"] for row in log} == {"inbound", "outbound"}
+
+
+def test_a_capped_buyers_voice_note_is_not_transcribed(
+    db: Session, stub: StubAssistant, small_cap: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    make_reseller(db)
+    for text in ("one", "two"):
+        chat_service.send(db, user_id=db.query(User).first().id, text=text)  # type: ignore[union-attr]
+    calls: list[object] = []
+
+    class Spy:
+        def transcribe(self, voice: object) -> object:
+            calls.append(voice)
+            raise AssertionError("transcribed a voice note past the daily limit")
+
+    monkeypatch.setattr(whatsapp_providers, "transcriber", lambda: Spy())
+    body, signature = whatsapp_providers.sandbox().build_inbound(
+        phone="03007777777", voice=VoiceNote(media_id="m", duration_seconds=3)
+    )
+    result = whatsapp_service.ingest(db, "sandbox", body, signature)
+    assert result.status == "rate_limited"
+    assert calls == []

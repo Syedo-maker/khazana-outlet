@@ -128,6 +128,14 @@ def move(db: Session, *, redirection_id: str, to: RedirectStatus, actor: User) -
     }
     if to not in allowed.get(current, set()):
         raise Conflict(f"A redirection that is {current.value} cannot become {to.value}.")
+    if to == RedirectStatus.ACCEPTED:
+        lot = db.get(Lot, redirection.lot_id)
+        # The lot stayed on sale while the offer was open, so check it again.
+        if lot is None or LotStatus(lot.status) in NOT_REDIRECTABLE:
+            raise Conflict("The lot was sold or withdrawn since it was offered.")
+        if lot.reserved_pieces:
+            raise Conflict("The lot has orders in progress since it was offered.")
+        redirection.pieces = lot.available_pieces
     redirection.status = to
     if to == RedirectStatus.ACCEPTED:
         lot = db.get(Lot, redirection.lot_id)

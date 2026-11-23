@@ -7,8 +7,10 @@ The four conditions of that decision, and where each is enforced here:
    this module holds a price limit of its own.
 2. **Every proposal is clamped before it is shown.** ``round_range`` computes
    what this round may offer, the model chooses inside it, and ``clamp``
-   forces the answer into it regardless. The model is never told the floor,
-   so it cannot repeat it.
+   forces the answer into it regardless. The model is told only this
+   round's range. In the last rounds the lower end of that range can be the
+   floor itself, so the eval checks the bot never describes any number as a
+   floor, a limit or a minimum.
 3. **Every move is audited.** Each counter offer and each agreement is written
    to the append only audit trail with the price before and after.
 4. **Off by default, per lot.** ``bargaining_allowed`` needs the brand switch
@@ -34,7 +36,7 @@ from ..config import get_settings
 from ..core.errors import Conflict, NotFound, RateLimited, ValidationFailed
 from ..models import BrandPolicy, Lot, Negotiation, NegotiationMessage, Order, User, utcnow
 from ..models.enums import AiFeature, ChatRole, ConditionGrade, NegotiationStatus, PaymentMethod
-from . import audit_service, order_service
+from . import audit_service, chat_service, order_service
 from .order_service import Delivery, Purchase
 
 MAX_ROUNDS = 5
@@ -182,6 +184,10 @@ def start(db: Session, *, buyer: User, lot_id: str, message: str, offer: int | N
         )
     )
     if existing is not None:
+        # A lapsed hold is only marked expired when it is read, so read it now.
+        _expire_if_due(existing)
+        db.flush()
+    if existing is not None and existing.status != NegotiationStatus.EXPIRED:
         raise Conflict("You already have a negotiation open on this lot.")
 
     negotiation = Negotiation(
@@ -218,7 +224,8 @@ def respond(
     # Each round is a model call paid from the brand's AI budget, so a buyer's
     # rounds count against the same daily limit as their assistant messages.
     limit = get_settings().assistant_daily_message_limit
-    if rounds_today(db, buyer.id) >= limit:
+    used = rounds_today(db, buyer.id) + chat_service.messages_sent_today(db, buyer.id)
+    if used >= limit:
         raise RateLimited(
             f"You have made {limit} offers and messages today. "
             "The limit resets at midnight Pakistan time."
@@ -227,9 +234,19 @@ def respond(
     lot = db.get(Lot, negotiation.lot_id)
     policy = _policy(db, lot) if lot else None
     if lot is None or not bargaining_allowed(lot, policy):
+        # Returned rather than raised: an error would roll the status back with
+        # the request, leaving the negotiation open in the database.
         negotiation.status = NegotiationStatus.WITHDRAWN
+        _say(
+            db,
+            negotiation,
+            ChatRole.ASSISTANT,
+            "The brand has closed this lot to bargaining. You can still buy it at "
+            "the listed price.\nBrand ne is lot par bhao taao band kar diya hai. "
+            "Aap ise likhi qeemat par khareed saktay hain.",
+        )
         db.flush()
-        raise Conflict("The brand has closed this lot to bargaining.")
+        return negotiation
 
     history = [
         f"{'Buyer' if m.role == ChatRole.BUYER else 'You'}: {m.body}"

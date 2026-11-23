@@ -245,3 +245,14 @@ class TestEndpoints:
             headers=auth(owner),
         )
         assert continued.status_code == 404
+
+
+def test_no_policy_row_means_no_band_is_quoted(db: Session, market) -> None:  # type: ignore[no-untyped-def]
+    from khazana.models import BrandPolicy
+
+    db.query(BrandPolicy).filter_by(brand_id=market["one"].id).delete()
+    db.commit()
+    room = brand_tools.discount_room(
+        db, brand_id=market["one"].id, lot_code=market["slow"].lot_code
+    )
+    assert room["found"] is False

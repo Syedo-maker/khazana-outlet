@@ -33,6 +33,7 @@ from ..core.errors import Conflict, Forbidden, NotFound, ValidationFailed
 from ..models import BrandPolicy, Lot, Order, Pool, PoolMember, User, utcnow
 from ..models.enums import PaymentMethod, PoolStatus
 from . import order_service
+from .auth_service import normalise_phone
 from .order_service import Delivery, LineChoice, Purchase
 
 Key = tuple[str, str]
@@ -193,6 +194,17 @@ def coverage(db: Session, pool: Pool, lot: Lot) -> Coverage:
     )
 
 
+def _delivery(city: str, address: str, phone: str) -> Delivery:
+    """A member's delivery, cleaned by checkout's own rules before it is stored.
+
+    The phone is normalised first, so "+92 300 1234567" becomes 03001234567 and
+    fits the column, instead of failing at the database on PostgreSQL.
+    """
+    return order_service.clean_delivery(
+        Delivery(city=city, address=address, phone=normalise_phone(phone))
+    )
+
+
 def get_pool(db: Session, pool_id: str) -> Pool:
     pool = db.get(Pool, pool_id)
     if pool is None:
@@ -222,6 +234,7 @@ def open_pool(
     _policy(db, lot)
     chosen = _lines(lines)
     _validate_request(db, lot, chosen)
+    delivery = _delivery(city, address, phone)
 
     pool = Pool(
         lot_id=lot.id,
@@ -237,8 +250,8 @@ def open_pool(
             pool_id=pool.id,
             user_id=organiser.id,
             requested=_as_json(chosen),
-            delivery_address=address.strip(),
-            delivery_phone=phone.strip(),
+            delivery_address=delivery.address,
+            delivery_phone=delivery.phone,
             payment_method=method,
         )
     )
@@ -269,13 +282,14 @@ def join(
     lot = order_service.buyable_lot(db, lot_id=pool.lot_id, city=pool.city)
     chosen = _lines(lines)
     _validate_request(db, lot, chosen)
+    delivery = _delivery(pool.city, address, phone)
     db.add(
         PoolMember(
             pool_id=pool.id,
             user_id=user.id,
             requested=_as_json(chosen),
-            delivery_address=address.strip(),
-            delivery_phone=phone.strip(),
+            delivery_address=delivery.address,
+            delivery_phone=delivery.phone,
             payment_method=method,
         )
     )
@@ -308,6 +322,18 @@ def place(db: Session, *, actor: User, pool_id: str, ip: str | None = None) -> l
     if pool.organiser_user_id != actor.id:
         raise Forbidden("Only the pool's organiser can place it.")
     lot = order_service.buyable_lot(db, lot_id=pool.lot_id, city=pool.city, lock=True)
+    # Re-read the pool under a row lock now that the lot is locked. A second
+    # placement that waited on the lot lock then sees ORDERED, not a stale OPEN.
+    locked = db.scalar(
+        select(Pool)
+        .where(Pool.id == pool_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if locked is None:
+        raise NotFound("That pool does not exist.")
+    pool = locked
+    _open(pool)
     policy = _policy(db, lot)
     result = coverage(db, pool, lot)
     if not result.meets_minimum:
@@ -337,9 +363,7 @@ def place(db: Session, *, actor: User, pool_id: str, ip: str | None = None) -> l
             buyer=buyer,
             lot=lot,
             pricing=pricing,
-            delivery=Delivery(
-                city=pool.city, address=member.delivery_address, phone=member.delivery_phone
-            ),
+            delivery=_delivery(pool.city, member.delivery_address, member.delivery_phone),
             method=method,
             ip=ip,
         )

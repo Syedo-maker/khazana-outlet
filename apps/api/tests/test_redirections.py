@@ -165,3 +165,17 @@ class TestEndpoints:
             headers=auth(admin_user),
         )
         assert skipped.status_code == 409
+
+
+def test_acceptance_rechecks_the_lot(db: Session, lot: Lot, two_brands, admin_user) -> None:  # type: ignore[no-untyped-def]
+    (_, owner), _ = two_brands
+    offered = redirect_service.propose(
+        db, lot=lot, partner_id=_partner(db).id, route="donation", price_pkr=0, actor=owner
+    )
+    lot.reserved_pieces = 10
+    db.commit()
+    with pytest.raises(Conflict, match="orders in progress"):
+        redirect_service.move(
+            db, redirection_id=offered.id, to=RedirectStatus.ACCEPTED, actor=admin_user
+        )
+    assert lot.status == LotStatus.LIVE

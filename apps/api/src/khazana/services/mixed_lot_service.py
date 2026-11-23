@@ -147,6 +147,9 @@ def build(
             Lot.total_pieces > Lot.reserved_pieces,
         )
         .options(selectinload(Lot.manifest_lines))
+        # Longest on sale first, so the limit keeps the slow stock this feature
+        # exists to clear rather than an arbitrary subset.
+        .order_by(Lot.approved_at.asc(), Lot.id)
         .limit(CANDIDATES)
     )
     if category_ids:

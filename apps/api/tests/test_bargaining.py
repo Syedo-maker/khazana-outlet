@@ -256,13 +256,31 @@ class TestAgreement:
         model: StubModel,  # type: ignore[no-untyped-def]
     ) -> None:
         negotiation = _start(db, buyer, lot, offer=None)
+        calls = len(model.calls)
         lot.bargaining_enabled = False
         db.commit()
-        with pytest.raises(Conflict, match="closed"):
-            bargaining_service.respond(
-                db, buyer=buyer, negotiation=negotiation, message="ok?", offer=None
-            )
-        assert negotiation.status == NegotiationStatus.WITHDRAWN
+        bargaining_service.respond(
+            db, buyer=buyer, negotiation=negotiation, message="ok?", offer=None
+        )
+        db.commit()
+        db.expire_all()
+        assert db.get(Negotiation, negotiation.id).status == NegotiationStatus.WITHDRAWN
+        assert "closed this lot" in negotiation.messages[-1].body
+        assert len(model.calls) == calls, "a closed negotiation makes no model call"
+
+    def test_an_expired_hold_does_not_block_a_new_negotiation(
+        self,
+        db: Session,
+        lot: Lot,
+        buyer,
+        model: StubModel,  # type: ignore[no-untyped-def]
+    ) -> None:
+        first = _start(db, buyer, lot, offer=280)
+        first.agreed_until = datetime.now(UTC) - timedelta(minutes=1)
+        db.commit()
+        second = _start(db, buyer, lot, offer=None)
+        assert second.id != first.id
+        assert first.status == NegotiationStatus.EXPIRED
 
 
 class TestDailyLimit:
@@ -288,6 +306,39 @@ class TestDailyLimit:
                 db, buyer=buyer, negotiation=negotiation, message="less", offer=None
             )
         assert len(model.calls) == calls, "a refused round costs nothing"
+
+    def test_assistant_messages_and_rounds_share_one_limit(
+        self,
+        db: Session,
+        lot: Lot,
+        buyer,
+        model: StubModel,
+        monkeypatch: pytest.MonkeyPatch,  # type: ignore[no-untyped-def]
+    ) -> None:
+        from khazana.config import get_settings
+        from khazana.core.errors import RateLimited
+        from khazana.models import AssistantConversation, AssistantMessage
+        from khazana.models.enums import ChatRole
+
+        monkeypatch.setattr(get_settings(), "assistant_daily_message_limit", 2)
+        negotiation = _start(db, buyer, lot, offer=None)
+        thread = AssistantConversation(user_id=buyer.id, title="hi")
+        db.add(thread)
+        db.flush()
+        db.add(
+            AssistantMessage(
+                conversation_id=thread.id,
+                user_id=buyer.id,
+                role=ChatRole.BUYER,
+                body="hi",
+                tools_used={},
+            )
+        )
+        db.commit()
+        with pytest.raises(RateLimited):
+            bargaining_service.respond(
+                db, buyer=buyer, negotiation=negotiation, message="less", offer=None
+            )
 
 
 class TestEndpoints:

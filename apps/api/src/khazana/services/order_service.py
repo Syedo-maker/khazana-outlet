@@ -750,6 +750,11 @@ def _policy(db: Session, brand_id: str) -> BrandPolicy:
     return policy
 
 
+def clean_delivery(delivery: Delivery) -> Delivery:
+    """Checkout's rules for a delivery: city, a real address, an 03 mobile number."""
+    return _clean_delivery(delivery)
+
+
 def _clean_delivery(delivery: Delivery) -> Delivery:
     city = " ".join(delivery.city.split())
     address = " ".join(delivery.address.split())

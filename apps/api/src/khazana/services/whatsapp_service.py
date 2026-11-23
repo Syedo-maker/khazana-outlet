@@ -174,6 +174,17 @@ def _answer(db: Session, provider: WhatsAppProvider, inbound: InboundMessage) ->
 
     text = inbound.text
     if inbound.voice is not None:
+        # Transcription is paid for too, so a buyer at the daily limit is told
+        # so before the voice note is sent to the speech service.
+        if chat_service.remaining_today(db, user.id) == 0:
+            limit = settings.assistant_daily_message_limit
+            message = (
+                f"You have sent {limit} messages to the assistant today. "
+                "The limit resets at midnight Pakistan time."
+            )
+            record.status = "rate_limited"
+            _send(db, provider, phone=phone, text=message, user_id=user.id)
+            return InboundResult(status=record.status, reply=message)
         transcript = whatsapp_providers.transcriber().transcribe(inbound.voice)
         record.transcript_confidence = transcript.confidence
         record.transcript_language = transcript.language

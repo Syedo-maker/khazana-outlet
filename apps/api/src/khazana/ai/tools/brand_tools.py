@@ -219,8 +219,12 @@ def discount_room(db: Session, *, brand_id: str, lot_code: str) -> dict[str, Any
     if lot is None:
         return NOT_FOUND
     policy = db.scalar(select(BrandPolicy).where(BrandPolicy.brand_id == brand_id))
-    band_min = float(policy.min_discount_percent) if policy else 50.0
-    band_max = float(policy.max_discount_percent) if policy else 85.0
+    if policy is None:
+        # The band is the brand's own setting. Without it there is no band to
+        # quote, and inventing one would put words in the brand's mouth.
+        return {"found": False, "note": "This brand has no discount band set yet."}
+    band_min = float(policy.min_discount_percent)
+    band_max = float(policy.max_discount_percent)
     at_max = round(lot.retail_price_per_piece_pkr * (1 - band_max / 100))
     return {
         "found": True,

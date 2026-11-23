@@ -126,3 +126,15 @@ class TestEndpoints:
         assert len(cart["items"]) == 2
         assert all(item["problem"] is None for item in cart["items"])
         assert cart["total_pkr"] == added.json()["total_pkr"]
+
+
+def test_the_candidate_limit_keeps_the_oldest_stock(
+    db: Session,
+    stock,
+    monkeypatch: pytest.MonkeyPatch,  # type: ignore[no-untyped-def]
+) -> None:
+    monkeypatch.setattr(mixed_lot_service, "CANDIDATES", 1)
+    proposal = mixed_lot_service.build(
+        db, user=make_reseller(db), budget_pkr=200_000, target_pieces=60, city="Multan"
+    )
+    assert [c.lot.id for c in proposal.components] == [stock["old"].id]
