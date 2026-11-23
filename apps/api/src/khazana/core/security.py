@@ -130,6 +130,10 @@ def create_access_token(
         "role": role,
         "brands": brand_ids or [],
         "iat": int(now.timestamp()),
+        # Milliseconds as well, because signing out compares against it: a
+        # token issued in the same second as a sign out must still be told
+        # apart from one issued just after it.
+        "iat_ms": int(now.timestamp() * 1000),
         "exp": int((now + ttl).timestamp()),
     }
     body = _b64(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode())

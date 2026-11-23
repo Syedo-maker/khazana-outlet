@@ -10,12 +10,14 @@ from fastapi import Depends, Header, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ..config import get_settings
 from ..core.errors import Forbidden, Unauthenticated
 from ..core.security import TokenError, decode_access_token
 from ..core.tenancy import set_session_tenant
 from ..db import get_db
 from ..models import BrandMember, User
 from ..models.enums import UserRole
+from ..services.auth_service import token_still_valid
 
 
 @dataclass(slots=True)
@@ -55,6 +57,8 @@ def get_principal(
     user = db.get(User, str(payload.get("sub")))
     if user is None or not user.is_active or user.is_deleted:
         raise Forbidden("This account is not active.").as_http()
+    if not token_still_valid(user, payload):
+        raise Unauthenticated("You were signed out. Sign in again.").as_http()
 
     brand_ids = list(
         db.scalars(select(BrandMember.brand_id).where(BrandMember.user_id == user.id)).all()
@@ -99,13 +103,22 @@ AdminOnly = Annotated[Principal, Depends(require_role(UserRole.ADMIN))]
 
 
 def client_ip(request: Request) -> str | None:
-    """Best effort client address.
+    """The caller's address, as far as it can be trusted.
 
-    Behind a proxy, ``X-Forwarded-For`` is the real address, but it is client
-    supplied and must never be trusted for anything but logging and rate
-    limiting hints.
+    ``X-Forwarded-For`` is written by whoever sends the request, so its first
+    entry is whatever a client chose to put there. Each trusted proxy appends
+    the address it received the request from, so with ``trusted_proxy_count``
+    proxies in front, the real client is that many entries from the right.
+    With none configured the header is ignored entirely: otherwise one script
+    could claim a new address on every request and walk straight past the
+    per address limits.
     """
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()[:45]
-    return request.client.host if request.client else None
+    proxies = get_settings().trusted_proxy_count
+    direct = request.client.host if request.client else None
+    if proxies == 0:
+        return direct
+    hops = [part.strip() for part in request.headers.get("x-forwarded-for", "").split(",")]
+    hops = [hop for hop in hops if hop]
+    if len(hops) < proxies:
+        return direct
+    return hops[-proxies][:45]

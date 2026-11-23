@@ -49,6 +49,14 @@ class User(UUIDPrimaryKey, TimestampMixin, SoftDeleteMixin, Base):
     )
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     preferred_language: Mapped[str] = mapped_column(String(8), nullable=False, default="en")
+    # Access tokens issued before this moment are refused. Signing out
+    # everywhere, a stolen refresh token being reused, or a suspension sets it,
+    # so an access token stops working at once rather than when it expires.
+    # Checked on every request against the user row already loaded, so it
+    # costs no extra query.
+    tokens_valid_after: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
 
     brand_memberships: Mapped[list[BrandMember]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
@@ -99,6 +107,8 @@ class OtpChallenge(UUIDPrimaryKey, TimestampMixin, Base):
 
     __table_args__ = (
         Index("ix_otp_phone_created", "phone", "created_at"),
+        # The per address limit on code requests counts by this.
+        Index("ix_otp_ip_created", "request_ip", "created_at"),
         CheckConstraint("attempts >= 0", name="attempts_non_negative"),
     )
 

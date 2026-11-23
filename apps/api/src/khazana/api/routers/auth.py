@@ -28,10 +28,10 @@ router = APIRouter(prefix="/auth", tags=["auth"])
     summary="Send a one time code to a mobile number",
     response_model=OtpRequestOut,
 )
-def request_otp(payload: OtpRequestIn, db: Db) -> OtpRequestOut:
+def request_otp(payload: OtpRequestIn, request: Request, db: Db) -> OtpRequestOut:
     settings = get_settings()
     try:
-        code = auth_service.request_otp(db, payload.phone, OtpPurpose.LOGIN)
+        code = auth_service.request_otp(db, payload.phone, OtpPurpose.LOGIN, ip=client_ip(request))
     except AppError as exc:
         raise exc.as_http() from exc
 
