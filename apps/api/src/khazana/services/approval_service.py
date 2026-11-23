@@ -37,12 +37,14 @@ deliberately only one.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import ColumnElement, Select, and_, func, or_, select
 from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm.attributes import set_committed_value
 
 from ..ai.features import risk_scoring
 from ..core.errors import Conflict, NotFound, ValidationFailed
@@ -708,6 +710,26 @@ def _record_decision(
         ip=ip,
     )
     return entry
+
+
+def preload_brands(db: Session, lots: Iterable[Lot]) -> None:
+    """Load every brand behind these lots in one query.
+
+    ``present`` reads each lot's brand with ``db.get``, which is answered from
+    the session's identity map once the brand is loaded. Without this a page
+    of 20 lots from 20 brands costs 20 extra queries; with it, one.
+    """
+    lots = list(lots)
+    brand_ids = {lot.brand_id for lot in lots}
+    if not brand_ids:
+        return
+    by_id = {b.id: b for b in db.scalars(select(Brand).where(Brand.id.in_(brand_ids)))}
+    # The identity map holds objects weakly, so the brands are attached to
+    # their lots. That keeps them alive for the request, and fills lot.brand
+    # without another query.
+    for lot in lots:
+        if lot.brand_id in by_id:
+            set_committed_value(lot, "brand", by_id[lot.brand_id])
 
 
 def _require_brand(db: Session, brand_id: str) -> Brand:

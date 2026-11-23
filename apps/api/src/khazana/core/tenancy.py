@@ -70,17 +70,17 @@ def set_session_tenant(db: Session, principal: Principal) -> None:
     if db.bind is None or db.bind.dialect.name != "postgresql":
         return
     brand_id = principal.brand_ids[0] if principal.brand_ids else ""
-    db.execute(
-        _set_config("khazana.role", principal.role.value),
-    )
-    db.execute(
-        _set_config("khazana.brand_id", brand_id),
-    )
+    db.execute(_set_config(role=principal.role.value, brand_id=brand_id))
 
 
-def _set_config(key: str, value: str) -> Any:
+def _set_config(*, role: str, brand_id: str) -> Any:
     from sqlalchemy import text
 
     # Bound parameters, never string interpolation, even for a session
     # variable. set_config with is_local true scopes it to the transaction.
-    return text("SELECT set_config(:k, :v, true)").bindparams(k=key, v=value)
+    # Both in one statement: this runs on every authenticated request, so a
+    # second round trip to the database is a cost paid on every page.
+    return text(
+        "SELECT set_config('khazana.role', :role, true), "
+        "set_config('khazana.brand_id', :brand_id, true)"
+    ).bindparams(role=role, brand_id=brand_id)

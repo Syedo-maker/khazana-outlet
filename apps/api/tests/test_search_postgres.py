@@ -311,3 +311,28 @@ class TestDimensionSafety:
             hit.lot.lot_code for hit in embeddings.search_by_text(db, "printed lawn", limit=20)
         }
         assert "LOT-LAWN" not in codes
+
+
+def test_the_tenant_variables_reach_the_row_level_policies(pg_session: Session) -> None:
+    """Both variables the policies read are set, in one statement, for the transaction.
+
+    The row level policies compare rows against ``khazana.role`` and
+    ``khazana.brand_id``. SQLite has neither, so this is the only place it is
+    proved that a request actually sets them.
+    """
+    from khazana.api.deps import Principal
+    from khazana.core.tenancy import set_session_tenant
+    from khazana.models.enums import UserRole
+
+    brand_id = new_id()
+    set_session_tenant(
+        pg_session, Principal(user_id=new_id(), role=UserRole.BRAND, brand_ids=[brand_id])
+    )
+    role, brand = pg_session.execute(
+        text("SELECT current_setting('khazana.role'), current_setting('khazana.brand_id')")
+    ).one()
+    assert (role, brand) == ("brand", brand_id)
+
+    pg_session.rollback()
+    leftover = pg_session.execute(text("SELECT current_setting('khazana.brand_id', true)")).scalar()
+    assert not leftover, "the setting is local to the transaction, not the connection"

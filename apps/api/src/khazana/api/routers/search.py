@@ -18,7 +18,12 @@ from ...core.errors import NotFound
 from ...models import Category, Lot, SavedSearch, User
 from ...models.base import utcnow
 from ...models.enums import ConditionGrade
-from ...services import mixed_lot_service, recommendation_service, search_service
+from ...services import (
+    approval_service,
+    mixed_lot_service,
+    recommendation_service,
+    search_service,
+)
 from ...services.search_service import SearchFilters, SearchResult, Viewer
 from ..deps import CurrentPrincipal, Db, Principal
 from .catalog import BrowseItemOut, _browse_item, _buyer_view
@@ -127,6 +132,7 @@ def _user(db: Session, principal: Principal) -> User:
 
 
 def _items(db: Session, principal: Principal, result: SearchResult) -> list[SearchItemOut]:
+    approval_service.preload_brands(db, result.lots)
     return [_item(db, principal, lot, result) for lot in result.lots]
 
 
@@ -183,6 +189,7 @@ def recommendations(
     ranked = recommendation_service.recommend(
         db, user_id=principal.user_id, viewer=viewer, limit=limit
     )
+    approval_service.preload_brands(db, [rec.lot for rec in ranked])
     return [
         RecommendationOut(
             **_browse_item(db, principal, rec.lot).model_dump(),
@@ -247,6 +254,7 @@ def _build_mixed(db: Session, principal: Principal, body: MixedLotIn) -> tuple[U
 
 
 def _mixed_out(db: Session, principal: Principal, proposal: Any, added: bool) -> MixedLotOut:
+    approval_service.preload_brands(db, [c.lot for c in proposal.components])
     return MixedLotOut(
         components=[
             MixedComponentOut(

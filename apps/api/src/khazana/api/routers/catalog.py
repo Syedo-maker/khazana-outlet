@@ -1156,6 +1156,7 @@ def browse_catalog(
         limit=limit,
         offset=offset,
     )
+    approval_service.preload_brands(db, rows)
     items = [_browse_item(db, principal, lot) for lot in rows]
     return BrowseOut(items=items, total=total, limit=limit, offset=offset)
 
