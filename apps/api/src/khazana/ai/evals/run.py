@@ -20,6 +20,7 @@ import pkgutil
 import sys
 from decimal import Decimal
 
+from sqlalchemy import Engine, inspect
 from sqlalchemy.orm import Session
 
 from ...db import build_engine
@@ -134,6 +135,28 @@ def report(suite: EvalSuite, outcomes: list[CaseOutcome]) -> bool:
     return suite_passed
 
 
+def _ensure_schema(engine: Engine) -> None:
+    """Create the eval database, rebuilding it when the models have moved on.
+
+    The file is kept between runs on purpose: the spend it records is what
+    holds several live runs on one day to the daily cap. But ``create_all``
+    never alters an existing table, so after a migration adds a column every
+    suite failed on a stale file. A table missing a column is rebuilt.
+    """
+    inspector = inspect(engine)
+    stale = [
+        table.name
+        for table in Base.metadata.sorted_tables
+        if inspector.has_table(table.name)
+        and {column.name for column in table.columns}
+        - {column["name"] for column in inspector.get_columns(table.name)}
+    ]
+    if stale:
+        print(f"eval database is older than the models ({', '.join(stale)}); rebuilding it")
+        Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the Khazana AI eval suites")
     mode = parser.add_mutually_exclusive_group()
@@ -158,7 +181,7 @@ def main(argv: list[str] | None = None) -> int:
     # The runner needs somewhere to write job and cost rows. A throwaway
     # SQLite file keeps eval runs out of the development database.
     engine = build_engine("sqlite:///./.eval-runs.db")
-    Base.metadata.create_all(engine)
+    _ensure_schema(engine)
 
     suites = discover_suites(args.suite)
     if not suites:
