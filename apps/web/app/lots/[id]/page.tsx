@@ -23,7 +23,8 @@ import {
   type PhotoKind,
   type Readiness,
 } from "@/lib/api";
-import { useLocale } from "@/lib/hooks";
+import { loadSession } from "@/components/RoleShell";
+import { errorMessage, useLocale } from "@/lib/hooks";
 import { t } from "@/lib/i18n";
 import { getAccessToken } from "@/lib/session";
 
@@ -81,12 +82,19 @@ export default function LotPage() {
 
   const load = useCallback(async () => {
     setError(null);
-    const current = getAccessToken();
-    setToken(current);
-    if (!current) {
-      setError(t(locale, "error.network"));
+    let current: string;
+    try {
+      const session = await loadSession();
+      if (!session) {
+        window.location.replace("/login");
+        return;
+      }
+      current = session.token;
+    } catch (cause) {
+      setError(errorMessage(cause));
       return;
     }
+    setToken(current);
     try {
       const [detail, ready, history] = await Promise.all([
         catalog.getLot(current, lotId),
@@ -99,7 +107,7 @@ export default function LotPage() {
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : "Could not load this lot.");
     }
-  }, [lotId, locale]);
+  }, [lotId]);
 
   useEffect(() => {
     void load();

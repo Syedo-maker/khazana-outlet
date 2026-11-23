@@ -14,7 +14,13 @@ export type Session = { me: Me; token: string; locale: Locale };
 
 const NAV_BY_ROLE = { reseller: RESELLER_NAV, brand: BRAND_NAV, admin: ADMIN_NAV };
 
-async function loadSession(): Promise<{ me: Me; token: string } | null> {
+/**
+ * Who is signed in, refreshing an expired access token when the refresh token
+ * still works. Null means nobody is, and the caller sends the person to /login.
+ * Pages outside RoleShell use it too, so an expired session is never shown as
+ * a server or network error.
+ */
+export async function loadSession(): Promise<{ me: Me; token: string } | null> {
   const token = getAccessToken();
   if (token) {
     try {
