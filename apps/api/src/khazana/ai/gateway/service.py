@@ -29,7 +29,7 @@ from ...models import AiJob, AiOutput
 from ...models.base import utcnow
 from ...models.enums import AiFeature, AiJobStatus, AiMode
 from ..schemas import SCHEMA_BY_FEATURE
-from . import client, cost, limits, prompts, router
+from . import client, cost, limits, prompts, response_cache, router
 
 logger = logging.getLogger(__name__)
 
@@ -126,12 +126,55 @@ def run_feature(
             "ai/schemas.py so replies are validated rather than trusted."
         )
 
+    system_text = prompt.render_system(**prompt_values)
+    schema_json = _json_schema(schema_model)
+    cache_key: str | None = None
+    if route.response_cache_hours and not record_fixture:
+        cache_key = response_cache.cache_key(
+            feature=feature,
+            model=route.model_id,
+            effort=route.effort,
+            prompt_name=prompt.name,
+            prompt_version=prompt.version,
+            system=system_text,
+            user_text=user_text,
+            output_schema=schema_json,
+            images=images,
+            brand_id=brand_id,
+        )
+        cached = _from_cache(db, cache_key, schema_model)
+        if cached is not None:
+            stored, model = cached
+            reply = client.ModelReply(content={}, usage=cost.Usage(), model=model, latency_ms=0)
+            job.mode = AiMode.CACHED
+            output_row = _record(
+                db,
+                job=job,
+                route=route,
+                prompt=prompt,
+                reply=reply,
+                call_cost=Decimal(0),
+                output=stored.model_dump(mode="json"),
+            )
+            job.status = AiJobStatus.SUCCEEDED
+            job.finished_at = utcnow()
+            db.commit()
+            return AiResult(
+                output=stored,
+                job_id=job.id,
+                output_id=output_row.id,
+                model=model,
+                cost_usd=Decimal(0),
+                latency_ms=0,
+                from_fixture=False,
+            )
+
     try:
         reply = client.call_model(
             model=route.model_id,
-            system=prompt.render_system(**prompt_values),
+            system=system_text,
             user_text=user_text,
-            output_schema=_json_schema(schema_model),
+            output_schema=schema_json,
             images=images,
             effort=route.effort,
             max_tokens=route.max_tokens,
@@ -192,6 +235,15 @@ def run_feature(
     )
 
     cost.record_spend(db, feature=feature, brand_id=brand_id, cost_usd=call_cost)
+    if cache_key is not None and not reply.from_fixture:
+        response_cache.store(
+            db,
+            key=cache_key,
+            feature=feature,
+            model=reply.model,
+            output=validated.model_dump(mode="json"),
+            hours=route.response_cache_hours,
+        )
     job.status = AiJobStatus.SUCCEEDED
     job.finished_at = utcnow()
     db.commit()
@@ -233,6 +285,23 @@ def accept_output(
     row.reviewed_at = utcnow()
     db.commit()
     return row
+
+
+def _from_cache(
+    db: Session, key: str, schema_model: type[BaseModel]
+) -> tuple[BaseModel, str] | None:
+    """A stored reply that still matches the current schema, or None.
+
+    A schema can change after a reply was stored. A reply that no longer
+    validates is ignored and replaced by the next real call, never served.
+    """
+    row = response_cache.lookup(db, key)
+    if row is None:
+        return None
+    try:
+        return schema_model.model_validate(row.output), row.model
+    except ValidationError:
+        return None
 
 
 def _record(
