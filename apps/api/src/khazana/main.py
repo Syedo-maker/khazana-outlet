@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 
 from . import __version__
 from .ai.gateway.limits import feature_switches
+from .api import openapi as api_spec
 from .api.routers import (
     admin,
     ai,
@@ -168,6 +169,9 @@ def create_app() -> FastAPI:
             "features": feature_switches(),
         }
 
+    # Authentication, the error shape and tag descriptions, added to the spec
+    # FastAPI generates. See api/openapi.py.
+    api_spec.install(app)
     return app
 
 

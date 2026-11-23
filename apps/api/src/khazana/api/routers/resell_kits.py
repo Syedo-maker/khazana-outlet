@@ -12,7 +12,7 @@ from ...models import User
 from ...services import resell_kit_service
 from ..deps import CurrentPrincipal, Db, Principal
 
-router = APIRouter(tags=["resell kit"])
+router = APIRouter(tags=["resell-kits"])
 
 
 class KitIn(BaseModel):

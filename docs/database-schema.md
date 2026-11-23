@@ -13,8 +13,9 @@ index, are created in migration 0001 and verified by the migration job in CI.
 
 | Table | Columns | Brand scoped | Purpose |
 | --- | --- | --- | --- |
-| `ai_jobs` | 15 | no | One row per unit of AI work, including blocked ones. |
+| `ai_jobs` | 17 | no | One row per unit of AI work, including blocked ones. |
 | `ai_outputs` | 19 | no | What the model produced, what it cost, what the human changed. |
+| `ai_response_cache` | 8 | no | A validated AI reply kept so an identical request is not paid twice. |
 | `ai_spend` | 8 | no | Daily spend per feature and brand. Caps are enforced on it. |
 | `assistant_conversations` | 8 | no | A thread with the buyer or brand assistant. |
 | `assistant_messages` | 12 | no | One message in a thread, with its cost and grounding. |
@@ -65,7 +66,7 @@ index, are created in migration 0001 and verified by the migration job in CI.
 | `shipping_rates` | 10 | no | Configured delivery prices between city groups. |
 | `size_chart_rows` | 12 | yes | A brand's own size chart in centimetres. |
 | `standard_sizes` | 11 | no | The platform's reference size chart. |
-| `users` | 13 | no | One row per phone number. The identity anchor. |
+| `users` | 14 | no | One row per phone number. The identity anchor. |
 | `verification_documents` | 14 | yes | NTN, incorporation certificate, CNIC, with a review trail. |
 | `whatsapp_messages` | 14 | no | Every WhatsApp message in or out, idempotent by provider id. |
 
@@ -125,6 +126,8 @@ erDiagram
         datetime finished_at
         int attempts "required"
         text error
+        string batch_id
+        string prompt_ref
         string id "PK"
         datetime created_at "required"
         datetime updated_at "required"
@@ -147,6 +150,16 @@ erDiagram
         string reviewed_by_user_id "FK"
         datetime reviewed_at
         string id "PK"
+        datetime created_at "required"
+        datetime updated_at "required"
+    }
+    ai_response_cache {
+        string key "PK"
+        string feature "required"
+        string model "required"
+        json output "required"
+        datetime expires_at "required"
+        int hits "required"
         datetime created_at "required"
         datetime updated_at "required"
     }
@@ -827,6 +840,7 @@ erDiagram
         datetime phone_verified_at
         datetime last_login_at
         string preferred_language "required"
+        datetime tokens_valid_after
         string id "PK"
         datetime created_at "required"
         datetime updated_at "required"

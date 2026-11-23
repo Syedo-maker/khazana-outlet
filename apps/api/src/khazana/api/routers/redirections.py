@@ -20,7 +20,7 @@ from ...models.enums import RedirectStatus
 from ...services import audit_service, redirect_service
 from ..deps import AdminOnly, CurrentBrand, Db, Principal
 
-router = APIRouter(tags=["upcycle and donation"])
+router = APIRouter(tags=["redirections"])
 
 
 class MatchOut(BaseModel):
