@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -79,6 +80,32 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],
     )
+
+    @app.middleware("http")
+    async def _security_headers(request: Request, call_next: Any) -> Any:
+        """Headers that make a stolen or misused response less useful.
+
+        The API returns JSON and images, never pages, so it can refuse to be
+        framed, sniffed or rendered as anything else outright. Responses are
+        private by default: an order, an address or a payout must never sit in
+        a shared cache. Routes that are safe to cache set their own
+        Cache-Control, which is left alone. The interactive docs load their
+        own scripts, so they are the one place without a strict policy.
+        """
+        response = await call_next(request)
+        headers = response.headers
+        headers.setdefault("X-Content-Type-Options", "nosniff")
+        headers.setdefault("X-Frame-Options", "DENY")
+        headers.setdefault("Referrer-Policy", "no-referrer")
+        headers.setdefault("Cross-Origin-Resource-Policy", "same-site")
+        headers.setdefault("Cache-Control", "no-store")
+        if not request.url.path.startswith(("/docs", "/redoc", "/openapi.json")):
+            headers.setdefault(
+                "Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'"
+            )
+        if settings.is_production:
+            headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        return response
 
     @app.exception_handler(AppError)
     async def _app_error_handler(request: Request, exc: AppError) -> JSONResponse:
