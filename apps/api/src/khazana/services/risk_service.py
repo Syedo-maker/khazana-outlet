@@ -15,7 +15,7 @@ from __future__ import annotations
 import re
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -33,6 +33,7 @@ from ..models import (
     ResellerProfile,
     ReviewCase,
     User,
+    as_utc,
     utcnow,
 )
 from ..models.enums import (
@@ -72,8 +73,7 @@ class Assessment:
         return min(100, sum(s.weight for s in self.signals))
 
 
-def _aware(value: datetime) -> datetime:
-    return value if value.tzinfo else value.replace(tzinfo=UTC)
+_aware = as_utc
 
 
 def _phone_accounts(db: Session) -> Counter[str]:

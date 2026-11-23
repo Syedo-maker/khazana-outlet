@@ -131,6 +131,19 @@ class OrderStatus(StrEnum):
     REFUNDED = "refunded"
 
 
+# Orders that count as a sale: paid and not cancelled or refunded. Reports,
+# forecasts, the markdown agent, the mixed lot builder and the resell kit all
+# read this one definition, so they cannot disagree about what sold.
+SOLD_ORDER_STATUSES: tuple[OrderStatus, ...] = (
+    OrderStatus.PAID,
+    OrderStatus.PREPARING,
+    OrderStatus.SHIPPED,
+    OrderStatus.DELIVERED,
+    OrderStatus.CONFIRMED,
+    OrderStatus.DISPUTED,
+)
+
+
 class PaymentMethod(StrEnum):
     BANK_TRANSFER = "bank_transfer"
     JAZZCASH = "jazzcash"

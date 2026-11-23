@@ -133,6 +133,16 @@ def utcnow() -> datetime:
     return datetime.now(UTC)
 
 
+def as_utc(value: datetime) -> datetime:
+    """A timestamp from the database, as an aware UTC datetime.
+
+    PostgreSQL returns aware timestamps; SQLite, used by the tests, returns
+    naive ones. Comparing the two raises, so every read that does arithmetic on
+    a stored time goes through here.
+    """
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
+
+
 def new_id() -> str:
     """Opaque primary key.
 

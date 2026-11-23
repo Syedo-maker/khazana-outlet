@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -38,21 +38,15 @@ from ..models import (
     SeasonEvent,
     utcnow,
 )
-from ..models.enums import LotStatus, OrderStatus
+from ..models.base import as_utc
+from ..models.enums import SOLD_ORDER_STATUSES, LotStatus
 
 HISTORY_WEEKS = 8
 FORECAST_WEEKS = 4
 STUCK_AFTER_DAYS = 28
 TOO_SLOW_WEEKS = 26
 ALL_CITIES = "All cities"
-SOLD = (
-    OrderStatus.PAID,
-    OrderStatus.PREPARING,
-    OrderStatus.SHIPPED,
-    OrderStatus.DELIVERED,
-    OrderStatus.CONFIRMED,
-    OrderStatus.DISPUTED,
-)
+SOLD = SOLD_ORDER_STATUSES
 
 
 @dataclass(slots=True)
@@ -64,9 +58,7 @@ class RunSummary:
 
 
 def _aware(value: datetime | None) -> datetime | None:
-    if value is not None and value.tzinfo is None:
-        return value.replace(tzinfo=UTC)
-    return value
+    return None if value is None else as_utc(value)
 
 
 def week_start(day: date) -> date:

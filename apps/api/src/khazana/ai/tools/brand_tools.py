@@ -13,39 +13,28 @@ the lot page.
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import UTC, timedelta
+from datetime import timedelta
 from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ...models import BrandPolicy, Category, Lot, Order, utcnow
-from ...models.enums import LotStatus, OrderStatus
+from ...models.base import as_utc
+from ...models.enums import SOLD_ORDER_STATUSES, LotStatus
 
 MAX_RESULTS = 8
 DEFAULT_MIN_DAYS_LIVE = 21
 DEFAULT_DAYS = 30
 MAX_DAYS = 730
 
-# Orders that represent a sale. Created and awaiting payment are not sales yet,
-# and cancelled or refunded ones are not sales any more.
-SOLD_STATUSES = (
-    OrderStatus.PAID,
-    OrderStatus.PREPARING,
-    OrderStatus.SHIPPED,
-    OrderStatus.DELIVERED,
-    OrderStatus.CONFIRMED,
-    OrderStatus.DISPUTED,
-)
+SOLD_STATUSES = SOLD_ORDER_STATUSES
 
 NOT_FOUND = {"found": False, "note": "No lot with that code belongs to this brand."}
 
 
 def _aware(value: Any) -> Any:
-    # SQLite hands back naive datetimes; PostgreSQL hands back aware ones.
-    if value is not None and value.tzinfo is None:
-        return value.replace(tzinfo=UTC)
-    return value
+    return None if value is None else as_utc(value)
 
 
 def _sold_by_lot(db: Session, brand_id: str, lot_ids: list[str]) -> dict[str, int]:

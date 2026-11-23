@@ -20,7 +20,7 @@ import re
 import secrets
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from math import ceil
 from types import ModuleType
@@ -43,7 +43,7 @@ from ..models import (
     OrderReturn,
     User,
 )
-from ..models.base import utcnow
+from ..models.base import as_utc, utcnow
 from ..models.enums import (
     DisputeStatus,
     LotStatus,
@@ -772,10 +772,7 @@ def _new_code(db: Session) -> str:
 
 
 def _aware(value: datetime | None) -> datetime | None:
-    """SQLite returns naive datetimes, and they are always UTC here."""
-    if value is None or value.tzinfo is not None:
-        return value
-    return value.replace(tzinfo=UTC)
+    return None if value is None else as_utc(value)
 
 
 def is_open_dispute(dispute: Dispute) -> bool:

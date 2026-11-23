@@ -33,18 +33,11 @@ from ..ai.gateway import run_feature
 from ..ai.schemas import ResellKitCopy
 from ..core.errors import Conflict, NotFound, ValidationFailed
 from ..models import Category, Lot, Order, ResellKit, User
-from ..models.enums import AiFeature, ConditionGrade, OrderStatus, Visibility
+from ..models.enums import SOLD_ORDER_STATUSES, AiFeature, ConditionGrade, OrderStatus, Visibility
 from ..storage import read_object
 from . import photo_protection_service
 
-KIT_STATUSES = (
-    OrderStatus.PAID,
-    OrderStatus.PREPARING,
-    OrderStatus.SHIPPED,
-    OrderStatus.DELIVERED,
-    OrderStatus.CONFIRMED,
-    OrderStatus.DISPUTED,
-)
+KIT_STATUSES = SOLD_ORDER_STATUSES
 GRADE_MEANING = {
     ConditionGrade.A: "New, unused, with tags, no defects",
     ConditionGrade.B: "New or unused, no tags, minor shelf wear, no functional defect",

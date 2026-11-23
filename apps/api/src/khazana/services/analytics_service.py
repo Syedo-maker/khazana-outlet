@@ -36,16 +36,15 @@ from ..models import (
     User,
     utcnow,
 )
-from ..models.enums import AiFeature, LotStatus, OrderStatus, RedirectStatus, UserRole
-
-SOLD = (
-    OrderStatus.PAID,
-    OrderStatus.PREPARING,
-    OrderStatus.SHIPPED,
-    OrderStatus.DELIVERED,
-    OrderStatus.CONFIRMED,
-    OrderStatus.DISPUTED,
+from ..models.enums import (
+    SOLD_ORDER_STATUSES,
+    AiFeature,
+    LotStatus,
+    RedirectStatus,
+    UserRole,
 )
+
+SOLD = SOLD_ORDER_STATUSES
 # Which AI features serve a listing and which serve an order, for the two
 # unit costs. Features that serve neither, such as the brand assistant and the
 # forecasts, count towards the total only.

@@ -21,7 +21,7 @@ never priced against a lot total that moved underneath it.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from math import floor
 
 from sqlalchemy import func, select
@@ -30,17 +30,11 @@ from sqlalchemy.orm import Session
 from ..ai.gateway import run_feature
 from ..ai.schemas import MarkdownDecision
 from ..models import BrandPolicy, Category, Lot, Order, utcnow
-from ..models.enums import AiFeature, LotStatus, OrderStatus
+from ..models.base import as_utc
+from ..models.enums import SOLD_ORDER_STATUSES, AiFeature, LotStatus
 from . import audit_service
 
-SOLD = (
-    OrderStatus.PAID,
-    OrderStatus.PREPARING,
-    OrderStatus.SHIPPED,
-    OrderStatus.DELIVERED,
-    OrderStatus.CONFIRMED,
-    OrderStatus.DISPUTED,
-)
+SOLD = SOLD_ORDER_STATUSES
 
 
 @dataclass(slots=True)
@@ -70,9 +64,7 @@ def clamp_reduction(value: float, step: float) -> float:
 
 
 def _aware(value: datetime | None) -> datetime | None:
-    if value is not None and value.tzinfo is None:
-        return value.replace(tzinfo=UTC)
-    return value
+    return None if value is None else as_utc(value)
 
 
 def _due(lot: Lot, policy: BrandPolicy, now: datetime) -> bool:

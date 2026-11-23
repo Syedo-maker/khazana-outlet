@@ -32,20 +32,13 @@ from sqlalchemy.orm import Session, selectinload
 
 from ..core.errors import AppError, ValidationFailed
 from ..models import BrandPolicy, CartItem, Lot, Order, User, utcnow
-from ..models.enums import OrderStatus, UserRole, VerificationStatus
+from ..models.enums import SOLD_ORDER_STATUSES, UserRole, VerificationStatus
 from . import approval_service, order_service
 from .order_service import LineChoice, Purchase
 
 CANDIDATES = 150
 MAX_BRANDS = 6
-SOLD = (
-    OrderStatus.PAID,
-    OrderStatus.PREPARING,
-    OrderStatus.SHIPPED,
-    OrderStatus.DELIVERED,
-    OrderStatus.CONFIRMED,
-    OrderStatus.DISPUTED,
-)
+SOLD = SOLD_ORDER_STATUSES
 
 
 @dataclass(slots=True)
