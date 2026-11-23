@@ -51,6 +51,7 @@ from ...services import (
 )
 from ...storage import read_object
 from ..deps import CurrentBrand, CurrentPrincipal, Db, Principal, client_ip
+from ..uploads import read_upload
 
 router = APIRouter(tags=["catalog"])
 
@@ -715,7 +716,7 @@ async def import_manifest(
     them would make the model's reading of a spreadsheet binding.
     """
     lot = _owned(db, principal, lot_id)
-    data = await file.read()
+    data = await read_upload(file)
 
     outcome = catalog_service.import_manifest(
         db,
@@ -801,7 +802,7 @@ async def add_photo(
     resized and recompressed. Only the processed version is stored.
     """
     lot = _owned(db, principal, lot_id)
-    data = await file.read()
+    data = await read_upload(file)
 
     photo = catalog_service.add_photo(
         db,

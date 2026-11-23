@@ -26,6 +26,7 @@ from ...services import (
 )
 from ...services.search_service import SearchFilters, SearchResult, Viewer
 from ..deps import CurrentPrincipal, Db, Principal
+from ..uploads import read_upload
 from .catalog import BrowseItemOut, _browse_item, _buyer_view
 
 router = APIRouter(prefix="/catalog", tags=["search"])
@@ -342,7 +343,7 @@ async def search_catalog_by_photo(
     """Find listings that look like a photograph. The image is not stored."""
     from ...storage import ALLOWED_IMAGE_TYPES, StorageError, validate_upload
 
-    data = await file.read()
+    data = await read_upload(file)
     try:
         validate_upload(data, file.content_type or "", allowed=ALLOWED_IMAGE_TYPES)
     except StorageError as exc:

@@ -24,6 +24,7 @@ from ...models import Brand, SizeChartRow, StandardSize, User
 from ...models.enums import DocumentType, UserRole, VerificationStatus, Visibility
 from ...services import brand_service, size_service
 from ..deps import AdminOnly, CurrentBrand, CurrentPrincipal, Db, client_ip
+from ..uploads import read_upload
 
 router = APIRouter(prefix="/brands", tags=["brands"])
 
@@ -251,7 +252,7 @@ async def upload_document(
     if user is None:
         raise NotFound("That account no longer exists.").as_http()
 
-    data = await file.read()
+    data = await read_upload(file)
     try:
         document = brand_service.upload_document(
             db,
