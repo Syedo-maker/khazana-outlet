@@ -14,7 +14,10 @@ dependencies = [
     "pgvector>=0.3.6",
     "redis>=5.2",
     "httpx>=0.27",
-    "anthropic>=1.12",
+    # 2.x sends API version 2026-10-21. Pinned to the major so the laptop, the
+    # containers and CI run the same SDK: the range used to be >=1.12, and the
+    # images had quietly installed 2.x while the local venv stayed on 1.x.
+    "anthropic>=2.12,<3",
     "python-multipart>=0.0.17",
     # 13.0 fixes some twenty advisories in image decoding, and every
     # photograph a brand or buyer uploads goes through Pillow.

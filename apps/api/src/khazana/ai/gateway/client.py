@@ -26,7 +26,10 @@ from fastapi import status
 from ...config import get_settings
 from ...core.errors import AppError
 from .cost import Usage
-from .models import spec_for
+from .models import REFUSAL_FALLBACK, spec_for
+
+# The beta that enables server side refusal fallback on the Messages API.
+FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +140,7 @@ def call_model(
     return reply
 
 
-def _call_live(
+def build_request(
     *,
     model: str,
     system: str,
@@ -147,14 +150,15 @@ def _call_live(
     effort: str | None,
     max_tokens: int,
     cache_prefix: bool,
-) -> ModelReply:
+) -> dict[str, Any]:
+    """The Messages request body, shared by live calls and batch submissions.
+
+    A batch request cannot carry the refusal fallback, so that is added by the
+    live path only, after this.
+    """
     import base64
 
-    import anthropic
-
-    settings = get_settings()
     spec = spec_for(model)
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
     # Render order for caching is tools, then system, then messages, so the
     # cache breakpoint goes on the last system block and everything variable
@@ -191,15 +195,81 @@ def _call_live(
         request.setdefault("output_config", {})
         request["output_config"]["effort"] = effort
 
-    # Opus 5.5 and Sonnet 5.5 always think: sending a thinking block or a
-    # token budget to them is rejected. Haiku 4.5 still takes the older form,
+    # Opus 5.5, Sonnet 5.5 and Haiku 5.5 think adaptively and reject a token
+    # budget; effort is their only lever. Haiku 4.5 still takes the older form,
     # and this is the only place in the codebase that needs to know.
     if spec.uses_budget_tokens and max_tokens > 2_048:
         request["thinking"] = {"type": "enabled", "budget_tokens": 1_024}
+    return request
+
+
+def _call_live(
+    *,
+    model: str,
+    system: str,
+    user_text: str,
+    output_schema: dict[str, Any] | None,
+    images: list[bytes],
+    effort: str | None,
+    max_tokens: int,
+    cache_prefix: bool,
+) -> ModelReply:
+    import anthropic
+
+    settings = get_settings()
+    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    request = build_request(
+        model=model,
+        system=system,
+        user_text=user_text,
+        output_schema=output_schema,
+        images=images,
+        effort=effort,
+        max_tokens=max_tokens,
+        cache_prefix=cache_prefix,
+    )
 
     started = time.perf_counter()
-    response = client.messages.create(**request)
+    fallback = REFUSAL_FALLBACK.get(model)
+    if fallback is not None:
+        # A safety classifier can decline a request that is entirely ordinary
+        # here, a manifest or a shopkeeper's message. With a fallback the API
+        # re runs it on the named model inside the same call, so the buyer gets
+        # an answer instead of an error. The fallback is in CATALOGUE, so the
+        # reply it serves is priced at its own rates.
+        response = client.beta.messages.create(
+            **request,
+            betas=[FALLBACK_BETA],
+            fallbacks=[{"model": fallback}],
+        )
+    else:
+        response = client.messages.create(**request)
     latency_ms = int((time.perf_counter() - started) * 1000)
+    return reply_from_message(
+        response,
+        model=model,
+        max_tokens=max_tokens,
+        cache_prefix=cache_prefix,
+        latency_ms=latency_ms,
+    )
+
+
+def reply_from_message(
+    response: Any,
+    *,
+    model: str,
+    max_tokens: int | None = None,
+    cache_prefix: bool = False,
+    latency_ms: int = 0,
+) -> ModelReply:
+    """Turn a Messages API response into a reply, live or from a batch result.
+
+    The model that served it is read from the response, so a reply a
+    fallback model produced is priced at that model's rates.
+    """
+    served_by = str(getattr(response, "model", None) or model)
+    if served_by != model:
+        logger.warning("model=%s declined; the reply was served by %s", model, served_by)
 
     stop_reason = getattr(response, "stop_reason", None)
     if stop_reason == "refusal":
@@ -209,7 +279,7 @@ def _call_live(
         )
     if stop_reason == "max_tokens":
         raise AiClientError(
-            f"The reply hit the {max_tokens} token ceiling and is truncated. "
+            f"The reply hit the {max_tokens or 'route'} token ceiling and is truncated. "
             "Raise max_tokens for this route or shorten the input."
         )
 
@@ -237,7 +307,7 @@ def _call_live(
     return ModelReply(
         content=_parse_json(text),
         usage=usage,
-        model=model,
+        model=served_by,
         latency_ms=latency_ms,
         raw_text=text,
     )
