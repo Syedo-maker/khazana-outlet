@@ -194,7 +194,7 @@ export function ManifestEditor({
           </div>
         ) : null}
 
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-[32rem] border-collapse text-sm">
             <thead>
               <tr className="border-b border-line text-left">

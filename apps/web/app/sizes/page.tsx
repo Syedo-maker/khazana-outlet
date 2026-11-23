@@ -67,7 +67,7 @@ function ChartEditor({
 
   return (
     <form onSubmit={save}>
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <table className="w-full min-w-[44rem] text-sm">
           <thead>
             <tr className="text-ink-soft">

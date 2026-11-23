@@ -97,7 +97,7 @@ function Payments({ session }: { session: Session }) {
         <CardBody>
           <Loaded resource={payments} locale={locale}>
             {(rows) => (
-              <div className="overflow-x-auto">
+              <div className="relative overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead className="text-ink-faint">
                     <tr>

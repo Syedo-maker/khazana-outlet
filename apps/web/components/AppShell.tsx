@@ -115,7 +115,7 @@ export function AppShell({
         ) : null}
       </header>
 
-      <main id="main" className="mx-auto w-full max-w-shell flex-1 px-4 py-6">
+      <main id="main" className="mx-auto w-full min-w-0 max-w-shell flex-1 px-4 py-6">
         {children}
       </main>
 

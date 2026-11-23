@@ -90,7 +90,7 @@ export default function LoginPage() {
       <div className="mx-auto max-w-md">
         <Card>
           <CardHeader>
-            <CardTitle as="h2">{t(locale, "login.title")}</CardTitle>
+            <CardTitle as="h1">{t(locale, "login.title")}</CardTitle>
           </CardHeader>
           <CardBody>
             {step === "phone" ? (

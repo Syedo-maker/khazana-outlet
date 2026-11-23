@@ -22,7 +22,13 @@ export function CardHeader({ children }: { children: ReactNode }) {
   return <header className="border-b border-line px-4 py-3">{children}</header>;
 }
 
-export function CardTitle({ children, as: Tag = "h2" }: { children: ReactNode; as?: "h2" | "h3" }) {
+export function CardTitle({
+  children,
+  as: Tag = "h2",
+}: {
+  children: ReactNode;
+  as?: "h1" | "h2" | "h3";
+}) {
   return <Tag className="text-lg font-semibold">{children}</Tag>;
 }
 
@@ -72,8 +78,11 @@ export function Stat({
   return (
     <div className="rounded-lg border border-line bg-surface px-4 py-3">
       <dt className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{label}</dt>
-      <dd className="mt-1 text-2xl font-semibold">{value}</dd>
-      {note ? <p className="mt-1 text-xs text-ink-faint">{note}</p> : null}
+      {/* The note sits inside the dd, so each group is a valid dt and dd pair. */}
+      <dd className="mt-1">
+        <span className="block text-2xl font-semibold">{value}</span>
+        {note ? <span className="mt-1 block text-xs text-ink-faint">{note}</span> : null}
+      </dd>
     </div>
   );
 }
