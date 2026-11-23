@@ -1,21 +1,20 @@
 {
   "_case": "offers_a_range_rather_than_a_single_number",
-  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
   "content": {
     "based_on_rules_only": true,
     "comparable_lot_ids": [],
-    "confidence": 0.42,
-    "expected_days_to_sell_high": 50,
-    "expected_days_to_sell_low": 21,
-    "reasoning": "A range rather than one figure, because there is no past sales data to support a single number and a point estimate would imply precision that does not exist. The eight point spread reflects how much the outcome depends on which buyers are active this month.",
-    "suggested_discount_percent_high": 74.0,
-    "suggested_discount_percent_low": 66.0
+    "confidence": 0.25,
+    "expected_days_to_sell_high": 60,
+    "expected_days_to_sell_low": 20,
+    "reasoning": "There are no comparable sales on the platform yet, so this band rests on general clearance rules rather than evidence of what buyers here have paid. The lot is current-season, grade A, and has a well-balanced size spread centred on M and L, so it does not need to sit at the deep end of your 50 to 85 percent band. Your current 70 percent off is at the top of this suggested range, so you likely have room to hold firmer, unless the summer selling window is closing when buyers see it. Stitched printed shirts are more season-tied than unstitched fabric, so the timeline is kept wide, and moving towards 70 percent makes sense if it is still unsold as summer ends.",
+    "suggested_discount_percent_high": 70,
+    "suggested_discount_percent_low": 55
   },
   "model": "claude-opus-5-5",
   "usage": {
-    "cache_read_tokens": 1800,
+    "cache_read_tokens": 1771,
     "cache_write_tokens": 0,
-    "input_tokens": 2400,
-    "output_tokens": 420
+    "input_tokens": 248,
+    "output_tokens": 527
   }
 }

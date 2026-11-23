@@ -166,7 +166,7 @@ def _stamp_fixture(
         return
     payload = json.loads(path.read_text(encoding="utf-8"))
     payload["_case"] = case_name
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def _ensure_schema(engine: Engine) -> None:

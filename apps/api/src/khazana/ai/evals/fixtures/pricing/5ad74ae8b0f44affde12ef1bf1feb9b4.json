@@ -1,21 +1,20 @@
 {
   "_case": "out_of_season_discounts_deeper",
-  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
   "content": {
     "based_on_rules_only": true,
     "comparable_lot_ids": [],
-    "confidence": 0.4,
-    "expected_days_to_sell_high": 120,
-    "expected_days_to_sell_low": 45,
-    "reasoning": "Winter 2024 stock offered now is two seasons out and 300 days old. Out of season stock moves on price or it waits another year, and waiting costs storage. The band stops at the 85 percent ceiling the brand set.",
-    "suggested_discount_percent_high": 85.0,
-    "suggested_discount_percent_low": 76.0
+    "confidence": 0.25,
+    "expected_days_to_sell_high": 70,
+    "expected_days_to_sell_low": 20,
+    "reasoning": "There are no comparable sales on the platform yet, so this band rests only on your policy and general clearance rules. Grade A condition and a balanced size spread work in your favour, but stitched seasonal womenswear that is about 300 days old usually needs a deeper cut, so we suggest the upper half of your band. Please check two inconsistencies before listing: the season says Winter 2024 while the title says summer lawn, and the stated asking price works out to about 70 percent off retail, not 80 percent. The right discount depends on which season this stock actually belongs to and when it goes on sale.",
+    "suggested_discount_percent_high": 80,
+    "suggested_discount_percent_low": 65
   },
   "model": "claude-opus-5-5",
   "usage": {
-    "cache_read_tokens": 1800,
+    "cache_read_tokens": 1771,
     "cache_write_tokens": 0,
-    "input_tokens": 2400,
-    "output_tokens": 420
+    "input_tokens": 249,
+    "output_tokens": 535
   }
 }

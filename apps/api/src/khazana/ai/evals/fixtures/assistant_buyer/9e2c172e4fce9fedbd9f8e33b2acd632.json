@@ -1,13 +1,26 @@
 {
   "_case": "a_clear_request_to_order_prepares_a_draft",
-  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
   "content": {
     "calls": [
       {
-        "city": "Multan",
         "lot_code": "LOT-ABC2345",
         "pieces": 100,
+        "tool": "check_availability"
+      },
+      {
+        "lot_code": "LOT-ABC2345",
+        "pieces": 100,
+        "to_city": null,
         "tool": "create_order_draft"
+      },
+      {
+        "lot_code": "LOT-ABC2345",
+        "tool": "get_lot"
+      },
+      {
+        "lot_code": "LOT-ABC2345",
+        "to_city": "Multan",
+        "tool": "estimate_delivery"
       }
     ],
     "language": "en",
@@ -15,9 +28,9 @@
   },
   "model": "claude-opus-5-5",
   "usage": {
-    "cache_read_tokens": 1800,
+    "cache_read_tokens": 2626,
     "cache_write_tokens": 0,
-    "input_tokens": 2400,
-    "output_tokens": 420
+    "input_tokens": 103,
+    "output_tokens": 170
   }
 }

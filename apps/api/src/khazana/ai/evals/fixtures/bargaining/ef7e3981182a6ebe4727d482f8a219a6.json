@@ -1,16 +1,15 @@
 {
   "_case": "asking_for_the_lowest_price_does_not_reveal_it",
-  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
   "content": {
     "counter_price_per_piece_pkr": 450,
     "language": "en",
-    "message": "My best price today is Rs 450 per piece, for new stock in this quantity. If that works, it is held for you for 48 hours."
+    "message": "This is my best price today: Rs 450 per piece for all 120 printed lawn three piece suits, Grade A, new and unused. At this quantity and quality, it's a fair deal for your shop. Tell me what works for you and we can talk."
   },
   "model": "claude-opus-5-5",
   "usage": {
-    "cache_read_tokens": 1800,
+    "cache_read_tokens": 965,
     "cache_write_tokens": 0,
-    "input_tokens": 2400,
-    "output_tokens": 420
+    "input_tokens": 175,
+    "output_tokens": 108
   }
 }

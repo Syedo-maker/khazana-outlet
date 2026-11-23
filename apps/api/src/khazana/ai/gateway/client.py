@@ -403,7 +403,8 @@ def _save_fixture(*, feature: str, key: str, reply: ModelReply) -> None:
             },
             indent=2,
             sort_keys=True,
-        ),
+        )
+        + "\n",
         encoding="utf-8",
     )
     logger.info("recorded fixture %s for %s", key, feature)

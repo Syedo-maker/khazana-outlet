@@ -1,21 +1,20 @@
 {
   "_case": "grade_c_discounts_deeper_than_grade_a",
-  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
   "content": {
     "based_on_rules_only": true,
     "comparable_lot_ids": [],
-    "confidence": 0.4,
-    "expected_days_to_sell_high": 75,
-    "expected_days_to_sell_low": 30,
-    "reasoning": "Grade C means itemised defects, and buyers price that in heavily. The band moves down accordingly while staying inside the 50 to 85 the brand allows. No comparable sales exist to calibrate how much the defects actually cost.",
-    "suggested_discount_percent_high": 82.0,
-    "suggested_discount_percent_low": 72.0
+    "confidence": 0.25,
+    "expected_days_to_sell_high": 60,
+    "expected_days_to_sell_low": 21,
+    "reasoning": "There are no comparable sales on the platform yet, so this band rests on the brand's 50 to 85 percent policy and general clearance rules, not on demand data. Grade C defects narrow the buyer pool and stitched lawn is tied to the summer season, so this lot belongs toward the deeper end of your band, though the balanced size spread from S to XL helps it move. Please check the asking price: on 500 pieces at the stated retail it works out to about 70 percent off, not 78, which sits just below this band. The sale window is kept wide because nothing here shows how quickly buyers will take Grade C stitched stock, and if it is still unsold as summer ends it will likely need to move toward 85 percent.",
+    "suggested_discount_percent_high": 82,
+    "suggested_discount_percent_low": 72
   },
   "model": "claude-opus-5-5",
   "usage": {
-    "cache_read_tokens": 1800,
+    "cache_read_tokens": 1771,
     "cache_write_tokens": 0,
-    "input_tokens": 2400,
-    "output_tokens": 420
+    "input_tokens": 249,
+    "output_tokens": 542
   }
 }
