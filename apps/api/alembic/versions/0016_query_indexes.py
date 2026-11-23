@@ -45,6 +45,7 @@ def upgrade() -> None:
     op.create_index(
         "ix_negotiation_messages_negotiation_id", "negotiation_messages", ["negotiation_id"]
     )
+    op.create_index("ix_negotiation_messages_brand_id", "negotiation_messages", ["brand_id"])
     op.create_index("ix_pools_lot_id", "pools", ["lot_id"])
     op.create_index("ix_redirections_brand_id", "redirections", ["brand_id"])
     op.create_index("ix_redirections_lot_id", "redirections", ["lot_id"])
