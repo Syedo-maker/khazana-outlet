@@ -71,3 +71,34 @@ def test_list_queries_do_not_grow_with_the_number_of_brands(
     _add_brands(db, category, 2, 9)
     many = _count(client, db, url, auth(buyer))
     assert many <= few, f"{url}: {few} queries with 2 brands, {many} with 9"
+
+
+def test_the_admin_listing_queue_does_not_grow_with_its_length(
+    client: TestClient, db: Session, category, admin_user
+) -> None:  # type: ignore[no-untyped-def]
+    make_courier(db)
+    _add_brands(db, category, 0, 2)
+    few = _count(client, db, "/admin/listings", auth(admin_user))
+    _add_brands(db, category, 2, 9)
+    many = _count(client, db, "/admin/listings", auth(admin_user))
+    assert many <= few, f"/admin/listings: {few} queries for 4 lots, {many} for 18"
+
+
+def test_a_brands_order_list_does_not_grow_with_its_length(
+    client: TestClient, db: Session, two_brands, category
+) -> None:  # type: ignore[no-untyped-def]
+    from commerce_helpers import whole_order
+
+    (brand, owner), _ = two_brands
+    make_courier(db)
+
+    def orders(first: int, last: int) -> None:
+        for number in range(first, last):
+            lot = live_lot(db, brand, owner, category.id, offset=100 + number)
+            whole_order(db, make_reseller(db, phone=f"0345{number:07d}"), lot)
+
+    orders(0, 2)
+    few = _count(client, db, "/orders", auth(owner))
+    orders(2, 8)
+    many = _count(client, db, "/orders", auth(owner))
+    assert many <= few, f"/orders: {few} queries for 2 orders, {many} for 8"

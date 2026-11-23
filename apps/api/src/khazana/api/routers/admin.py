@@ -446,7 +446,7 @@ def listings(
     for item in admin_service.moderation_list(
         db, status=lot_status, search=search, limit=limit, offset=offset
     ):
-        brand = db.get(Brand, item.lot.brand_id)
+        brand = item.lot.brand
         out.append(
             ModerationItemOut(
                 lot=LotOut.model_validate(item.lot),

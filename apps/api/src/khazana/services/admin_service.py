@@ -18,6 +18,7 @@ from ..core.errors import Conflict, NotFound, ValidationFailed
 from ..models import (
     AuditLog,
     Brand,
+    Category,
     Courier,
     Dispute,
     Lot,
@@ -168,9 +169,13 @@ def moderation_list(
         statement = statement.where(or_(Lot.title.ilike(pattern), Lot.lot_code.ilike(pattern)))
 
     lots = db.scalars(statement.order_by(Lot.updated_at.desc()).limit(limit).offset(offset)).all()
+    # Categories are a small table, read whole once rather than once per lot.
+    # Brands are attached to their lots for the name the route shows.
+    categories = {category.id: category for category in db.scalars(select(Category))}
+    approval_service.preload_brands(db, lots)
     items: list[ModerationItem] = []
     for lot in lots:
-        facts = risk_scoring.compute_facts(db, lot)
+        facts = risk_scoring.compute_facts(db, lot, loaded=True, categories=categories)
         findings, score = risk_scoring.computed_findings(facts, lot)
         items.append(
             ModerationItem(
