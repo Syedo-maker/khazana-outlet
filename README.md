@@ -4,9 +4,11 @@ An AI native B2B marketplace for Pakistani brand surplus stock. Brands clear
 previous season, over produced and season end inventory in bulk lots; verified
 resellers and small shops buy original branded goods at wholesale prices.
 
-**Status: Phase 1 complete.** The foundation is built and tested. The AI
-features are Phase 2, the marketplace modules are Phase 3, and brand
-recruitment is Phase 6. See [ROADMAP.md](ROADMAP.md).
+**Status: Phases 1 to 4 built.** The foundation, the AI engine, the
+marketplace and the intelligence layer are built and tested, on sandbox
+payment, courier and WhatsApp providers. Phase 5 hardens and releases it, and
+brand recruitment is Phase 6. See [ROADMAP.md](ROADMAP.md), and
+[DEPLOYMENT.md](DEPLOYMENT.md) for what a real deployment still needs.
 
 ## Why this exists
 
@@ -26,12 +28,16 @@ AI is in the critical path of the work the platform exists to do, not beside
 it. A brand photographs a lot and gets a complete draft listing. A messy
 spreadsheet becomes a reconciled manifest with every proposed change flagged.
 A buyer searches with a sentence or a photograph, in Urdu, Roman Urdu or
-English. Every listing is risk scored before a human sees it.
+English, and asks an assistant on the web or WhatsApp. Every listing is risk
+scored before a human sees it.
 
 Equally important is what AI is never allowed to decide: price, payouts,
 approvals, bans, or any stock level quoted to a user. It drafts, suggests,
-scores and flags. [docs/ai-architecture.md](docs/ai-architecture.md) has the
-full boundary and the cost model.
+scores and flags. The one narrow exception is choosing a price inside a band
+the brand set and code enforces, for the bargaining bot and the markdown agent,
+recorded in [docs/decisions/0001-ai-value-bands.md](docs/decisions/0001-ai-value-bands.md).
+[docs/ai-architecture.md](docs/ai-architecture.md) has the full boundary and
+the cost model.
 
 ## Stack
 
@@ -51,17 +57,19 @@ full boundary and the cost model.
 apps/
   api/                    FastAPI service
     src/khazana/
-      models/             SQLAlchemy models, 27 tables
+      models/             SQLAlchemy models, 55 tables
       core/               security, errors, tenancy
       services/           domain logic
       api/                routers, dependencies, schemas
       ai/
+        features/         one module per AI feature
+        tools/            the lookups the assistants may run
         gateway/          the only code that talks to a model
         prompts/          versioned prompt files
         evals/            one suite per AI feature, runs in CI
       seed.py             synthetic marketplace generator
-    alembic/              migrations
-    tests/                90 tests
+    alembic/              migrations 0001 to 0016
+    tests/                about 810 tests
   web/                    Next.js application
 docs/                     architecture, schema, AI design
 phase-6-brands-and-launch/  the brand and market work, runs last
@@ -146,18 +154,25 @@ every feature switch.
 ## Testing
 
 ```
-90 tests, covering:
-  authentication      OTP single use, attempt caps, rate limits, token rotation
-  tenant isolation    cross brand reads, the empty membership case, 404 not 403
-  schema rules        manifest sum, approval gate, order arithmetic
-  AI gateway          pricing, caps, kill switches, routing, schema validation
+About 810 tests, covering:
+  authentication      OTP single use, attempt caps, rate limits, token rotation,
+                      and every route refusing an anonymous caller
+  tenant isolation    cross brand reads on every brand scoped route, 404 not 403
+  money               order arithmetic, held funds, payouts, the ADR 0001 clamps
+  marketplace         catalogue, orders, payments, logistics, admin, pools
+  AI gateway          pricing, caps, kill switches, routing, schema validation,
+                      and every prompt and schema the API is sent
   seed data           every generated lot obeys the platform's own rules
 ```
 
+Every AI feature also has an eval suite, run against recorded replies in CI and
+against the live model on demand.
+
 The suite runs on SQLite for speed. The PostgreSQL specific parts, meaning the
-deferred manifest trigger, the append only triggers and the row level security
-policies, are verified by the migration job in CI, which applies every
-migration, rolls it back and applies it again.
+deferred manifest trigger, the append only triggers, the row level security
+policies and vector search, have their own tests on a disposable PostgreSQL
+database (`.\scripts\dev.ps1 pgtest`), and the migration job in CI applies
+every migration, rolls it back and applies it again.
 
 ## Documentation
 
@@ -165,6 +180,9 @@ migration, rolls it back and applies it again.
 | --- | --- |
 | [ROADMAP.md](ROADMAP.md) | The six phases, week by week, and what is deliberately out of scope |
 | [docs/ai-architecture.md](docs/ai-architecture.md) | Model routing, cost control with arithmetic, the hard limits on what AI decides |
+| [docs/decisions/](docs/decisions/) | Decision records, starting with 0001 on AI value bands |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | The development environment, every command, and what production still needs |
+| [CHANGELOG.md](CHANGELOG.md) | What landed, grouped by roadmap weeks |
 | [docs/database-schema.md](docs/database-schema.md) | Generated ERD and the design decisions behind it |
 | [CLAUDE.md](CLAUDE.md) | Working rules for this repository |
 | [phase-6-brands-and-launch/](phase-6-brands-and-launch/) | Brand outreach, interviews, unit economics, company registration, the manual sales playbook |
@@ -172,7 +190,7 @@ migration, rolls it back and applies it again.
 ## Contributing rules that matter
 
 - No em dashes or en dashes anywhere. Use a comma, a colon, a full stop or a
-  plain hyphen. `make prepush` enforces it.
+  plain hyphen. `bash scripts/prepush-check.sh` enforces it.
 - Commission rates, discount bands, protection rules and lot minimums are
   rows in `brand_policies`, never constants in code.
 - Every AI feature ships with an eval, and the eval is written first.

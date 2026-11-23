@@ -94,6 +94,14 @@ POLICY_AUDIT_FIELDS = (
     "require_brand_approval",
     "allow_cod",
     "allow_part_lot_orders",
+    "allow_pooled_orders",
+    "allow_bargaining",
+    "bargain_floor_percent",
+    "bargain_step_percent",
+    "allow_auto_markdown",
+    "markdown_step_percent",
+    "markdown_interval_days",
+    "markdown_floor_percent",
     "auto_apply_ai_draft",
     "ai_monthly_budget_usd",
 )
@@ -473,6 +481,14 @@ def update_policy(
         "default_visibility",
         "allow_cod",
         "allow_part_lot_orders",
+        "allow_pooled_orders",
+        "allow_bargaining",
+        "bargain_floor_percent",
+        "bargain_step_percent",
+        "allow_auto_markdown",
+        "markdown_step_percent",
+        "markdown_interval_days",
+        "markdown_floor_percent",
         "auto_apply_ai_draft",
         "ai_monthly_budget_usd",
     }
@@ -501,6 +517,14 @@ def update_policy(
         raise ValidationFailed(
             f"The minimum discount ({low:.0f} percent) must be below the maximum "
             f"({high:.0f} percent)."
+        )
+    # The markdown agent changes the advertised price, which must stay inside
+    # the advertised band, so its floor cannot go deeper than the maximum.
+    markdown_floor = changes.get("markdown_floor_percent", policy.markdown_floor_percent)
+    if markdown_floor is not None and float(markdown_floor) > high:  # type: ignore[arg-type]
+        raise ValidationFailed(
+            f"The markdown floor ({float(markdown_floor):.0f} percent) cannot be deeper than "  # type: ignore[arg-type]
+            f"your maximum advertised discount ({high:.0f} percent)."
         )
 
     for field, value in changes.items():

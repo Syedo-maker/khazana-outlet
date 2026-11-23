@@ -150,10 +150,12 @@ def run_feature(
         raise
 
     # Every call today goes through the live endpoint, including routes marked
-    # for batch, so none of them earn the batch discount yet.
-    call_cost = cost.price_call(
-        reply.model, reply.usage, AiMode.OFFLINE if reply.from_fixture else AiMode.LIVE
-    )
+    # for batch, so none of them earn the batch discount yet. The job records
+    # the mode the call really ran in, not the route's intent, so the ledger
+    # never shows a batch call that was billed as a live one.
+    ran_as = AiMode.OFFLINE if reply.from_fixture else AiMode.LIVE
+    job.mode = ran_as
+    call_cost = cost.price_call(reply.model, reply.usage, ran_as)
 
     try:
         validated = schema_model.model_validate(reply.content)

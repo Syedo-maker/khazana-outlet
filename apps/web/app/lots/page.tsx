@@ -7,9 +7,9 @@ import { AppShell, BRAND_NAV } from "@/components/AppShell";
 import { Badge, Card, CardBody } from "@/components/ui/Card";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/States";
 import { ApiError, catalog, type Lot, type LotStatus } from "@/lib/api";
-import { useLocale } from "@/lib/hooks";
+import { loadSession } from "@/components/RoleShell";
+import { errorMessage, useLocale } from "@/lib/hooks";
 import { t } from "@/lib/i18n";
-import { getAccessToken } from "@/lib/session";
 
 /** Status to badge tone. Never the only signal: the label always says it too. */
 const TONES: Record<LotStatus, "neutral" | "ok" | "warn" | "danger" | "accent"> = {
@@ -43,9 +43,16 @@ export default function LotsPage() {
 
   const load = useCallback(async () => {
     setError(null);
-    const token = getAccessToken();
-    if (!token) {
-      setError(t(locale, "error.network"));
+    let token: string;
+    try {
+      const session = await loadSession();
+      if (!session) {
+        window.location.replace("/login");
+        return;
+      }
+      token = session.token;
+    } catch (cause) {
+      setError(errorMessage(cause));
       return;
     }
     try {
@@ -54,7 +61,7 @@ export default function LotsPage() {
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : "Could not load your lots.");
     }
-  }, [locale]);
+  }, []);
 
   useEffect(() => {
     void load();

@@ -223,10 +223,14 @@ def _call_live(
 
     if cache_prefix and usage.cache_read_tokens == 0 and usage.cache_write_tokens == 0:
         # A silently broken cache is the single most expensive mistake in this
-        # layer, and it produces no error of its own. Say so loudly.
+        # layer, and it produces no error of its own. Say so loudly. No read and
+        # no write means nothing was cached at all: usually the prefix is below
+        # the model's minimum cacheable length. A prefix that changes per call
+        # shows up differently, as a write on every call and never a read, and
+        # tests/test_prompt_contract.py keeps per call values out of it.
         logger.warning(
-            "prompt cache did not engage for model=%s: check that nothing variable "
-            "is in the system prefix",
+            "prompt cache did not engage for model=%s: the cached prefix is probably "
+            "shorter than the model's minimum cacheable length",
             model,
         )
 

@@ -19,6 +19,7 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -105,6 +106,11 @@ class Lot(UUIDPrimaryKey, TimestampMixin, SoftDeleteMixin, Base):
     available_until: Mapped[date | None] = mapped_column(Date, default=None)
 
     status: Mapped[LotStatus] = mapped_column(nullable=False, default=LotStatus.DRAFT)
+    # Per lot switches for the two value band agents. Null inherits the
+    # brand's setting; False refuses even when the brand allows it.
+    bargaining_enabled: Mapped[bool | None] = mapped_column(Boolean, default=None)
+    auto_markdown_enabled: Mapped[bool | None] = mapped_column(Boolean, default=None)
+    last_markdown_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     visibility: Mapped[Visibility] = mapped_column(nullable=False)
 
     # Set when the brand approves. Null means it has never been live, and the

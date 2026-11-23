@@ -1,5 +1,6 @@
 "use client";
 
+import { Recommendations } from "@/components/Recommendations";
 import Link from "next/link";
 import { useCallback, useState, type FormEvent } from "react";
 
@@ -94,6 +95,7 @@ function CatalogContent({ session }: { session: Session }) {
   return (
     <>
       <PageHeader title={t(locale, "catalog.title")} subtitle={t(locale, "catalog.subtitle")} />
+      {me.user.role === "reseller" ? <Recommendations session={session} /> : null}
 
       {needsVerification ? (
         <p className="mb-4 rounded border border-line bg-accent-subtle px-4 py-3 text-sm">

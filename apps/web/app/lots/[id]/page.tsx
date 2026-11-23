@@ -1,5 +1,8 @@
 "use client";
 
+import { dateTime } from "@/lib/format";
+import { RedirectCard } from "@/components/RedirectCard";
+import { LotAgents } from "@/components/LotAgents";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -20,7 +23,8 @@ import {
   type PhotoKind,
   type Readiness,
 } from "@/lib/api";
-import { useLocale } from "@/lib/hooks";
+import { loadSession } from "@/components/RoleShell";
+import { errorMessage, useLocale } from "@/lib/hooks";
 import { t } from "@/lib/i18n";
 import { getAccessToken } from "@/lib/session";
 
@@ -78,12 +82,19 @@ export default function LotPage() {
 
   const load = useCallback(async () => {
     setError(null);
-    const current = getAccessToken();
-    setToken(current);
-    if (!current) {
-      setError(t(locale, "error.network"));
+    let current: string;
+    try {
+      const session = await loadSession();
+      if (!session) {
+        window.location.replace("/login");
+        return;
+      }
+      current = session.token;
+    } catch (cause) {
+      setError(errorMessage(cause));
       return;
     }
+    setToken(current);
     try {
       const [detail, ready, history] = await Promise.all([
         catalog.getLot(current, lotId),
@@ -96,7 +107,7 @@ export default function LotPage() {
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : "Could not load this lot.");
     }
-  }, [lotId, locale]);
+  }, [lotId]);
 
   useEffect(() => {
     void load();
@@ -172,6 +183,18 @@ export default function LotPage() {
         />
         <Stat label={t(locale, "lots.city")} value={lot.stock_city} />
       </dl>
+
+      <LotAgents
+        lotId={lot.id}
+        token={token}
+        locale={locale}
+        bargaining={lot.bargaining_enabled}
+        markdown={lot.auto_markdown_enabled}
+        onChanged={load}
+      />
+      {["live", "paused", "expired"].includes(lot.status) ? (
+        <RedirectCard lotId={lot.id} token={token} locale={locale} />
+      ) : null}
 
       {/* The checklist. Everything outstanding at once, not one error at a time. */}
       {readiness ? (
@@ -402,7 +425,7 @@ export default function LotPage() {
                 <li key={entry.id} className="border-l-2 border-line pl-3">
                   <span className="font-semibold">{t(locale, `action.${entry.action}`)}</span>
                   <span className="ml-2 text-ink-faint">
-                    {new Date(entry.created_at).toLocaleString("en-PK")}
+                    {dateTime(entry.created_at)}
                   </span>
                   {entry.note ? <p className="text-ink-soft">{entry.note}</p> : null}
                 </li>

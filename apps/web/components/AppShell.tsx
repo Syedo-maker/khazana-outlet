@@ -115,7 +115,7 @@ export function AppShell({
         ) : null}
       </header>
 
-      <main id="main" className="mx-auto w-full max-w-shell flex-1 px-4 py-6">
+      <main id="main" className="mx-auto w-full min-w-0 max-w-shell flex-1 px-4 py-6">
         {children}
       </main>
 
@@ -133,12 +133,19 @@ export const BRAND_NAV: NavItem[] = [
   { href: "/dashboard", labelKey: "nav.dashboard" },
   { href: "/lots", labelKey: "nav.lots" },
   { href: "/lots/queue", labelKey: "nav.approvals" },
+  { href: "/insights", labelKey: "nav.insights" },
+  { href: "/forecast", labelKey: "nav.forecast" },
+  { href: "/analytics", labelKey: "nav.analytics" },
+  { href: "/sizes", labelKey: "nav.sizes" },
   { href: "/orders", labelKey: "nav.orders" },
   { href: "/payouts", labelKey: "nav.payouts" },
 ];
 
 export const RESELLER_NAV: NavItem[] = [
   { href: "/catalog", labelKey: "nav.catalog" },
+  { href: "/mixed-lot", labelKey: "nav.mixedLot" },
+  { href: "/pools", labelKey: "nav.pools" },
+  { href: "/assistant", labelKey: "nav.assistant" },
   { href: "/cart", labelKey: "nav.cart" },
   { href: "/orders", labelKey: "nav.orders" },
   { href: "/account", labelKey: "nav.account" },
@@ -153,5 +160,7 @@ export const ADMIN_NAV: NavItem[] = [
   { href: "/admin/disputes", labelKey: "nav.disputes" },
   { href: "/admin/payouts", labelKey: "nav.payouts" },
   { href: "/admin/settings", labelKey: "nav.settings" },
+  { href: "/admin/review", labelKey: "nav.review" },
+  { href: "/admin/ai-costs", labelKey: "nav.aiCosts" },
   { href: "/admin/audit", labelKey: "nav.audit" },
 ];

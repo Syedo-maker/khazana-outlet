@@ -83,11 +83,15 @@ ENUM_TYPES: tuple[type[StrEnum], ...] = (
     enums.AiMode,
     enums.ApprovalAction,
     enums.BrandMemberRole,
+    enums.ChatChannel,
+    enums.ChatRole,
     enums.ConditionGrade,
     enums.DisputeStatus,
     enums.DocumentType,
     enums.EmbeddingOwner,
     enums.LotStatus,
+    enums.MessageDirection,
+    enums.NegotiationStatus,
     enums.OrderStatus,
     enums.OtpPurpose,
     enums.PaymentMethod,
@@ -95,6 +99,9 @@ ENUM_TYPES: tuple[type[StrEnum], ...] = (
     enums.PayoutStatus,
     enums.PhotoKind,
     enums.PhotoProtectionStatus,
+    enums.PoolStatus,
+    enums.RedirectStatus,
+    enums.ReviewStatus,
     enums.ShipmentStatus,
     enums.UserRole,
     enums.VerificationStatus,
@@ -124,6 +131,16 @@ class Base(DeclarativeBase):
 def utcnow() -> datetime:
     """Timezone aware now. Never use naive datetimes in this codebase."""
     return datetime.now(UTC)
+
+
+def as_utc(value: datetime) -> datetime:
+    """A timestamp from the database, as an aware UTC datetime.
+
+    PostgreSQL returns aware timestamps; SQLite, used by the tests, returns
+    naive ones. Comparing the two raises, so every read that does arithmetic on
+    a stored time goes through here.
+    """
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
 def new_id() -> str:
