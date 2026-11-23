@@ -9,7 +9,7 @@ from __future__ import annotations
 from .ai import AiJob, AiOutput, AiSpend, Embedding
 from .assistant import AssistantConversation, AssistantMessage, WhatsAppMessage
 from .audit import AuditLog
-from .base import Base, Vector, new_id, utcnow
+from .base import Base, Vector, as_utc, new_id, utcnow
 from .brand import (
     Brand,
     BrandExcludedCity,
@@ -45,6 +45,7 @@ from .commerce import (
 )
 from .forecast import DemandForecast, LotForecast, ProductionWarning, SeasonEvent
 from .identity import OtpChallenge, ResellerProfile, Session, User
+from .indexes import QUERY_INDEXES
 from .insight import ResaleBenchmark, ResellKit
 from .negotiation import Negotiation, NegotiationMessage
 from .pool import Pool, PoolMember
@@ -84,6 +85,7 @@ BRAND_SCOPED_TABLES: tuple[str, ...] = (
 
 __all__ = [
     "BRAND_SCOPED_TABLES",
+    "QUERY_INDEXES",
     "AiJob",
     "AiOutput",
     "AiSpend",
@@ -141,6 +143,7 @@ __all__ = [
     "Vector",
     "VerificationDocument",
     "WhatsAppMessage",
+    "as_utc",
     "new_id",
     "utcnow",
 ]
