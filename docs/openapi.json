@@ -8044,7 +8044,6 @@
       "$ref": "#/components/schemas/ConversationOut"
      },
      "cost_usd": {
-      "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
       "title": "Cost Usd",
       "type": "string"
      },
