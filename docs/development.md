@@ -1,4 +1,8 @@
-# Deployment and the development environment
+# The development environment
+
+How the local stack works, every command, and what to do when something is
+wrong. To get it running the first time, follow [setup-guide.md](setup-guide.md);
+for production and staging, see [deployment.md](deployment.md).
 
 Everything runs in containers. Nothing here depends on what is installed on
 the machine, or on what the machine's security policy allows to run. That is
@@ -72,6 +76,8 @@ is rebuilt per run. A container therefore starts in a couple of seconds.
 | `logs` | Follow the logs |
 | `shell` | A shell inside the API container |
 | `status` | What is running |
+| `e2e` | The browser end to end tests, against the running stack |
+| `loadtest` | The k6 load test of the catalogue and search, `NAME=value` settings |
 
 Arguments pass through, so `.\scripts\dev.ps1 test tests/test_brand_portal.py -k verify`
 works, and so does `.\scripts\dev.ps1 seed --reset`.
@@ -91,8 +97,8 @@ The second one checks tracked files and the commits being pushed for em
 dashes, en dashes and AI attribution lines, and checks the commit author. It
 exits non zero on any violation.
 
-`make` is not installed on this machine, so the `make` targets in the README do
-not run here. Use the commands above.
+`make` is not installed on the Windows development machine, so the `make`
+targets do not run there. Use the commands above.
 
 ## The disposable test database
 
@@ -133,92 +139,45 @@ public, so `.env` is gitignored and stays that way.
 
 ## The postcss override
 
-`apps/web/package.json` forces `postcss` to `^8.5.18` through an `overrides`
-block. Next pins `postcss` to exactly `8.4.31`, which carries two HIGH
-advisories, CVE-2026-45623 and CVE-2026-73646. Every Next 15 release up to
-15.5.27 pins the same version, so upgrading Next does not help and the
-override is the only way out. npm refuses an override the direct dependency
-range does not satisfy, which is why the `devDependencies` entry moved to the
-same range.
+`apps/web/package.json` forces `postcss` to a fixed range through an
+`overrides` block. Next pins `postcss` to exactly `8.4.31`, which carries two
+HIGH advisories, CVE-2026-45623 and CVE-2026-73646, and Next 15 releases up to
+15.5.29, the version in use, still pin it. Upgrading Next does not help, so the
+override is the only way out; `npm ls postcss` shows the overridden version
+everywhere. npm refuses an override the direct dependency range does not
+satisfy, which is why the `devDependencies` entry uses the same range.
 
-The production build and the lint both pass against the overridden version,
-and the scan job is clean. Do not drop the override to silence a dependency
-warning without checking the advisories again.
+Do not drop the override to silence a dependency warning without checking the
+advisories again.
 
 ## CI
 
-`.github/workflows/ci.yml` runs on `main`, `develop` and `feature/**`:
+`.github/workflows/ci.yml` runs on `main`, `develop` and `feature/**`. Every
+job is required.
 
-| Job | Required | What it covers |
-| --- | --- | --- |
-| `repo-rules` | yes | `scripts/prepush-check.sh` |
-| `api` | yes | Ruff, mypy, pytest against a PostgreSQL service container |
-| `migrations` | yes | Migrations apply from empty, and the PostgreSQL only tests |
-| `web` | yes | Next.js lint and production build |
-| `evals` | yes | AI eval suites against fixtures, never the live API |
-| `scan` | no | Trivy, filesystem vulnerabilities and secrets, advisory only |
+| Job | What it covers |
+| --- | --- |
+| Repository rules | `scripts/prepush-check.sh` |
+| API lint, types, tests | Ruff, mypy, pytest, and pip-audit over the installed packages |
+| Migrations apply cleanly on Postgres | Upgrade, downgrade, upgrade; a seeded backup restored and compared table by table; the PostgreSQL only tests |
+| Web lint and build | Next.js lint and production build |
+| AI evals | Every eval suite against recorded fixtures, never the live API |
+| Browser end to end | The money path in a phone sized browser, against the dev compose stack and the production web build |
+| Production stack as staging | `docker-compose.prod.yml` with HTTPS through Caddy, its routing and headers, then the browser tests again on one origin |
+| Dependency vulnerability scan | Trivy over the repository; fails on any high or critical advisory with a fix |
 
-The scan job is advisory because a finding there is usually a transitive
-dependency with no fixed version yet, which is not something the pull request
-that triggered the run can do anything about.
-
-When a formatting check fails, the `api` job prints the exact diff in a log
+When a formatting check fails, the API job prints the exact diff in a log
 group called "formatting diff" and uploads it as a `format-patch` artifact, so
 a CI only failure can be reproduced without guessing at tool versions. Ruff and
 mypy are pinned to exact versions in `apps/api/pyproject.toml` for the same
 reason. When upgrading either, change the pin, reformat, and update the image
 tag in `scripts/lint.ps1` in the same commit.
 
-## Production, still to do
+## Production
 
-The images have production targets already. The `runtime` target in each
-Dockerfile is slim, runs as an unprivileged user at uid 1000, carries no test
-or lint tooling, and has a health check. Neither is wired to anything yet.
-Before a deployment:
-
-- Push the `runtime` images to a registry. GHCR needs no secret beyond
-  `GITHUB_TOKEN`.
-- Replace every development credential. `SECRET_KEY` must be a long random
-  string, the database must have a real password, and Redis needs one too.
-- Set `OTP_DEV_ECHO=false`. Left true, it prints login codes to the log.
-- Put TLS in front of the stack. Nothing here terminates it.
-- Move uploads off the local volume. `STORAGE_LOCAL_PATH` is a development
-  convenience, not durable storage.
-- Decide on backups for the `db_data` volume. There are none at the moment.
-- Set the AI spend guards for real. `AI_DAILY_SPEND_LIMIT_USD` and
-  `AI_BRAND_MONTHLY_SPEND_LIMIT_USD` default to development sized numbers.
-- Connect real payment and courier providers. Only sandbox implementations
-  exist, and production refuses them. Each real one needs the provider's
-  merchant documents, and implements the interface in
-  `services/payment_providers.py` or `services/courier_providers.py`.
-- Set `BANK_ACCOUNT_TITLE` and `BANK_ACCOUNT_IBAN`. Production refuses to start
-  with the sandbox IBAN.
-- Schedule `POST /admin/jobs/close-dispute-windows`. Until something calls it,
-  delivered orders stay open after their window ends unless the buyer confirms.
-- Point `EMBEDDING_SERVICE_URL` at a real model. The stand in only finds an
-  identical photograph.
-- Connect a real WhatsApp Business provider. Only the signed sandbox exists,
-  and production refuses it. A real adapter implements `WhatsAppProvider` in
-  `services/whatsapp_providers.py` and needs a verified business, an approved
-  number and approved message templates.
-- Connect a speech to text service for voice notes. The sandbox transcriber
-  only reads a transcript the sender attached. A real one implements
-  `Transcriber` and must handle Urdu, Punjabi, Sindhi and Pashto.
-- Schedule the Phase 4 jobs. Each has an admin endpoint that runs it once:
-  `POST /admin/jobs/markdowns` (daily), `POST /admin/jobs/forecast` (weekly)
-  and `POST /admin/jobs/risk` (daily). Pools that pass their closing time
-  stay open until `pool_service.expire_pools` runs, which nothing calls yet.
-- Run the new eval suites live before turning their features on: the
-  assistant plan with history, the brand assistant, the resell kit,
-  bargaining and markdown. Their fixtures are hand written, so the offline
-  run proves the pipeline and the graders, not the model.
-- Replace the starting reference data with real numbers: the resale
-  benchmarks, the standard size chart, the impact factors, and the season
-  calendar, whose Islamic dates are estimates to correct each year.
-- Add row level policies for buyers before connecting as a non owner database
-  role. The current policies cover brand staff and admins, so a reseller would
-  see no lots or orders. The application connects as the table owner today, and
-  its own access checks are what protect this data.
+Production and staging run from `docker-compose.prod.yml`, not from this
+development stack. Everything about them, including the checklist of what is
+needed before a real launch, is in [deployment.md](deployment.md).
 
 ## When something is wrong
 
@@ -264,7 +223,7 @@ environment, or build the image target that already sets it:
 
 ```powershell
 docker compose run --rm --no-deps -e NODE_ENV=production web npm run build
-docker build --target build .pps\web      # what CI effectively does
+docker build --target build apps/web      # what CI effectively does
 ```
 
 **The seed fails on a second run.** It should not: `seed --reset` truncates

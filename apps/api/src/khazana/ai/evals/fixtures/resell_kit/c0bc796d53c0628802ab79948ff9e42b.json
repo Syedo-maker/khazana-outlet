@@ -1,26 +1,34 @@
 {
   "_case": "no_material_or_origin_is_invented",
-  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
   "content": {
-    "caption_en": "Printed summer suits at Madina Cloth House, in teal, maroon and mustard.",
-    "caption_ur": "مدینہ کلاتھ ہاؤس پر پرنٹڈ سمر سوٹ، ٹیل، میرون اور مسٹرڈ میں۔",
-    "caption_ur_roman": "Madina Cloth House par printed summer suits, teal, maroon aur mustard mein.",
+    "caption_en": "New printed summer suits from Madina Cloth House, Multan. Unstitched 3 metre shirt pieces in teal, maroon and mustard, 60 pieces available at Rs 650 each. Message us on WhatsApp to order.",
+    "caption_ur": "\u0645\u062f\u06cc\u0646\u06c1 \u06a9\u0644\u0627\u062a\u06be \u06c1\u0627\u0624\u0633\u060c \u0645\u0644\u062a\u0627\u0646 \u06a9\u06cc \u0637\u0631\u0641 \u0633\u06d2 \u0646\u0626\u06d2 \u067e\u0631\u0646\u0679\u0688 \u0633\u0645\u0631 \u0633\u0648\u0679\u06d4 \u0627\u0646 \u0633\u0644\u06d2 3 \u0645\u06cc\u0679\u0631 \u0634\u0631\u0679 \u067e\u06cc\u0633\u060c \u0679\u06cc\u0644\u060c \u0645\u06cc\u0631\u0648\u0646 \u0627\u0648\u0631 \u0633\u0631\u0633\u0648\u06ba \u06a9\u06d2 \u0631\u0646\u06af \u0645\u06cc\u06ba\u060c 60 \u067e\u06cc\u0633 \u062f\u0633\u062a\u06cc\u0627\u0628 \u06c1\u06cc\u06ba\u060c \u0641\u06cc \u067e\u06cc\u0633 650 \u0631\u0648\u067e\u06d2\u06d4 \u0622\u0631\u0688\u0631 \u06a9\u06d2 \u0644\u06cc\u06d2 \u0648\u0627\u0679\u0633 \u0627\u06cc\u067e \u067e\u0631 \u067e\u06cc\u063a\u0627\u0645 \u0628\u06be\u06cc\u062c\u06cc\u06ba\u06d4",
+    "caption_ur_roman": "Madina Cloth House, Multan ki taraf se naye printed summer suits. Unstitched 3 metre shirt, teal, maroon aur mustard rang mein, 60 pieces dastiyab hain, Rs 650 fi piece. Order ke liye WhatsApp par message karein.",
     "hashtags": [
-      "#summer",
-      "#multan"
+      "#SummerSuits",
+      "#PrintedSuits",
+      "#UnstitchedSuits",
+      "#Womenswear",
+      "#MadinaClothHouse",
+      "#Multan",
+      "#KhazanaOutlet",
+      "#NaayaStock"
     ],
     "selling_points": [
-      "Three colours",
-      "New and unused"
+      "New, unused stock",
+      "Unstitched 3 metre shirt",
+      "Available in teal, maroon and mustard",
+      "60 pieces in total",
+      "Rs 650 per piece"
     ],
-    "social_post": "Printed summer suits at Madina Cloth House Multan, Rs 650 per piece. WhatsApp us to order.\nWhatsApp par order karein.",
-    "whatsapp_status": "Summer suits, Rs 650."
+    "social_post": "New printed summer suits from Madina Cloth House, Multan! Unstitched 3 metre shirts in teal, maroon and mustard. Brand new, unused stock, 60 pieces in total. Price: Rs 650 per piece. To order, message us on WhatsApp. Naye printed summer suits, teal, maroon aur mustard rang mein, Rs 650 fi piece. Order ke liye WhatsApp par message karein.",
+    "whatsapp_status": "New printed summer suits, Rs 650 per piece. Message Madina Cloth House on WhatsApp to order."
   },
-  "model": "claude-opus-5-5",
+  "model": "claude-haiku-5-5",
   "usage": {
-    "cache_read_tokens": 1800,
+    "cache_read_tokens": 1486,
     "cache_write_tokens": 0,
-    "input_tokens": 2400,
-    "output_tokens": 420
+    "input_tokens": 212,
+    "output_tokens": 722
   }
 }

@@ -23,6 +23,7 @@ never talk a structurally broken listing down the queue.
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from sqlalchemy import select
@@ -98,12 +99,35 @@ class ListingFacts:
         }
 
 
-def compute_facts(db: Session, lot: Lot) -> ListingFacts:
-    """The things that are measured rather than judged."""
-    lines = db.scalars(select(ManifestLine).where(ManifestLine.lot_id == lot.id)).all()
-    defects = db.scalars(select(LotDefect).where(LotDefect.lot_id == lot.id)).all()
-    photos = db.scalars(select(LotPhoto).where(LotPhoto.lot_id == lot.id)).all()
-    category = db.get(Category, lot.category_id)
+def compute_facts(
+    db: Session,
+    lot: Lot,
+    *,
+    loaded: bool = False,
+    categories: Mapping[str, Category] | None = None,
+) -> ListingFacts:
+    """The things that are measured rather than judged.
+
+    By default the rows are read fresh, because a caller in the middle of
+    editing a lot may hold collections that do not show its latest changes.
+    ``loaded=True`` is for a caller that has just read the lot with its
+    manifest, defects and photos eagerly loaded, such as the moderation list,
+    which would otherwise make three queries per lot on the page. It passes
+    the categories it read in one query too.
+    """
+    if loaded:
+        lines: Sequence[ManifestLine] = lot.manifest_lines
+        defects: Sequence[LotDefect] = lot.defects
+        photos: Sequence[LotPhoto] = lot.photos
+    else:
+        lines = db.scalars(select(ManifestLine).where(ManifestLine.lot_id == lot.id)).all()
+        defects = db.scalars(select(LotDefect).where(LotDefect.lot_id == lot.id)).all()
+        photos = db.scalars(select(LotPhoto).where(LotPhoto.lot_id == lot.id)).all()
+    category = (
+        categories.get(lot.category_id)
+        if categories is not None
+        else db.get(Category, lot.category_id)
+    )
 
     manifest_total = sum(line.pieces for line in lines)
     return ListingFacts(

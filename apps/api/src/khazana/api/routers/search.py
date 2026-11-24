@@ -18,9 +18,15 @@ from ...core.errors import NotFound
 from ...models import Category, Lot, SavedSearch, User
 from ...models.base import utcnow
 from ...models.enums import ConditionGrade
-from ...services import mixed_lot_service, recommendation_service, search_service
+from ...services import (
+    approval_service,
+    mixed_lot_service,
+    recommendation_service,
+    search_service,
+)
 from ...services.search_service import SearchFilters, SearchResult, Viewer
 from ..deps import CurrentPrincipal, Db, Principal
+from ..uploads import read_upload
 from .catalog import BrowseItemOut, _browse_item, _buyer_view
 
 router = APIRouter(prefix="/catalog", tags=["search"])
@@ -127,6 +133,7 @@ def _user(db: Session, principal: Principal) -> User:
 
 
 def _items(db: Session, principal: Principal, result: SearchResult) -> list[SearchItemOut]:
+    approval_service.preload_brands(db, result.lots)
     return [_item(db, principal, lot, result) for lot in result.lots]
 
 
@@ -183,6 +190,7 @@ def recommendations(
     ranked = recommendation_service.recommend(
         db, user_id=principal.user_id, viewer=viewer, limit=limit
     )
+    approval_service.preload_brands(db, [rec.lot for rec in ranked])
     return [
         RecommendationOut(
             **_browse_item(db, principal, rec.lot).model_dump(),
@@ -247,6 +255,7 @@ def _build_mixed(db: Session, principal: Principal, body: MixedLotIn) -> tuple[U
 
 
 def _mixed_out(db: Session, principal: Principal, proposal: Any, added: bool) -> MixedLotOut:
+    approval_service.preload_brands(db, [c.lot for c in proposal.components])
     return MixedLotOut(
         components=[
             MixedComponentOut(
@@ -334,7 +343,7 @@ async def search_catalog_by_photo(
     """Find listings that look like a photograph. The image is not stored."""
     from ...storage import ALLOWED_IMAGE_TYPES, StorageError, validate_upload
 
-    data = await file.read()
+    data = await read_upload(file)
     try:
         validate_upload(data, file.content_type or "", allowed=ALLOWED_IMAGE_TYPES)
     except StorageError as exc:

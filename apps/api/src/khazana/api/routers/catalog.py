@@ -28,6 +28,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ...ai import images
 from ...ai.logo_regions import Box
 from ...core.errors import NotFound, ValidationFailed
 from ...core.tenancy import assert_owns
@@ -49,8 +50,9 @@ from ...services import (
     profit_service,
     size_service,
 )
-from ...storage import read_object
+from ...storage import put_object, read_object, thumbnail_key
 from ..deps import CurrentBrand, CurrentPrincipal, Db, Principal, client_ip
+from ..uploads import read_upload
 
 router = APIRouter(tags=["catalog"])
 
@@ -477,9 +479,23 @@ def _photo_on(lot: Lot, photo_id: str) -> LotPhoto:
     return photo
 
 
-def _image_response(key: str) -> Response:
+def _image_response(key: str, size: str = "full") -> Response:
+    """A stored photograph, or its thumbnail, made on first request and kept.
+
+    The thumbnail is keyed off the photograph's own storage key, so a new
+    protected copy gets a new thumbnail, and deleting the photograph deletes
+    its thumbnail with it.
+    """
     try:
-        data = read_object(key)
+        if size == "thumb":
+            small = thumbnail_key(key)
+            try:
+                data = read_object(small)
+            except FileNotFoundError:
+                data = images.thumbnail(read_object(key))
+                put_object(small, data, "image/jpeg")
+        else:
+            data = read_object(key)
     except FileNotFoundError:
         raise NotFound("That photograph is not available.") from None
     return Response(
@@ -715,7 +731,7 @@ async def import_manifest(
     them would make the model's reading of a spreadsheet binding.
     """
     lot = _owned(db, principal, lot_id)
-    data = await file.read()
+    data = await read_upload(file)
 
     outcome = catalog_service.import_manifest(
         db,
@@ -801,7 +817,7 @@ async def add_photo(
     resized and recompressed. Only the processed version is stored.
     """
     lot = _owned(db, principal, lot_id)
-    data = await file.read()
+    data = await read_upload(file)
 
     photo = catalog_service.add_photo(
         db,
@@ -871,13 +887,14 @@ def owner_photo_image(
     principal: CurrentBrand,
     db: Db,
     variant: Annotated[Literal["original", "protected"], Query()] = "original",
+    size: Annotated[Literal["full", "thumb"], Query()] = "full",
 ) -> Response:
     """A photograph for its owner, either as uploaded or as buyers would see it."""
     photo = _photo_on(_owned(db, principal, lot_id), photo_id)
     key = photo.file_key if variant == "original" else photo.blurred_file_key
     if key is None:
         raise NotFound("This photograph has no protected copy.")
-    return _image_response(key)
+    return _image_response(key, size)
 
 
 @router.post(
@@ -1156,6 +1173,7 @@ def browse_catalog(
         limit=limit,
         offset=offset,
     )
+    approval_service.preload_brands(db, rows)
     items = [_browse_item(db, principal, lot) for lot in rows]
     return BrowseOut(items=items, total=total, limit=limit, offset=offset)
 
@@ -1289,10 +1307,14 @@ def catalog_photo_image(
     principal: CurrentPrincipal,
     db: Db,
     city: Annotated[str | None, Query(max_length=80)] = None,
+    size: Annotated[Literal["full", "thumb"], Query()] = "full",
 ) -> Response:
-    """A photograph as buyers may see it, and never the original of a protected one."""
+    """A photograph as buyers may see it, and never the original of a protected one.
+
+    ``size=thumb`` is a 400 pixel copy for catalogue cards.
+    """
     lot = _catalog_lot(db, principal, lot_id, city)
     key = photo_protection_service.buyer_file_key(lot, _photo_on(lot, photo_id))
     if key is None:
         raise NotFound("That photograph is not available.")
-    return _image_response(key)
+    return _image_response(key, size)

@@ -25,6 +25,13 @@ from ..core.errors import Conflict, Unauthenticated, ValidationFailed
 
 SIGNATURE_HEADER = "x-sandbox-signature"
 MAX_TEXT_CHARS = 2_000
+# The audio formats WhatsApp delivers voice notes and audio messages in. A real
+# adapter checks the downloaded bytes against these before transcribing.
+VOICE_MIME_TYPES = frozenset({"audio/ogg", "audio/mpeg", "audio/mp4", "audio/aac", "audio/amr"})
+# The most a real adapter downloads for one voice note. Two minutes of Opus at
+# WhatsApp's bitrate is well under 1 MB.
+MAX_VOICE_BYTES = 5 * 1024 * 1024
+
 # Languages a voice note may be in. Buyers speak these; replies are written in
 # Urdu, Roman Urdu or English, which readers of all four can read.
 VOICE_LANGUAGES = ("ur", "pa", "sd", "ps", "en")
@@ -36,6 +43,7 @@ class VoiceNote:
 
     media_id: str
     duration_seconds: int
+    mime_type: str = "audio/ogg"
     sandbox_transcript: str | None = None
     sandbox_confidence: float | None = None
     sandbox_language: str | None = None
@@ -103,6 +111,7 @@ class SandboxWhatsAppProvider:
             payload["voice"] = {
                 "media_id": voice.media_id,
                 "duration_seconds": voice.duration_seconds,
+                "mime_type": voice.mime_type,
                 "sandbox_transcript": voice.sandbox_transcript,
                 "sandbox_confidence": voice.sandbox_confidence,
                 "sandbox_language": voice.sandbox_language,
@@ -123,6 +132,7 @@ class SandboxWhatsAppProvider:
                 voice = VoiceNote(
                     media_id=str(voice_raw["media_id"]),
                     duration_seconds=int(voice_raw.get("duration_seconds") or 0),
+                    mime_type=str(voice_raw.get("mime_type") or "audio/ogg").split(";")[0],
                     sandbox_transcript=voice_raw.get("sandbox_transcript"),
                     sandbox_confidence=None if confidence is None else float(confidence),
                     sandbox_language=voice_raw.get("sandbox_language"),

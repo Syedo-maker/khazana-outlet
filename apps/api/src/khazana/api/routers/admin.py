@@ -446,7 +446,7 @@ def listings(
     for item in admin_service.moderation_list(
         db, status=lot_status, search=search, limit=limit, offset=offset
     ):
-        brand = db.get(Brand, item.lot.brand_id)
+        brand = item.lot.brand
         out.append(
             ModerationItemOut(
                 lot=LotOut.model_validate(item.lot),
@@ -558,6 +558,29 @@ def close_dispute_windows(principal: AdminOnly, db: Db) -> dict[str, int]:
     closed = order_service.close_expired_windows(db)
     db.commit()
     return {"closed": closed}
+
+
+@router.post("/jobs/expire-pools", operation_id="admin_expire_pools")
+def expire_pools(principal: AdminOnly, db: Db) -> dict[str, int]:
+    """Close committee pools that passed their closing time without being placed.
+
+    Hourly, from the scheduler. Until this ran, an expired pool stayed open.
+    """
+    from ...services import pool_service
+
+    expired = pool_service.expire_pools(db)
+    db.commit()
+    return {"expired": expired}
+
+
+@router.post("/jobs/purge-ai-cache", operation_id="admin_purge_ai_cache")
+def purge_ai_cache(principal: AdminOnly, db: Db) -> dict[str, int]:
+    """Delete expired entries from the AI response cache. Daily."""
+    from ...ai.gateway import response_cache
+
+    purged = response_cache.purge_expired(db)
+    db.commit()
+    return {"purged": purged}
 
 
 # -------------------------------------------------------------------- disputes

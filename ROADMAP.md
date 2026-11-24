@@ -164,7 +164,7 @@ real embedding service, and logo detection tested on real brand photographs.
 
 The development environment also moved into containers during this phase, so
 lint, types, tests, migrations and seeding all run in the same images CI uses.
-See `DEPLOYMENT.md`.
+See `docs/deployment.md`.
 
 Goal: the marketplace, built on top of the AI engine. Every module below
 calls Phase 2 rather than duplicating it.
@@ -198,7 +198,7 @@ seed data.
 AI feature has an eval suite that passes against recorded replies. Live runs
 of the new suites, a real WhatsApp Business number, a speech service for voice
 notes and the schedulers for the batch jobs are what remain before it meets
-real users. See `DEPLOYMENT.md`.
+real users. See `docs/deployment.md`.
 
 Goal: the features that make the platform feel like it is run by software
 rather than by a person with a spreadsheet.

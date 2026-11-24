@@ -1,16 +1,15 @@
 {
   "_case": "a_low_offer_gets_a_counter_inside_the_range",
-  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
   "content": {
     "counter_price_per_piece_pkr": 470,
     "language": "en",
-    "message": "380 is too low for new A grade stock, but for 120 pieces I can do Rs 470 per piece."
+    "message": "Thank you for your offer! These printed lawn three piece suits are brand new and unused, Condition A, so for all 120 pieces I can do Rs 470 per piece. That's a fair price for fresh stock at this quality."
   },
   "model": "claude-opus-5-5",
   "usage": {
-    "cache_read_tokens": 1800,
-    "cache_write_tokens": 0,
-    "input_tokens": 2400,
-    "output_tokens": 420
+    "cache_read_tokens": 0,
+    "cache_write_tokens": 965,
+    "input_tokens": 167,
+    "output_tokens": 103
   }
 }

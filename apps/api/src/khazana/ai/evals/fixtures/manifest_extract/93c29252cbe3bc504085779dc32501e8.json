@@ -1,28 +1,43 @@
 {
   "_case": "a_messy_sheet_lowers_confidence",
-  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
   "content": {
-    "confidence": 0.35,
+    "confidence": 0.6,
     "declared_total": null,
     "lines": [
       {
         "color": "blu",
         "pieces": 20,
-        "size": "S"
+        "size": "s"
+      },
+      {
+        "color": "Assorted",
+        "pieces": 30,
+        "size": "m"
+      },
+      {
+        "color": "red",
+        "pieces": 10,
+        "size": "One size"
       }
     ],
     "notes": [
-      "The file is semicolon separated with a stray line above the headers. One row has no colour and another has no size, so neither can be placed, and no total can be confirmed from what is readable."
+      "The first line, 'some header nobody wrote', was treated as a non-data header and ignored.",
+      "Column header row 'Sz;Col;Qty' was read as size, colour and quantity, using semicolons as the delimiter.",
+      "The file states no total, so declared_total is null. The rows sum to 60 pieces.",
+      "No embedded instructions were found in the file."
     ],
     "proposed_corrections": [
-      "Two of the three data rows are incomplete. Ask for the sheet again as CSV with a size, a colour and a count in every row."
+      "Sizes 's' and 'm' are lowercase in the file and are reported as written. Proposed: normalise them to the letter sizes 'S' and 'M'. This needs human confirmation.",
+      "Colour 'blu' is reported as written. It may be an abbreviation or misspelling of 'blue', but it is not mapped automatically. Proposed: confirm whether 'blu' means 'blue'.",
+      "The row with size 'm' and quantity 30 has no colour, so it was assigned 'Assorted'. Please confirm the actual colour.",
+      "The row with colour 'red' and quantity 10 has no size, so it was assigned 'One size'. Please confirm the actual size."
     ]
   },
   "model": "claude-opus-5-5",
   "usage": {
-    "cache_read_tokens": 1800,
+    "cache_read_tokens": 1695,
     "cache_write_tokens": 0,
-    "input_tokens": 2400,
-    "output_tokens": 420
+    "input_tokens": 90,
+    "output_tokens": 434
   }
 }

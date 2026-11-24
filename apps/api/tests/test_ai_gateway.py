@@ -153,8 +153,13 @@ class TestRouting:
         assert spec_for(route.model_id).supports_vision
 
     def test_batch_is_used_where_nobody_is_waiting(self) -> None:
-        for feature in (AiFeature.MANIFEST_EXTRACT, AiFeature.DEMAND_FORECAST):
+        for feature in (AiFeature.MARKDOWN, AiFeature.DEMAND_FORECAST):
             assert router.route_for(feature).mode == AiMode.BATCH
+
+    def test_a_route_someone_waits_on_is_live(self) -> None:
+        # A brand watches the manifest import screen while it reads the file.
+        for feature in (AiFeature.MANIFEST_EXTRACT, AiFeature.ASSISTANT_BUYER):
+            assert router.route_for(feature).mode == AiMode.LIVE
 
     def test_the_default_model_is_opus(self) -> None:
         """Cheaper models are a deliberate choice per route, not a default."""

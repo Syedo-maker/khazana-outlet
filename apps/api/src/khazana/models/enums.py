@@ -264,6 +264,8 @@ class AiMode(StrEnum):
     LIVE = "live"
     BATCH = "batch"
     OFFLINE = "offline"
+    # Answered from the response cache: no model call, no cost.
+    CACHED = "cached"
 
 
 class EmbeddingOwner(StrEnum):

@@ -9,7 +9,7 @@ this is the per feature reference.
 | Feature | Model | Effort | Mode | Endpoint |
 | --- | --- | --- | --- | --- |
 | Photo to listing | Opus 5.5 | medium | live | `POST /ai/listings/draft` |
-| Manifest extraction | Opus 5.5 | low | batch | `POST /ai/manifests/extract` |
+| Manifest extraction | Opus 5.5 | low | live | `POST /ai/manifests/extract` |
 | Pricing suggestion | Opus 5.5 | medium | live | `POST /ai/lots/{id}/price-suggestion` |
 | Semantic and visual search | self hosted embeddings | n/a | n/a | `GET /ai/search` |
 | Buyer assistant | Opus 5.5 | low | live | `POST /ai/assistant/ask` |
@@ -246,6 +246,72 @@ of requests.
 A blocked job keeps its row with the reason, so throttling is visible rather
 than looking like the feature quietly did nothing.
 
+## Week 53: the cost and quality pass
+
+Every eval suite was run live on 2026-11-24, then again where a change needed
+measuring. Total spend for the whole pass, every rerun included: **USD 1.03**,
+against a cap of USD 10, enforced by setting the gateway's own daily cap to
+USD 9.50 for the run.
+
+### Results
+
+All 12 suites, 95 cases, passed every mandatory case on the first live run.
+Two optional cases failed, both on routes that had been moved to Haiku 5.5,
+and that decided the model for those routes:
+
+| Route | Model tried | Runs | Result |
+| --- | --- | --- | --- |
+| Markdown agent | Haiku 5.5, low and medium effort | 3 each | Cut 3% from a lot that was selling, every run |
+| Markdown agent | Haiku 5.5, high effort | 3 | Ran out of tokens thinking; a mandatory case failed |
+| Markdown agent | Haiku 4.5 | 3 | Every case passed, every run |
+| Risk scoring | Haiku 5.5, low and medium effort | 3 each | Scored a contradicted grade claim 35, below the 40 floor, every run |
+| Risk scoring | Haiku 4.5 | 3 | Every case passed, every run |
+| Resell kit | Haiku 5.5, low effort | 1 | Every case passed |
+
+So the markdown agent and risk scoring stay on Haiku 4.5, and the resell kit
+moves to Haiku 5.5 at a tenth of the price. The router says why beside each
+route, so the next person to change it sees the evidence first.
+
+### Prompt caching, measured
+
+| Route | Fresh input tokens | Read from cache | Notes |
+| --- | --- | --- | --- |
+| Buyer assistant | 2,599 | 26,812 | Opus 5.5 |
+| Brand assistant | 2,376 | 18,807 | Opus 5.5 |
+| Manifest extraction | 1,401 | 23,730 | Opus 5.5 |
+| Pricing | 3,925 | 24,794 | Opus 5.5 |
+| Resell kit | 1,323 | 7,430 | Haiku 5.5 |
+| Logo detection, before | 39,413 | 0 | caching was off on this route |
+| Logo detection, after | 15,655 | 22,061 | 36% cheaper, every case still passes |
+| Risk scoring, markdown | all | 0 | Haiku 4.5: prompts are under its 4,096 token minimum |
+
+Haiku 4.5 needs a cached prefix of 4,096 tokens; Opus 5.5, Sonnet 5.5 and
+Haiku 5.5 need 512. The two Haiku 4.5 routes are cheap enough that this costs
+little, but it is why a move to Haiku 5.5 will be worth re-testing when the
+eval allows it.
+
+### What else changed
+
+- **Refusal fallback.** Opus 5.5 requests carry the server side fallback to
+  Opus 4.8, so a safety classifier declining an ordinary request is answered
+  inside the same call instead of failing. The reply is priced at the model
+  that served it.
+- **Response cache.** Listing drafts, logo detection, manifest extraction,
+  pricing and risk scoring answer an identical request from the stored reply
+  for 24 hours, at no cost. The key includes the brand and the image bytes.
+  Evals bypass it, because an eval measures the model.
+- **Batch.** The daily markdown agent goes through the Message Batches API at
+  half price, submitted once a day and collected every half hour. It is the
+  only model job nobody waits for: forecasting and the daily risk job never
+  call the model, and model risk scoring runs when an admin asks for it.
+- **A snapshot name broke pricing.** Haiku 4.5 reports itself as
+  `claude-haiku-4-5-20251001`. The new served model tracking priced replies
+  by that name, which is not in the catalogue, so every Haiku 4.5 reply failed
+  after it had been paid for. Found by the live run, fixed, and tested.
+- **The SDK is pinned to 2.x**, which the images and CI had already installed
+  while the laptop ran 1.x.
+
+
 ## Still to measure
 
 Stated so they are not mistaken for settled facts.
@@ -253,9 +319,11 @@ Stated so they are not mistaken for settled facts.
 - **Tokens per photograph.** The cost model uses a placeholder of 1,500. Measure
   it with the token counting endpoint against real brand photographs and put
   the real figure here.
-- **Cache hit rate in production.** A silently broken prompt cache produces no
-  error and a twenty times larger bill. The client logs a warning when a
-  cached route returns no cache tokens; that warning needs a dashboard.
+- **Cache hit rate in production.** Measured in the week 53 live run below:
+  every Opus 5.5 and Haiku 5.5 route caches, Haiku 4.5 routes do not. In
+  production the client logs a warning when a cached route returns no cache
+  tokens; that warning needs a dashboard, which is part of the monitoring in
+  `docs/deployment.md`.
 - **Haiku 4.5 cache read pricing.** Not published in the source used to build
   the catalogue, so `cost.py` charges cache reads at the full input rate for
   that model. Over reporting is recoverable; under reporting is a surprise.

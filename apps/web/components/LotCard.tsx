@@ -23,6 +23,7 @@ export function LotCard({
           path={`/catalog/${lot.id}/photos/${item.cover_photo_id}`}
           token={token}
           alt={lot.title}
+          size="thumb"
         />
       ) : (
         <div className="grid aspect-[3/4] place-items-center rounded bg-surface-sunk px-3 text-center text-xs text-ink-faint">
@@ -36,7 +37,11 @@ export function LotCard({
         </span>
       </div>
       <h2 className="mt-2 text-base font-semibold">
-        <Link href={`/catalog/${lot.id}`} className="underline decoration-line hover:decoration-ink">
+        <Link
+          href={`/catalog/${lot.id}`}
+          // A page of 24 cards would otherwise prefetch 24 lot pages.
+          prefetch={false}
+          className="underline decoration-line hover:decoration-ink">
           {lot.title}
         </Link>
       </h2>

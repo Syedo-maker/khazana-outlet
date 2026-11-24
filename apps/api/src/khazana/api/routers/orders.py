@@ -7,12 +7,14 @@ delivery details only once it has something to fulfil.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Request, status
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
 from ...core.errors import AppError, NotFound, ValidationFailed
 from ...models import Dispute, Lot, Order, OrderEvent, OrderReturn, ResellerProfile, User
@@ -240,8 +242,39 @@ def _selling_side(principal: Principal, order: Order) -> bool:
     return principal.is_admin or order.brand_id in principal.brand_ids
 
 
-def order_payload(db: Session, principal: Principal, order: Order) -> dict[str, object]:
-    lot = db.get(Lot, order.lot_id)
+@dataclass(slots=True)
+class _Related:
+    """Lots and buyers for a page of orders, loaded together.
+
+    Held for the length of the request so the identity map, which keeps
+    objects only weakly, cannot drop them between rows.
+    """
+
+    lots: dict[str, Lot]
+    buyers: dict[str, User]
+
+
+def _related(db: Session, orders: list[Order]) -> _Related:
+    """One query for the lots, one for the buyers and their profiles, one for
+    the brands, instead of four per order. A brand's list of 50 orders was 204
+    queries; it is now a handful whatever its length."""
+    lot_ids = {order.lot_id for order in orders}
+    buyer_ids = {order.buyer_user_id for order in orders}
+    lots = {lot.id: lot for lot in db.scalars(select(Lot).where(Lot.id.in_(lot_ids)))}
+    buyers = {
+        user.id: user
+        for user in db.scalars(
+            select(User).where(User.id.in_(buyer_ids)).options(selectinload(User.reseller_profile))
+        )
+    }
+    approval_service.preload_brands(db, lots.values())
+    return _Related(lots=lots, buyers=buyers)
+
+
+def order_payload(
+    db: Session, principal: Principal, order: Order, related: _Related | None = None
+) -> dict[str, object]:
+    lot = related.lots.get(order.lot_id) if related else db.get(Lot, order.lot_id)
     if lot is None:
         raise NotFound("That order's lot no longer exists.")
     shown = approval_service.present(
@@ -284,7 +317,11 @@ def order_payload(db: Session, principal: Principal, order: Order) -> dict[str, 
         payload["delivery_address"] = order.delivery_address
         payload["delivery_phone"] = order.delivery_phone
     if selling:
-        buyer = db.get(User, order.buyer_user_id)
+        buyer = (
+            related.buyers.get(order.buyer_user_id)
+            if related
+            else db.get(User, order.buyer_user_id)
+        )
         profile: ResellerProfile | None = buyer.reseller_profile if buyer else None
         payload.update(
             commission_percent=float(order.commission_percent),
@@ -494,7 +531,10 @@ def list_orders(
         limit=limit,
         offset=offset,
     )
-    return [OrderOut.model_validate(order_payload(db, principal, order)) for order in orders]
+    related = _related(db, orders)
+    return [
+        OrderOut.model_validate(order_payload(db, principal, order, related)) for order in orders
+    ]
 
 
 @router.get("/orders/{order_id}", response_model=OrderDetailOut, operation_id="orders_detail")

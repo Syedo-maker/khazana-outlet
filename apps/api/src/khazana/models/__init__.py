@@ -6,7 +6,7 @@ registered on the metadata before Alembic or ``create_all`` runs.
 
 from __future__ import annotations
 
-from .ai import AiJob, AiOutput, AiSpend, Embedding
+from .ai import AiJob, AiOutput, AiResponseCache, AiSpend, Embedding
 from .assistant import AssistantConversation, AssistantMessage, WhatsAppMessage
 from .audit import AuditLog
 from .base import Base, Vector, as_utc, new_id, utcnow
@@ -88,6 +88,7 @@ __all__ = [
     "QUERY_INDEXES",
     "AiJob",
     "AiOutput",
+    "AiResponseCache",
     "AiSpend",
     "AssistantConversation",
     "AssistantMessage",

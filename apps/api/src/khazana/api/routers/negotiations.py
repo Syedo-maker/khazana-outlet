@@ -359,9 +359,41 @@ class MarkdownRunOut(BaseModel):
     operation_id="admin_run_markdowns",
 )
 def run_markdowns(_: AdminOnly, db: Db) -> list[MarkdownRunOut]:
-    """Run the markdown agent now. In production a scheduler calls the same function."""
+    """Run the markdown agent now, live, at the full price.
+
+    For a decision someone wants to see straight away. The daily schedule
+    uses the batch endpoints below instead.
+    """
     results = markdown_service.run(db)
     db.commit()
+    return _markdown_out(results)
+
+
+@router.post(
+    "/admin/jobs/markdowns/batch",
+    response_model=list[MarkdownRunOut],
+    operation_id="admin_submit_markdown_batch",
+)
+def submit_markdown_batch(_: AdminOnly, db: Db) -> list[MarkdownRunOut]:
+    """Send today's markdown decisions as one batch, at half the price.
+
+    Daily, from the scheduler. Returns nothing until the batch comes back,
+    except offline, where the batch answers at once.
+    """
+    return _markdown_out(markdown_service.submit_batch(db))
+
+
+@router.post(
+    "/admin/jobs/markdowns/collect",
+    response_model=list[MarkdownRunOut],
+    operation_id="admin_collect_markdown_batch",
+)
+def collect_markdown_batch(_: AdminOnly, db: Db) -> list[MarkdownRunOut]:
+    """Apply every markdown decision whose batch has ended. Every half hour."""
+    return _markdown_out(markdown_service.collect_batch(db))
+
+
+def _markdown_out(results: list[markdown_service.MarkdownResult]) -> list[MarkdownRunOut]:
     return [
         MarkdownRunOut(
             lot_code=r.lot_code,

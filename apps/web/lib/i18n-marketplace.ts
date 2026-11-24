@@ -421,6 +421,12 @@ const ROWS: readonly Row[] = [
   ["protection.hideMarked", "Hide {count} marked areas", "{count} jagah chhupayen", "{count} جگہیں چھپائیں"],
   ["protection.clearMarks", "Clear marked areas", "Nishan hatayen", "نشان ہٹائیں"],
   ["protection.noMark", "No brand mark here", "Yahan brand nishan nahi", "یہاں برانڈ نشان نہیں"],
+  ["demo.banner", "Demo: every brand, shop and order here is sample data, reset every night.", "Demo: yahan har brand, dukaan aur order namoona data hai, har raat naya hota hai.", "ڈیمو: یہاں ہر برانڈ، دکان اور آرڈر نمونہ ڈیٹا ہے، ہر رات نیا ہوتا ہے۔"],
+  ["demo.title", "Try it as", "Is tarah azmaen", "اس طرح آزمائیں"],
+  ["demo.intro", "This is a demonstration. Pick an account; the code appears on the next screen.", "Yeh demo hai. Account chunein; code agli screen par nazar aayega.", "یہ ڈیمو ہے۔ اکاؤنٹ چنیں؛ کوڈ اگلی اسکرین پر نظر آئے گا۔"],
+  ["demo.role.reseller", "A reseller buying stock", "Maal khareedne wala reseller", "مال خریدنے والا ری سیلر"],
+  ["demo.role.brand", "A brand selling stock", "Maal bechne wala brand", "مال بیچنے والا برانڈ"],
+  ["demo.role.admin", "The Khazana team", "Khazana team", "خزانہ ٹیم"],
 ];
 
 function column(index: 1 | 2 | 3): Record<string, string> {
