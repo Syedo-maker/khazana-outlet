@@ -2255,6 +2255,49 @@
     "title": "DemandOut",
     "type": "object"
    },
+   "DemoAccount": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "phone": {
+      "title": "Phone",
+      "type": "string"
+     },
+     "role": {
+      "$ref": "#/components/schemas/UserRole"
+     }
+    },
+    "required": [
+     "role",
+     "phone",
+     "name"
+    ],
+    "title": "DemoAccount",
+    "type": "object"
+   },
+   "DemoOut": {
+    "properties": {
+     "accounts": {
+      "items": {
+       "$ref": "#/components/schemas/DemoAccount"
+      },
+      "title": "Accounts",
+      "type": "array"
+     },
+     "enabled": {
+      "title": "Enabled",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "enabled",
+     "accounts"
+    ],
+    "title": "DemoOut",
+    "type": "object"
+   },
    "DisputeIn": {
     "additionalProperties": false,
     "properties": {
@@ -16220,6 +16263,38 @@
     "summary": "Profit Estimate",
     "tags": [
      "catalog"
+    ]
+   }
+  },
+  "/demo": {
+   "get": {
+    "description": "The sample accounts the login page offers on a demo, one per role.\n\nEmpty unless DEMO_MODE is on, so a real deployment never lists accounts.",
+    "operationId": "ops_demo",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DemoOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "4XX": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorBody"
+        }
+       }
+      },
+      "description": "The request was refused. The body says why."
+     }
+    },
+    "summary": "Whether this is a public demo, and its sample accounts",
+    "tags": [
+     "ops"
     ]
    }
   },

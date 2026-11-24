@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     # Error reports go here when set: Sentry, or a self hosted GlitchTip.
     sentry_dsn: str | None = None
+    # A public demonstration: only the sample accounts can sign in, the login
+    # page offers them, every page says it is a demo, and the data is reseeded
+    # every night. Production refuses to start with it on.
+    demo_mode: bool = False
 
     # ---------- Database ----------
     # 55432 to match .env.example and what compose publishes, not 5432.
@@ -170,6 +174,8 @@ class Settings(BaseSettings):
         for name, url in (("API_BASE_URL", self.api_base_url), ("WEB_BASE_URL", self.web_base_url)):
             if not url.startswith("https://"):
                 problems.append(f"{name} is not https")
+        if self.demo_mode:
+            problems.append("DEMO_MODE must be off in production")
         if self.trusted_proxy_count == 0:
             # Behind a proxy with this at zero, every request appears to come
             # from the proxy's own address, so the per address limit on login

@@ -5,7 +5,7 @@ by hand. The machine readable version is [`openapi.json`](openapi.json), and
 a running API serves the same spec at `/openapi.json` with interactive docs
 at `/docs`.
 
-Version 0.1.0. 170 operations.
+Version 0.1.0. 171 operations.
 
 ## Conventions
 
@@ -20,7 +20,7 @@ Version 0.1.0. 170 operations.
 
 ## Contents
 
-- [ops](#ops) (3)
+- [ops](#ops) (4)
 - [auth](#auth) (5)
 - [brands](#brands) (12)
 - [catalog](#catalog) (29)
@@ -47,6 +47,7 @@ Health, readiness and the AI gateway status. Open without sign in.
 | --- | --- | --- | --- |
 | `GET` | `/health` | Liveness, without touching the database | open |
 | `GET` | `/ready` | Readiness, including a database check | open |
+| `GET` | `/demo` | Whether this is a public demo, and its sample accounts | open |
 | `GET` | `/ai/status` | AI mode, routed models, spend cap and feature switches | open |
 
 ### `GET /health`
@@ -64,6 +65,16 @@ Returns `200` with `HealthOut`.
 Readiness, including a database check
 
 Returns `200`.
+
+### `GET /demo`
+
+`ops_demo`
+
+The sample accounts the login page offers on a demo, one per role.
+
+Empty unless DEMO_MODE is on, so a real deployment never lists accounts.
+
+Returns `200` with `DemoOut`.
 
 ### `GET /ai/status`
 

@@ -50,7 +50,10 @@ COPY . .
 # JavaScript at build time, so it is a build argument, not a runtime setting.
 # Production builds pass the public HTTPS address of the API.
 ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+# "true" for a public demo: every page carries a banner saying so.
+ARG NEXT_PUBLIC_DEMO_MODE=false
 ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL} \
+    NEXT_PUBLIC_DEMO_MODE=${NEXT_PUBLIC_DEMO_MODE} \
     NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 

@@ -56,6 +56,7 @@ def test_development_is_never_checked() -> None:
         ({"web_base_url": "http://example.pk"}, "WEB_BASE_URL is not https"),
         ({"bank_account_iban": "PK00SANDBOX0000000000000"}, "sandbox"),
         ({"trusted_proxy_count": 0}, "TRUSTED_PROXY_COUNT"),
+        ({"demo_mode": True}, "DEMO_MODE"),
     ],
 )
 def test_each_unsafe_setting_stops_startup(override: dict[str, object], message: str) -> None:

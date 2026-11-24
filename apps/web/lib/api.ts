@@ -158,6 +158,11 @@ export type Me = {
 };
 
 export const api = {
+  demo: () =>
+    request<{ enabled: boolean; accounts: { role: string; phone: string; name: string }[] }>(
+      "/demo",
+    ),
+
   requestOtp: (phone: string) =>
     request<OtpRequestResult>("/auth/otp/request", {
       method: "POST",

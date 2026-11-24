@@ -79,6 +79,12 @@ def request_otp(
     phone = normalise_phone(raw_phone)
     now = utcnow()
 
+    if settings.demo_mode and db.scalar(select(User.id).where(User.phone == phone)) is None:
+        # A public demo must not become a place strangers keep accounts or
+        # files: only the seeded sample accounts sign in, and those are
+        # reset every night.
+        raise Forbidden("This is a demo. Sign in with one of the sample accounts on the page.")
+
     cooldown_start = now - timedelta(seconds=settings.otp_resend_cooldown_seconds)
     recent = db.scalar(
         select(func.count())

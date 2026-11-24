@@ -45,6 +45,8 @@ x-api-env: &api-env
   STORAGE_LOCAL_PATH: /app/uploads
   LOG_FORMAT: json
   SENTRY_DSN: ${SENTRY_DSN:-}
+  # A public demo: sample accounts only, reset nightly. Refused in production.
+  DEMO_MODE: ${DEMO_MODE:-false}
 
 services:
   caddy:
@@ -72,6 +74,8 @@ services:
       args:
         # Same origin: the browser calls /api on the site it loaded from.
         NEXT_PUBLIC_API_BASE_URL: /api
+        # The demo banner on every page, for a public demo only.
+        NEXT_PUBLIC_DEMO_MODE: ${DEMO_MODE:-false}
     image: ${IMAGE_PREFIX:-khazana}-web:${VERSION:-local}
     restart: unless-stopped
     logging: *logging

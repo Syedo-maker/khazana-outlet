@@ -54,6 +54,11 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen flex-col">
+      {DEMO ? (
+        <p className="border-b border-line bg-accent-subtle px-4 py-2 text-center text-sm font-semibold text-ink">
+          {t(locale, "demo.banner")}
+        </p>
+      ) : null}
       <header className="border-b border-line bg-surface">
         <div className="mx-auto flex max-w-shell items-center justify-between gap-4 px-4 py-3">
           <Link href="/" className="flex items-center gap-2 font-bold tracking-tight">
@@ -132,6 +137,9 @@ export function AppShell({
     </div>
   );
 }
+
+// Set at build time for a public demo: every page says the data is samples.
+const DEMO = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 export const BRAND_NAV: NavItem[] = [
   { href: "/dashboard", labelKey: "nav.dashboard" },

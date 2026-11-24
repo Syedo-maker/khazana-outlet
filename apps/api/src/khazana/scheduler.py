@@ -97,6 +97,15 @@ def _forecast(db: Session) -> object:
     return forecast_service.run(db)
 
 
+def _demo_reset(db: Session) -> object:
+    """Reseed a public demo every night, so a visitor's changes do not last."""
+    if not get_settings().demo_mode:
+        return "skipped, not a demo"
+    from . import seed
+
+    return seed.main(["--reset"])
+
+
 def _purge_ai_cache(db: Session) -> object:
     from .ai.gateway import response_cache
 
@@ -112,6 +121,7 @@ JOBS: tuple[Job, ...] = (
     Job("risk", _risk, daily_at=(3, 0)),
     Job("forecast", _forecast, daily_at=(4, 0), weekday=0),
     Job("purge-ai-cache", _purge_ai_cache, daily_at=(4, 30)),
+    Job("demo-reset", _demo_reset, daily_at=(5, 0)),
 )
 
 
