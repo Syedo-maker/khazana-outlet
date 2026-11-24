@@ -1,0 +1,60 @@
+name: Release
+
+# Pushing a version tag, v1.0.0 for example, publishes that release: the two
+# production images to the GitHub container registry, and a GitHub release
+# whose notes are that version's section of CHANGELOG.md.
+#
+# The images are what docker-compose.prod.yml runs with
+#   IMAGE_PREFIX=ghcr.io/syedo-maker/khazana VERSION=1.0.0
+# so a server pulls a tested build instead of building from source.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  publish:
+    name: Images and release notes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Work out the names
+        id: names
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          owner="$(echo "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "prefix=ghcr.io/$owner/khazana" >> "$GITHUB_OUTPUT"
+
+      - name: Sign in to the container registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push the API image
+        run: |
+          image="${{ steps.names.outputs.prefix }}-api"
+          docker build --target runtime -t "$image:${{ steps.names.outputs.version }}" -t "$image:latest" apps/api
+          docker push --all-tags "$image"
+
+      - name: Build and push the web image
+        run: |
+          image="${{ steps.names.outputs.prefix }}-web"
+          docker build --target runtime --build-arg NEXT_PUBLIC_API_BASE_URL=/api \
+            -t "$image:${{ steps.names.outputs.version }}" -t "$image:latest" apps/web
+          docker push --all-tags "$image"
+
+      - name: Publish the release with its changelog section
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${{ steps.names.outputs.version }}"
+          awk -v v="$version" '
+            /^## / { if (found) exit; if (index($0, "[" v "]") || index($0, " " v)) found = 1 }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          test -s notes.md || echo "See CHANGELOG.md." > notes.md
+          gh release create "$GITHUB_REF_NAME" --title "Khazana Outlet $version" --notes-file notes.md

@@ -1,39 +1,46 @@
 {
   "_case": "clear_photos_stitched_womenswear",
-  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
   "content": {
-    "apparent_condition": "A",
+    "apparent_condition": "B",
     "category_slug": "womenswear-stitched",
     "colors": [
-      "beige",
-      "sky blue",
-      "maroon"
+      "maroon",
+      "light blue",
+      "beige"
     ],
-    "confidence": 0.82,
-    "description": "Stitched three piece lawn suits in printed cotton lawn. Shirt, trouser and dupatta per piece. Tags attached on the pieces visible in the photographs. No marks or damage visible. Size labels readable on two of the garments photographed.",
-    "material": "cotton lawn",
+    "confidence": 0.45,
+    "description": "Lot photographed as a folded stack in three colours (maroon, light blue, beige) and two laid-flat garments (light blue and beige). The laid-flat garments are stitched, straight-cut, knee-length tunic shirts with short sleeves and a wide neckline, each with a hanging tag reading M. One photographed care/content label reads SIZE M and 100% COTTON LAWN; it also carries wording that may describe set composition. Only shirts are visible; no trousers or dupattas are shown. The maroon item is shown folded only, so its cut and whether it is stitched cannot be confirmed. No stains, holes or fading are visible, but the photographs are not detailed enough to inspect stitching, finishing or fabric surface.",
+    "material": "Cotton lawn (as stated on label)",
     "suggested_sizes": [
-      "M",
-      "L"
+      "M"
     ],
     "tags": [
       "lawn",
-      "three piece",
-      "printed",
-      "summer",
-      "stitched"
+      "cotton",
+      "tunic",
+      "kurti",
+      "short sleeve",
+      "stitched",
+      "summer"
     ],
-    "title": "Stitched lawn three piece suits, summer 2026 surplus",
+    "title": "Stitched short-sleeve tunic shirts, blue and beige, size M tags, label reads cotton lawn",
     "uncertain_fields": [
-      "exact fabric weight",
-      "full size range"
+      "category_slug: unclear whether garments are womenswear or unisex, and whether folded items are stitched or unstitched fabric",
+      "set composition: label wording may refer to a multi-piece set, but only shirts are visible; trousers and dupattas not shown",
+      "maroon item: cut, stitching and size tag not visible",
+      "material: taken from label text only, not verified",
+      "apparent_condition: photographs lack detail to confirm no defects; graded B pending inspection",
+      "sizes: only M is visible; other sizes, if any, must come from manifest",
+      "brand",
+      "embroidery or print details",
+      "sleeve and length measurements"
     ]
   },
   "model": "claude-opus-5-5",
   "usage": {
-    "cache_read_tokens": 1800,
-    "cache_write_tokens": 0,
-    "input_tokens": 8400,
-    "output_tokens": 420
+    "cache_read_tokens": 0,
+    "cache_write_tokens": 2134,
+    "input_tokens": 4311,
+    "output_tokens": 1124
   }
 }

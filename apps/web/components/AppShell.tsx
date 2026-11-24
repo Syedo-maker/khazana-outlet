@@ -34,9 +34,37 @@ export function AppShell({
   userLabel?: string;
 }) {
   const [signedIn, setSignedIn] = useState(false);
+  const [demo, setDemo] = useState(false);
 
   useEffect(() => {
     setSignedIn(Boolean(getAccessToken()));
+  }, []);
+
+  // Whether this deployment is a public demo comes from the API at runtime,
+  // not from the build, so one published image serves production and a demo
+  // alike. Asked once per tab, then remembered for the tab.
+  useEffect(() => {
+    let cached: string | null = null;
+    try {
+      cached = sessionStorage.getItem(DEMO_KEY);
+    } catch {
+      cached = null;
+    }
+    if (cached !== null) {
+      setDemo(cached === "1");
+      return;
+    }
+    api
+      .demo()
+      .then((answer) => {
+        setDemo(answer.enabled);
+        try {
+          sessionStorage.setItem(DEMO_KEY, answer.enabled ? "1" : "0");
+        } catch {
+          // Private browsing can refuse storage; the banner still shows.
+        }
+      })
+      .catch(() => setDemo(false));
   }, []);
 
   const signOut = async () => {
@@ -54,6 +82,11 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen flex-col">
+      {demo ? (
+        <p className="border-b border-line bg-accent-subtle px-4 py-2 text-center text-sm font-semibold text-ink">
+          {t(locale, "demo.banner")}
+        </p>
+      ) : null}
       <header className="border-b border-line bg-surface">
         <div className="mx-auto flex max-w-shell items-center justify-between gap-4 px-4 py-3">
           <Link href="/" className="flex items-center gap-2 font-bold tracking-tight">
@@ -104,6 +137,10 @@ export function AppShell({
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    // No prefetch: on a metered phone connection, fetching
+                    // every page in the menu up front spends the buyer's data
+                    // and competes with the page they are actually reading.
+                    prefetch={false}
                     className="inline-flex min-h-touch items-center whitespace-nowrap border-b-2 border-transparent px-3 text-sm font-semibold text-ink-soft hover:border-line hover:text-ink"
                   >
                     {t(locale, item.labelKey)}
@@ -128,6 +165,9 @@ export function AppShell({
     </div>
   );
 }
+
+// Remembers, for the tab, whether the API said this is a public demo.
+const DEMO_KEY = "khazana.demo";
 
 export const BRAND_NAV: NavItem[] = [
   { href: "/dashboard", labelKey: "nav.dashboard" },

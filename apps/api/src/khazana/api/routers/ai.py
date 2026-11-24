@@ -47,6 +47,7 @@ from ...models.enums import ConditionGrade, PhotoKind
 from ...services import approval_service
 from ...storage import ALLOWED_IMAGE_TYPES, StorageError, validate_upload
 from ..deps import CurrentBrand, CurrentPrincipal, Db
+from ..uploads import read_upload
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -170,7 +171,7 @@ async def draft_listing(
 
     photos: list[tuple[PhotoKind, bytes]] = []
     for index, upload in enumerate(files):
-        data = await upload.read()
+        data = await read_upload(upload)
         try:
             validate_upload(data, upload.content_type or "", allowed=ALLOWED_IMAGE_TYPES)
         except StorageError as exc:
@@ -229,7 +230,7 @@ async def extract_manifest(
     """
     assert_owns(principal, brand_id)
 
-    data = await file.read()
+    data = await read_upload(file)
     try:
         outcome = manifest_extract.extract(
             db,

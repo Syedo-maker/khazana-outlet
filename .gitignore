@@ -2,6 +2,9 @@
 .env
 .env.*
 !.env.example
+# Templates with no values in them. The filled in copies stay ignored.
+!.env.production.example
+!.env.staging.example
 *.pem
 *.key
 
@@ -59,3 +62,14 @@ Dead products marketplace platform.html
 Dead products marketplace platform_files/
 Dead products marketplace platform - Claude.html
 Dead products marketplace platform - Claude_files/
+
+# Playwright end to end output
+e2e/playwright-report/
+e2e/test-results/
+
+# Database dumps from scripts/backup.sh. They hold every row, so never commit one.
+backups/
+e2e/perf-results.json
+
+# The recorded walkthrough, attached to releases rather than committed
+e2e/walkthrough/

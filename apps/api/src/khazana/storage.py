@@ -221,4 +221,19 @@ def read_object(key: str) -> bytes:
 
 
 def delete_object(key: str) -> None:
-    get_backend().delete(key)
+    """Delete an object and any variant derived from it, such as its thumbnail."""
+    backend = get_backend()
+    backend.delete(key)
+    variant = thumbnail_key(key)
+    if backend.exists(variant):
+        backend.delete(variant)
+
+
+def thumbnail_key(key: str) -> str:
+    """Where the small copy of a stored photograph lives, beside the original.
+
+    ``lots/b/abc.jpg`` becomes ``lots/b/abc_thumb.jpg``: one extension, so the
+    strict key pattern still applies to it.
+    """
+    stem = key.rsplit(".", 1)[0]
+    return f"{stem}_thumb.jpg"

@@ -1,8 +1,7 @@
 {
   "_case": "urdu_script_stays_urdu_script",
-  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
   "content": {
-    "answer": "جی ہاں۔ LOT-00042 لاہور میں موجود ہے، 480 روپے فی پیس، 76 فیصد رعایت۔ کم سے کم آرڈر 60 پیس ہے، لاٹ میں کل 240 پیس ہیں۔",
+    "answer": "\u062c\u06cc \u06c1\u0627\u06ba\u060c \u0644\u0627\u06c1\u0648\u0631 \u0645\u06cc\u06ba \u0627\u06cc\u06a9 \u0644\u0627\u0679 \u062f\u0633\u062a\u06cc\u0627\u0628 \u06c1\u06d2: LOT-00042 \u2014 \u067e\u0631\u0646\u0679\u0688 \u0644\u0627\u0646 \u06a9\u0631\u062a\u06cc\u0627\u06ba (\u0628\u0631\u0627\u0646\u0688: leading Pakistani lawn brand)\u060c \u06a9\u06cc\u0679\u06cc\u06af\u0631\u06cc Womenswear stitched\u060c \u06a9\u0646\u0688\u06cc\u0634\u0646 \u06af\u0631\u06cc\u0688 A\u06d4 \u0642\u06cc\u0645\u062a 480 \u0631\u0648\u067e\u06d2 \u0641\u06cc \u067e\u06cc\u0633 \u06c1\u06d2 (76% \u0688\u0633\u06a9\u0627\u0624\u0646\u0679)\u060c \u06a9\u0644 240 \u067e\u06cc\u0633\u060c \u067e\u0648\u0631\u06cc \u0644\u0627\u0679 115200 \u0631\u0648\u067e\u06d2 \u06a9\u06cc\u06d4 \u06a9\u0645 \u0627\u0632 \u06a9\u0645 \u0622\u0631\u0688\u0631 60 \u067e\u06cc\u0633 \u06c1\u06d2\u06d4 \u0627\u0633\u0679\u0627\u06a9 Lahore \u0645\u06cc\u06ba \u06c1\u06d2\u061b Multan \u062a\u06a9 \u0688\u06cc\u0644\u06cc\u0648\u0631\u06cc \u06a9\u0627 \u0627\u0646\u062f\u0627\u0632\u06c1 \u0686\u0627\u06c1\u06cc\u06d2 \u062a\u0648 \u0628\u062a\u0627\u0626\u06cc\u06ba\u06d4",
     "decline_reason": null,
     "declined": false,
     "language": "ur",
@@ -15,9 +14,9 @@
   },
   "model": "claude-opus-5-5",
   "usage": {
-    "cache_read_tokens": 1800,
+    "cache_read_tokens": 1686,
     "cache_write_tokens": 0,
-    "input_tokens": 2400,
-    "output_tokens": 420
+    "input_tokens": 351,
+    "output_tokens": 310
   }
 }

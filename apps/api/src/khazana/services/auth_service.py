@@ -15,6 +15,7 @@ them is a way real OTP systems get broken:
 from __future__ import annotations
 
 from datetime import timedelta
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -31,7 +32,7 @@ from ..core.security import (
 )
 from ..models import BrandMember, OtpChallenge, User
 from ..models import Session as UserSession
-from ..models.base import utcnow
+from ..models.base import as_utc, utcnow
 from ..models.enums import OtpPurpose, UserRole
 
 PHONE_LENGTH = 11
@@ -60,7 +61,13 @@ def normalise_phone(raw: str) -> str:
     return digits
 
 
-def request_otp(db: Session, raw_phone: str, purpose: OtpPurpose = OtpPurpose.LOGIN) -> str | None:
+def request_otp(
+    db: Session,
+    raw_phone: str,
+    purpose: OtpPurpose = OtpPurpose.LOGIN,
+    *,
+    ip: str | None = None,
+) -> str | None:
     """Create a challenge and return the code only in development.
 
     Returning the code in development is what lets the whole login flow be
@@ -71,6 +78,12 @@ def request_otp(db: Session, raw_phone: str, purpose: OtpPurpose = OtpPurpose.LO
     settings = get_settings()
     phone = normalise_phone(raw_phone)
     now = utcnow()
+
+    if settings.demo_mode and db.scalar(select(User.id).where(User.phone == phone)) is None:
+        # A public demo must not become a place strangers keep accounts or
+        # files: only the seeded sample accounts sign in, and those are
+        # reset every night.
+        raise Forbidden("This is a demo. Sign in with one of the sample accounts on the page.")
 
     cooldown_start = now - timedelta(seconds=settings.otp_resend_cooldown_seconds)
     recent = db.scalar(
@@ -91,6 +104,18 @@ def request_otp(db: Session, raw_phone: str, purpose: OtpPurpose = OtpPurpose.LO
     if hourly and hourly >= 5:
         raise RateLimited("Too many codes requested for this number. Try again later.")
 
+    if ip:
+        from_here = db.scalar(
+            select(func.count())
+            .select_from(OtpChallenge)
+            .where(
+                OtpChallenge.request_ip == ip,
+                OtpChallenge.created_at >= now - timedelta(hours=1),
+            )
+        )
+        if from_here and from_here >= settings.otp_ip_hourly_limit:
+            raise RateLimited("Too many codes requested from this network. Try again later.")
+
     code = generate_otp_code()
     db.add(
         OtpChallenge(
@@ -98,6 +123,7 @@ def request_otp(db: Session, raw_phone: str, purpose: OtpPurpose = OtpPurpose.LO
             code_hash=hash_otp(phone, code),
             purpose=purpose,
             expires_at=now + timedelta(seconds=settings.otp_ttl_seconds),
+            request_ip=ip,
         )
     )
     db.commit()
@@ -217,13 +243,18 @@ def refresh_session(
     """
     now = utcnow()
     session = db.scalars(
-        select(UserSession).where(
-            UserSession.token_hash == hash_token(raw_refresh),
-            UserSession.revoked_at.is_(None),
-            UserSession.expires_at > now,
-        )
+        select(UserSession).where(UserSession.token_hash == hash_token(raw_refresh))
     ).first()
-    if session is None:
+    if session is None or as_utc(session.expires_at) <= now:
+        raise Unauthenticated("Please sign in again.")
+    if session.revoked_at is not None:
+        # A refresh token is used once. Seen again, someone else has a copy:
+        # either the real user or a thief has the newer one, and there is no
+        # telling which, so every session ends and both must sign in again.
+        # Within a short grace it is most likely two tabs refreshing at once.
+        grace = timedelta(seconds=get_settings().refresh_reuse_grace_seconds)
+        if now - as_utc(session.revoked_at) > grace:
+            revoke_all_sessions(db, session.user_id)
         raise Unauthenticated("Please sign in again.")
 
     user = db.get(User, session.user_id)
@@ -237,12 +268,33 @@ def refresh_session(
 
 
 def revoke_all_sessions(db: Session, user_id: str) -> int:
-    """Sign a user out everywhere. Used on logout and on suspension."""
+    """Sign a user out everywhere. Used on logout, on suspension and on reuse.
+
+    Revoking the refresh tokens stops new access tokens being issued, and
+    ``tokens_valid_after`` stops the ones already issued, so nothing keeps
+    working until it expires.
+    """
     now = utcnow()
     sessions = db.scalars(
         select(UserSession).where(UserSession.user_id == user_id, UserSession.revoked_at.is_(None))
     ).all()
     for session in sessions:
         session.revoked_at = now
+    user = db.get(User, user_id)
+    if user is not None:
+        user.tokens_valid_after = now
     db.commit()
     return len(sessions)
+
+
+def token_still_valid(user: User, payload: dict[str, Any]) -> bool:
+    """False for an access token issued before the user was signed out everywhere."""
+    if user.tokens_valid_after is None:
+        return True
+    issued_ms = payload.get("iat_ms")
+    if not isinstance(issued_ms, int):
+        seconds = payload.get("iat")
+        if not isinstance(seconds, int):
+            return False
+        issued_ms = seconds * 1000
+    return issued_ms > int(as_utc(user.tokens_valid_after).timestamp() * 1000)

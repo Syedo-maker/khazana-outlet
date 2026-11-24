@@ -1,33 +1,37 @@
 {
   "_case": "unclear_photos_low_confidence",
-  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
   "content": {
-    "apparent_condition": "B",
+    "apparent_condition": "C",
     "category_slug": "other",
     "colors": [
-      "beige"
+      "dark brown"
     ],
-    "confidence": 0.25,
-    "description": "A single photograph of folded textile items in a carton. The individual products are not visible, so the category, material and condition cannot be established. More photographs are needed, including a single opened piece front and back.",
+    "confidence": 0.05,
+    "description": "Single photograph showing a blurred dark brown rectangular object against a dark grey background. The image is out of focus and the item cannot be identified. No labels, tags, size markings, material details or condition details are visible. Product type, material, condition and sizes cannot be determined from this photograph.",
     "material": null,
     "suggested_sizes": [],
-    "tags": [
-      "unclear"
-    ],
-    "title": "Folded textile stock, category not determined",
+    "tags": [],
+    "title": "Unidentified dark brown rectangular item, photograph too blurred to identify",
     "uncertain_fields": [
-      "category",
+      "title",
+      "description",
+      "category_slug",
       "material",
-      "condition",
-      "colour range",
-      "size range"
+      "apparent_condition",
+      "suggested_sizes",
+      "colors",
+      "tags",
+      "product type: photograph is heavily blurred and the item cannot be identified",
+      "tags or labels: none visible",
+      "defects: cannot be assessed from a blurred photograph",
+      "category: 'other' used because the item cannot be identified"
     ]
   },
   "model": "claude-opus-5-5",
   "usage": {
-    "cache_read_tokens": 1800,
+    "cache_read_tokens": 2134,
     "cache_write_tokens": 0,
-    "input_tokens": 3900,
-    "output_tokens": 420
+    "input_tokens": 1169,
+    "output_tokens": 299
   }
 }

@@ -1,6 +1,6 @@
 # Architecture
 
-What exists after Phase 4, how the pieces fit, and the decisions that would be
+What exists after Phase 5, how the pieces fit, and the decisions that would be
 expensive to reverse later.
 
 ## System shape
@@ -20,7 +20,7 @@ flowchart TB
 
     subgraph data["Data"]
         pg[("PostgreSQL 16<br/>+ pgvector")]
-        redis[("Redis<br/>queue and OTP")]
+        redis[("Redis<br/>reserved for the queue")]
         blob[("Object storage<br/>lot photographs")]
     end
 
@@ -148,39 +148,69 @@ No model touches any of it.
 A pull request that puts a query in a router or a commission constant in a
 service is wrong even if the tests pass.
 
-## Security posture after Phase 4
+## Running in production
+
+```mermaid
+flowchart LR
+    phone["Phone browser"] -->|"HTTPS"| caddy["Caddy<br/>certificates, compression"]
+    caddy -->|"/"| web["web<br/>Next.js standalone"]
+    caddy -->|"/api"| api["api<br/>FastAPI, 3 workers"]
+    api --> db[("PostgreSQL")]
+    api --> redis[("Redis")]
+    scheduler["scheduler<br/>timed jobs"] --> db
+    backup["backup<br/>nightly dump"] --> db
+    prometheus["prometheus<br/>optional"] -.->|"/metrics, internal"| api
+```
+
+One server runs `docker-compose.prod.yml`. Caddy is the only service with
+public ports, and serves the web app and the API from one origin so a phone
+never pays for a CORS preflight ([ADR 0005](decisions/0005-api-on-the-web-origin.md)).
+A `migrate` step runs before the API starts. The `scheduler` runs every timed
+job on a Pakistan time timetable, straight against the database: the daily
+markdown batch and its collection, pool expiry, dispute windows, the risk
+review, forecasts and the AI cache purge. Staging is the same file with
+staging settings. [deployment.md](deployment.md) has the procedure.
+
+Every request gets a request id, returned as `X-Request-ID` and written into
+its JSON log lines; request counts and latency by route are exported for
+Prometheus; errors go to a Sentry compatible service with personal data
+stripped first.
+
+## Security posture after Phase 5
 
 | Concern | Position today | Next step |
 | --- | --- | --- |
-| Authentication | Phone OTP, codes hashed and single use, attempts capped, requests rate limited | Add a second factor for admins |
-| Sessions | HMAC signed access token, refresh token stored hashed and rotated on use | Move the refresh token to an httpOnly cookie in the Phase 5 security pass |
-| Token storage in the browser | sessionStorage, which page scripts can read. Documented in `lib/session.ts` as a known limitation | Same cookie change |
-| Tenant isolation | Application scoping, a test that asks every brand scoped route as the wrong brand, row level policies as backstop | Buyer policies, then connect as a non owner role in production |
-| Route authentication | Every route needs a session except a short public list, checked by a test that walks every route | Keep the list short |
-| Secrets | Environment only, `.env` git ignored, a detect private key pre commit hook | GitHub Secrets in CI, a vault later |
-| Production misconfiguration | Startup refuses to boot with the sample secret, OTP echo on, AI offline, or SQLite | Keep extending the check |
-| Prompt injection | Untrusted text is passed as data, tools are read mostly, no tool moves money or changes a role | Adversarial cases in every eval suite |
-| AI cost | Caps checked before the call, per feature kill switches, every call priced at the rate billed, a cost page per feature, listing and order | The response cache in Phase 5 |
+| Authentication | Phone OTP, codes hashed and single use, attempts capped, five codes an hour per phone and twenty per network address | A second factor for admins |
+| Sessions | Signed access token checked against a per user cut off, so signing out ends it at once; refresh token hashed, rotated on use, and reuse signs the user out everywhere | Move the refresh token to an httpOnly cookie |
+| Token storage in the browser | sessionStorage, which page scripts can read, behind a Content Security Policy that lets the page talk only to its own origin | Same cookie change |
+| Tenant isolation | Application scoping, a test that asks every brand scoped route as the wrong brand, row level policies as backstop | Buyer policies, then connect as a non owner role |
+| Route authentication | Every route needs a session except a short public list, checked by a test that walks every route and by the OpenAPI contract | Keep the list short |
+| Uploads | Chunked reads capped at 10 MB, type checked against the bytes, image size checked before decoding, every photo re-encoded without metadata | Malware scanning when documents are opened by staff |
+| Secrets | Environment only, `.env` git ignored, private key hook, Trivy secret scan in CI | A secrets manager on the server |
+| Production misconfiguration | Startup refuses the sample secret, OTP echo, offline AI, SQLite, the development database password, Redis without a password, plain HTTP, the sandbox IBAN, and no trusted proxy | Keep extending the check |
+| Prompt injection | Untrusted text labelled as data, filled in values unable to impersonate the prompt, prices clamped in code, tools run as the signed in user | Adversarial cases in every eval suite |
+| Dependencies | Trivy fails CI on any fixable high or critical advisory; pip-audit and npm audit clean | Automated update pull requests |
+| AI cost | Caps checked before the call, kill switches, prompt caching measured, a response cache, the Batch API for the markdown run, models chosen by live evals | Re-test Haiku 5.5 on the two Haiku 4.5 routes |
 | AI and money | AI chooses a price only inside a brand set band that code clamps, under ADR 0001, every move audited | Keep every new agent inside the four conditions |
 | Audit | Append only approvals and audit log, enforced by trigger, with a viewer in the admin panel | Retention policy |
 
-## Deliberate limitations after Phase 4
+[security.md](security.md) lists every control with the test that proves it.
+
+## Deliberate limitations after Phase 5
 
 Stated so they are decisions rather than surprises.
 
-- **Sandbox providers.** Payments, couriers, WhatsApp and speech to text run on
-  sandbox implementations behind their real interfaces. Production refuses
-  them, so a deployment needs the real adapters first.
-- **Offline AI by default.** `AI_OFFLINE=true` means the eval suites and the
-  tests read recorded fixtures. This pins the pipeline, not the model.
-  Measuring the model is `python -m khazana.ai.evals.run --live`, which spends
-  real money and is a deliberate act.
-- **Visual search needs PostgreSQL and a real embedding service.** The
-  portable vector column degrades to JSON on SQLite, and the default embedding
-  provider is a local stand in that only finds identical photographs.
-- **No scheduler.** The dispute window, markdown, forecast and risk jobs each
-  have an admin endpoint that runs them once; nothing calls them on a timer
-  yet.
+- **Sandbox providers.** Payments, couriers, SMS, WhatsApp and speech to text
+  run on sandbox implementations behind their real interfaces. Production
+  refuses them, so a launch needs the real adapters first; the checklist is in
+  [deployment.md](deployment.md).
+- **Offline AI by default.** The tests and the CI evals read recorded replies,
+  which pins the pipeline, not the model. The last live run of every suite is
+  recorded in [ai-features.md](ai-features.md).
+- **Visual search needs PostgreSQL and a real embedding service.** The default
+  embedding provider is a local stand in that only finds identical photographs.
+- **Local file storage.** Uploads live in a Docker volume until object storage
+  is connected.
 - **Server written sentences are English.** Forecast reasons, profit
   assumptions and similar text built by the API reach Urdu pages in English,
   shown with the right text direction. Interface copy is in all three
@@ -203,11 +233,14 @@ database they are allowed to destroy. The module skips itself unless
 fixture checks again before touching a schema. Pointing them at the working
 database deletes it, which is what the guards exist to prevent.
 
-CI runs six jobs: the repository rules gate, API lint and types and tests,
-migrations applied then rolled back then applied again on real PostgreSQL
-followed by the PostgreSQL only tests, the web lint and build, the eval
-suites, and an advisory dependency vulnerability scan. The eval job runs the
-suites offline so a prompt change cannot silently break the pipeline and
-cannot cost money. The scan job is the only one that does not block a merge.
+CI runs eight jobs, all required: the repository rules gate; API lint, types,
+tests and a dependency audit; migrations applied, rolled back and applied
+again on real PostgreSQL, with a backup restored and compared and the
+PostgreSQL only tests; the web lint and build; the eval suites, offline so a
+prompt change cannot silently break the pipeline or cost money; the money
+path in a browser; the production stack started as staging and tested through
+HTTPS; and a dependency and secret scan that fails on any fixable high or
+critical advisory.
 
-See `DEPLOYMENT.md` for the full command list and the troubleshooting notes.
+See [development.md](development.md) for the full command list and the
+troubleshooting notes.

@@ -18,6 +18,8 @@ PUBLIC = {
     # Left open on purpose in Phase 1: mode, models, spend cap and switches.
     # See test_ai_endpoints.py::test_the_status_endpoint_stays_open.
     ("GET", "/ai/status"),
+    # Whether this is a public demo. Empty unless DEMO_MODE is on.
+    ("GET", "/demo"),
     # Signing in has to work before there is a session.
     ("POST", "/auth/otp/request"),
     ("POST", "/auth/otp/verify"),

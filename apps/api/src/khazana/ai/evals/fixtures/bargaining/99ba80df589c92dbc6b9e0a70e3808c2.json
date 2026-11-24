@@ -1,16 +1,15 @@
 {
   "_case": "roman_urdu_is_answered_in_roman_urdu",
-  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
   "content": {
     "counter_price_per_piece_pkr": 470,
     "language": "ur_roman",
-    "message": "Bhai 400 mushkil hai, naya A grade maal hai. 120 piece ke liye Rs 470 kar deta hoon."
+    "message": "Bhai, 120 piece le rahe hain is liye aap ke liye Rs 470 per piece kar deta hoon. Maal bilkul naya aur unused hai, printed lawn ke teen piece suits, aaj ke liye yeh behtareen rate hai."
   },
   "model": "claude-opus-5-5",
   "usage": {
-    "cache_read_tokens": 1800,
+    "cache_read_tokens": 965,
     "cache_write_tokens": 0,
-    "input_tokens": 2400,
-    "output_tokens": 420
+    "input_tokens": 170,
+    "output_tokens": 126
   }
 }

@@ -1,6 +1,6 @@
 [project]
 name = "khazana-api"
-version = "0.1.0"
+version = "1.0.0"
 description = "Khazana Outlet API: AI native marketplace for brand surplus stock in Pakistan"
 requires-python = ">=3.11"
 dependencies = [
@@ -14,9 +14,23 @@ dependencies = [
     "pgvector>=0.3.6",
     "redis>=5.2",
     "httpx>=0.27",
-    "anthropic>=1.12",
+    # 2.x sends API version 2026-10-21. Pinned to the major so the laptop, the
+    # containers and CI run the same SDK: the range used to be >=1.12, and the
+    # images had quietly installed 2.x while the local venv stayed on 1.x.
+    "anthropic>=2.12,<3",
     "python-multipart>=0.0.17",
-    "pillow>=11.0",
+    # 13.0 fixes some twenty advisories in image decoding, and every
+    # photograph a brand or buyer uploads goes through Pillow.
+    "pillow>=13.0",
+    # Not used directly. Floors raised past published advisories, found by
+    # pip-audit in week 51: certifi for httpx, opentelemetry-api for fastapi.
+    "certifi>=2026.10.18",
+    "opentelemetry-api>=1.45.2",
+    # Operations, week 56: request metrics for Prometheus, and error reports to
+    # any Sentry compatible service, such as a self hosted GlitchTip. Both do
+    # nothing until configured.
+    "prometheus-client>=0.26,<1",
+    "sentry-sdk>=3.0,<4",
 ]
 
 [project.optional-dependencies]
@@ -37,7 +51,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["setuptools>=75"]
+requires = ["setuptools>=84.1"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]

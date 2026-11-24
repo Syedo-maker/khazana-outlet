@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ...models.enums import AiFeature, AiMode
-from .models import HAIKU_4_5, OPUS_5_5, spec_for
+from .models import HAIKU_4_5, HAIKU_5_5, OPUS_5_5, spec_for
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,6 +34,10 @@ class Route:
     # ever need. A runaway generation is a cost incident.
     max_tokens: int
     requires_vision: bool = False
+    # Hours an identical request is answered from the response cache instead
+    # of a new call. Zero turns it off. See response_cache.py for which
+    # features use it and why the conversational ones do not.
+    response_cache_hours: int = 0
 
     def __post_init__(self) -> None:
         spec = spec_for(self.model_id)
@@ -52,6 +56,7 @@ ROUTES: dict[AiFeature, Route] = {
         cache_prefix=True,
         max_tokens=2_000,
         requires_vision=True,
+        response_cache_hours=24,
     ),
     # A missed logo exposes a brand that was promised anonymity, so this route
     # does not economise either. The prompt is too short to reach the minimum
@@ -61,18 +66,20 @@ ROUTES: dict[AiFeature, Route] = {
         model_id=OPUS_5_5,
         effort="medium",
         mode=AiMode.LIVE,
-        cache_prefix=False,
+        cache_prefix=True,
         max_tokens=2_000,
         requires_vision=True,
+        response_cache_hours=24,
     ),
-    # Nobody waits for a spreadsheet to be cleaned, so it goes in a batch.
+    # Live, not batch: the brand watches the import screen while the file is read.
     AiFeature.MANIFEST_EXTRACT: Route(
         feature=AiFeature.MANIFEST_EXTRACT,
         model_id=OPUS_5_5,
         effort="low",
-        mode=AiMode.BATCH,
+        mode=AiMode.LIVE,
         cache_prefix=True,
         max_tokens=8_000,
+        response_cache_hours=24,
     ),
     AiFeature.PRICING: Route(
         feature=AiFeature.PRICING,
@@ -81,16 +88,22 @@ ROUTES: dict[AiFeature, Route] = {
         mode=AiMode.LIVE,
         cache_prefix=True,
         max_tokens=1_200,
+        response_cache_hours=24,
     ),
     # High volume classification on every listing: the cheapest place in the
     # system to use a small model, and the eval covers it.
     AiFeature.RISK_SCORING: Route(
         feature=AiFeature.RISK_SCORING,
+        # Haiku 4.5, not 5.5, decided by the week 53 live evals: over three
+        # runs each, Haiku 4.5 passed every case, and Haiku 5.5 failed the same
+        # case every time at low and medium effort, and ran out of tokens
+        # thinking at high. Revisit when the eval says otherwise.
         model_id=HAIKU_4_5,
         effort=None,
         mode=AiMode.LIVE,
         cache_prefix=True,
         max_tokens=800,
+        response_cache_hours=24,
     ),
     AiFeature.ASSISTANT_BUYER: Route(
         feature=AiFeature.ASSISTANT_BUYER,
@@ -112,8 +125,11 @@ ROUTES: dict[AiFeature, Route] = {
     # it, so the small model writes it and the eval guards the claims.
     AiFeature.RESELL_KIT: Route(
         feature=AiFeature.RESELL_KIT,
-        model_id=HAIKU_4_5,
-        effort=None,
+        # Haiku 5.5 since week 53: it passed every resell kit case live, at a
+        # tenth of Haiku 4.5's price, and its 512 token cache minimum means the
+        # prompt now caches, which on Haiku 4.5 it never did.
+        model_id=HAIKU_5_5,
+        effort="low",
         mode=AiMode.LIVE,
         cache_prefix=True,
         max_tokens=1_500,
@@ -132,6 +148,10 @@ ROUTES: dict[AiFeature, Route] = {
     ),
     AiFeature.MARKDOWN: Route(
         feature=AiFeature.MARKDOWN,
+        # Haiku 4.5, not 5.5, decided by the week 53 live evals: over three
+        # runs each, Haiku 4.5 passed every case, and Haiku 5.5 failed the same
+        # case every time at low and medium effort, and ran out of tokens
+        # thinking at high. Revisit when the eval says otherwise.
         model_id=HAIKU_4_5,
         effort=None,
         mode=AiMode.BATCH,
@@ -148,8 +168,8 @@ ROUTES: dict[AiFeature, Route] = {
     ),
     AiFeature.TRANSLATION: Route(
         feature=AiFeature.TRANSLATION,
-        model_id=HAIKU_4_5,
-        effort=None,
+        model_id=HAIKU_5_5,
+        effort="low",
         mode=AiMode.BATCH,
         cache_prefix=False,
         max_tokens=2_000,
@@ -159,7 +179,7 @@ ROUTES: dict[AiFeature, Route] = {
     # still flows through the gateway for cost and kill switch purposes.
     AiFeature.EMBEDDING: Route(
         feature=AiFeature.EMBEDDING,
-        model_id=HAIKU_4_5,  # placeholder, see embedding feature module
+        model_id=HAIKU_5_5,  # placeholder, see embedding feature module
         effort=None,
         mode=AiMode.BATCH,
         cache_prefix=False,

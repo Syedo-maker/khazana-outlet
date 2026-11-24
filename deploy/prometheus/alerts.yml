@@ -1,0 +1,26 @@
+# Alert rules. Prometheus evaluates them; sending them anywhere needs an
+# Alertmanager and a destination, which docs/deployment.md lists as a launch
+# step because it needs an account somewhere (email, Slack or WhatsApp).
+groups:
+  - name: khazana
+    rules:
+      - alert: ApiDown
+        expr: up{job="khazana-api"} == 0
+        for: 2m
+        labels: {severity: page}
+        annotations:
+          summary: The API has not answered a scrape for two minutes.
+
+      - alert: ServerErrors
+        expr: sum(rate(khazana_http_requests_total{status="5xx"}[5m])) / sum(rate(khazana_http_requests_total[5m])) > 0.02
+        for: 10m
+        labels: {severity: page}
+        annotations:
+          summary: More than 2% of requests are failing with a server error.
+
+      - alert: SlowCatalogue
+        expr: histogram_quantile(0.95, sum by (le) (rate(khazana_http_request_seconds_bucket{route=~"/catalog|/catalog/search"}[10m]))) > 0.5
+        for: 15m
+        labels: {severity: warn}
+        annotations:
+          summary: The catalogue's p95 is over the 500 ms budget in docs/performance.md.

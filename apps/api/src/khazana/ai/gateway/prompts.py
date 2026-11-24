@@ -63,12 +63,40 @@ class Prompt:
         conditionals is a prompt that should be split into two.
         """
         try:
-            return self.user_template.format(**values)
+            return self.user_template.format(
+                **{name: neutralise(value) for name, value in values.items()}
+            )
         except KeyError as exc:
             raise KeyError(
                 f"Prompt {self.name} v{self.version} needs placeholder {exc} "
                 "which was not provided."
             ) from exc
+
+
+# Anything a value could use to pass itself off as part of the prompt's own
+# structure: the separator between the stable prefix and the variable part,
+# and a tag that opens or closes a fenced block of untrusted text.
+_FENCE_TAG = re.compile(r"<\s*/?\s*untrusted\b[^>]*>", re.IGNORECASE)
+# Control characters, except tab and newline. They have no business in a
+# buyer's message, and some can make text render differently to a model than
+# to a person reading the log.
+_CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f‪-‮⁦-⁩]")
+
+
+def neutralise(value: object) -> object:
+    """Make a filled in value unable to impersonate the prompt around it.
+
+    Every prompt already tells the model that the buyer's text is data, not
+    instructions. This is the structural half of that defence: a message
+    containing ``---USER---`` or ``</untrusted>`` cannot end its own section
+    and start a new one that looks like ours. Ordinary text, including Urdu,
+    passes through byte for byte, so recorded fixtures still match.
+    """
+    if not isinstance(value, str):
+        return value
+    text = value.replace(SEPARATOR, "- - - USER - - -")
+    text = _FENCE_TAG.sub(lambda match: match.group(0).replace("<", "(").replace(">", ")"), text)
+    return _CONTROL.sub("", text)
 
 
 class PromptNotFound(LookupError):

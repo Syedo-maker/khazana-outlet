@@ -27,7 +27,7 @@ from math import floor
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ..ai.gateway import run_feature
+from ..ai.gateway import batch, run_feature
 from ..ai.schemas import MarkdownDecision
 from ..models import BrandPolicy, Category, Lot, Order, utcnow
 from ..models.base import as_utc
@@ -80,9 +80,8 @@ def new_lot_price(lot: Lot, discount_percent: float) -> int:
     return per_piece * lot.total_pieces
 
 
-def run(db: Session, *, now: datetime | None = None) -> list[MarkdownResult]:
-    """One scheduled pass over every lot the agent may touch."""
-    moment = now or utcnow()
+def _eligible(db: Session, now: datetime) -> list[tuple[Lot, BrandPolicy]]:
+    """Every lot the agent may touch today, with its brand's policy."""
     lots = db.scalars(
         select(Lot).where(
             Lot.status == LotStatus.LIVE,
@@ -96,31 +95,99 @@ def run(db: Session, *, now: datetime | None = None) -> list[MarkdownResult]:
             select(BrandPolicy).where(BrandPolicy.brand_id.in_({lot.brand_id for lot in lots}))
         )
     }
-    results = []
+    eligible = []
     for lot in lots:
         policy = policies.get(lot.brand_id)
         if not markdown_allowed(lot, policy):
             continue
         assert policy is not None
-        if not _due(lot, policy, moment):
-            continue
+        if _due(lot, policy, now) and lot.discount_percent < _ceiling(policy):
+            eligible.append((lot, policy))
+    return eligible
+
+
+def run(db: Session, *, now: datetime | None = None) -> list[MarkdownResult]:
+    """One pass over every lot the agent may touch, calling the model live.
+
+    What the admin "run now" button uses. The daily schedule uses
+    ``submit_batch`` and ``collect_batch`` instead, at half the price.
+    """
+    moment = now or utcnow()
+    results = []
+    for lot, policy in _eligible(db, moment):
         result = mark_down(db, lot=lot, policy=policy, now=moment)
         if result is not None:
             results.append(result)
     return results
 
 
-def mark_down(
-    db: Session, *, lot: Lot, policy: BrandPolicy, now: datetime
-) -> MarkdownResult | None:
-    assert policy.markdown_floor_percent is not None
-    # The agent may not go deeper than its own floor or the advertised band.
-    ceiling = min(float(policy.markdown_floor_percent), float(policy.max_discount_percent))
-    current = lot.discount_percent
-    if current >= ceiling:
-        return None
-    step = float(policy.markdown_step_percent)
+def submit_batch(db: Session, *, now: datetime | None = None) -> list[MarkdownResult]:
+    """Send today's markdown decisions as one batch.
 
+    A lot whose previous request is still out is skipped, so a slow batch is
+    never answered twice. Offline the batch answers at once from fixtures and
+    the results are applied here; live they are applied by ``collect_batch``.
+    """
+    moment = now or utcnow()
+    pending = batch.pending_entities(db, AiFeature.MARKDOWN, "lot")
+    chosen = [(lot, policy) for lot, policy in _eligible(db, moment) if lot.id not in pending]
+    items = [
+        batch.BatchItem(
+            prompt_name="markdown",
+            prompt_values=_prompt_values(db, lot, policy, moment),
+            brand_id=lot.brand_id,
+            entity_type="lot",
+            entity_id=lot.id,
+        )
+        for lot, policy in chosen
+    ]
+    return _apply_results(db, batch.submit(db, AiFeature.MARKDOWN, items), moment)
+
+
+def collect_batch(db: Session, *, now: datetime | None = None) -> list[MarkdownResult]:
+    """Apply every markdown decision whose batch has come back."""
+    moment = now or utcnow()
+    return _apply_results(db, batch.collect(db, AiFeature.MARKDOWN), moment)
+
+
+def _apply_results(
+    db: Session, finished: list[batch.BatchResult], now: datetime
+) -> list[MarkdownResult]:
+    """Apply decisions, checking each lot again first.
+
+    Hours can pass between the request and the reply. A lot sold, withdrawn,
+    reserved by an order, switched off by its brand or already at its floor in
+    that time is left alone.
+    """
+    results = []
+    for item in finished:
+        lot = db.get(Lot, item.job.entity_id) if item.job.entity_id else None
+        if lot is None or lot.is_deleted:
+            continue
+        policy = db.scalars(select(BrandPolicy).where(BrandPolicy.brand_id == lot.brand_id)).first()
+        if (
+            LotStatus(lot.status) != LotStatus.LIVE
+            or lot.reserved_pieces
+            or not markdown_allowed(lot, policy)
+        ):
+            continue
+        assert policy is not None
+        decision = item.output
+        assert isinstance(decision, MarkdownDecision)
+        result = _apply(db, lot=lot, policy=policy, now=now, decision=decision)
+        if result is not None:
+            results.append(result)
+    db.commit()
+    return results
+
+
+def _ceiling(policy: BrandPolicy) -> float:
+    """The deepest discount the agent may reach: its own floor or the band."""
+    assert policy.markdown_floor_percent is not None
+    return min(float(policy.markdown_floor_percent), float(policy.max_discount_percent))
+
+
+def _prompt_values(db: Session, lot: Lot, policy: BrandPolicy, now: datetime) -> dict[str, object]:
     sold = int(
         db.scalar(
             select(func.coalesce(func.sum(Order.pieces), 0)).where(
@@ -132,24 +199,32 @@ def mark_down(
     approved = _aware(lot.approved_at) or now
     last = _aware(lot.last_markdown_at) or approved
     category = db.get(Category, lot.category_id)
+    return {
+        "lot_title": lot.title,
+        "category": category.name if category else "Clothing",
+        "season": lot.season or "not given",
+        "days_live": (now - approved).days,
+        "days_since_last_change": (now - last).days,
+        "pieces": lot.total_pieces,
+        "pieces_sold": sold,
+        "sell_through_percent": round(100 * sold / lot.total_pieces) if lot.total_pieces else 0,
+        "current_discount_percent": round(lot.discount_percent),
+        "step_percent": round(float(policy.markdown_step_percent), 2),
+        "today": now.date().isoformat(),
+    }
 
+
+def mark_down(
+    db: Session, *, lot: Lot, policy: BrandPolicy, now: datetime
+) -> MarkdownResult | None:
+    """Ask the model now and apply its decision. The live path."""
+    if lot.discount_percent >= _ceiling(policy):
+        return None
     result = run_feature(
         db,
         AiFeature.MARKDOWN,
         prompt_name="markdown",
-        prompt_values={
-            "lot_title": lot.title,
-            "category": category.name if category else "Clothing",
-            "season": lot.season or "not given",
-            "days_live": (now - approved).days,
-            "days_since_last_change": (now - last).days,
-            "pieces": lot.total_pieces,
-            "pieces_sold": sold,
-            "sell_through_percent": round(100 * sold / lot.total_pieces) if lot.total_pieces else 0,
-            "current_discount_percent": round(current),
-            "step_percent": round(step, 2),
-            "today": now.date().isoformat(),
-        },
+        prompt_values=_prompt_values(db, lot, policy, now),
         output_schema=MarkdownDecision,
         brand_id=lot.brand_id,
         entity_type="lot",
@@ -157,7 +232,21 @@ def mark_down(
     )
     decision = result.output
     assert isinstance(decision, MarkdownDecision)
+    return _apply(db, lot=lot, policy=policy, now=now, decision=decision)
 
+
+def _apply(
+    db: Session, *, lot: Lot, policy: BrandPolicy, now: datetime, decision: MarkdownDecision
+) -> MarkdownResult | None:
+    """Clamp the model's reduction to the step and the ceiling, then apply it.
+
+    Condition 2 of ADR 0001 lives here, for the live and the batch path alike.
+    """
+    ceiling = _ceiling(policy)
+    current = lot.discount_percent
+    if current >= ceiling:
+        return None
+    step = float(policy.markdown_step_percent)
     reduction = clamp_reduction(decision.reduce_by_percent, step)
     target = min(ceiling, current + reduction)
     before_price = lot.lot_price_pkr

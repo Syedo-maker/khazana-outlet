@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/Button";
@@ -33,11 +33,21 @@ export default function LoginPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const codeInput = useRef<HTMLInputElement>(null);
+  const [demoAccounts, setDemoAccounts] = useState<{ role: string; phone: string }[]>([]);
+
+  // On a public demo the API lists one sample account per role. Anywhere
+  // else the list is empty and nothing extra is shown.
+  useEffect(() => {
+    api
+      .demo()
+      .then((demo) => setDemoAccounts(demo.enabled ? demo.accounts : []))
+      .catch(() => setDemoAccounts([]));
+  }, []);
 
   const normalise = (raw: string) => raw.replace(/\D/g, "");
 
-  const sendCode = async () => {
-    const digits = normalise(phone);
+  const sendCode = async (raw: string = phone) => {
+    const digits = normalise(raw);
     if (digits.length !== 11 || !digits.startsWith("03")) {
       setFieldError(t(locale, "login.phoneHint"));
       return;
@@ -100,6 +110,31 @@ export default function LoginPage() {
                   void sendCode();
                 }}
               >
+                {demoAccounts.length > 0 ? (
+                  <section aria-labelledby="demo-title" className="mb-5 rounded border border-line p-3">
+                    <h2 id="demo-title" className="text-sm font-semibold">
+                      {t(locale, "demo.title")}
+                    </h2>
+                    <p className="mb-3 mt-1 text-sm text-ink-soft">{t(locale, "demo.intro")}</p>
+                    <div className="grid gap-2">
+                      {demoAccounts.map((account) => (
+                        <Button
+                          key={account.role}
+                          type="button"
+                          variant="secondary"
+                          disabled={busy}
+                          onClick={() => {
+                            setPhone(account.phone);
+                            void sendCode(account.phone);
+                          }}
+                        >
+                          {t(locale, `demo.role.${account.role}`)}
+                        </Button>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+
                 <p className="mb-4 text-sm text-ink-soft">{t(locale, "login.intro")}</p>
 
                 <Field

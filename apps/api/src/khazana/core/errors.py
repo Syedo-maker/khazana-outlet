@@ -65,6 +65,11 @@ class Conflict(AppError):
     code = "conflict"
 
 
+class TooLarge(AppError):
+    code = "too_large"
+    status_code = status.HTTP_413_CONTENT_TOO_LARGE
+
+
 class RateLimited(AppError):
     status_code = status.HTTP_429_TOO_MANY_REQUESTS
     code = "rate_limited"

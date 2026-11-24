@@ -1,21 +1,20 @@
 {
   "_case": "admits_there_is_no_sales_history",
-  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
   "content": {
     "based_on_rules_only": true,
     "comparable_lot_ids": [],
-    "confidence": 0.4,
-    "expected_days_to_sell_high": 50,
-    "expected_days_to_sell_low": 21,
-    "reasoning": "There is no sales history on this platform yet, so nothing here is a prediction. The band reflects the category, the season and grade A condition. It should be treated as a starting point for the brand to adjust, and it will become a real estimate once lots start selling.",
-    "suggested_discount_percent_high": 75.0,
-    "suggested_discount_percent_low": 67.0
+    "confidence": 0.3,
+    "expected_days_to_sell_high": 60,
+    "expected_days_to_sell_low": 14,
+    "reasoning": "There are no comparable sales on the platform yet, so this band comes from your policy and general clearance rules only. Grade A, current-season summer stock with a well-balanced size spread centred on M and L should move without deep cuts, but 45 days listed at 70 percent off suggests easing slightly deeper toward 75 percent, or splitting the lot, to reach more buyers. Your category says stitched womenswear while the title says unstitched lawn three piece; please correct whichever is wrong, because unstitched usually clears faster and could justify staying nearer 65 percent. Summer stock gets harder to move as the season turns, so act on price sooner rather than later.",
+    "suggested_discount_percent_high": 75,
+    "suggested_discount_percent_low": 65
   },
   "model": "claude-opus-5-5",
   "usage": {
-    "cache_read_tokens": 1800,
+    "cache_read_tokens": 1771,
     "cache_write_tokens": 0,
-    "input_tokens": 2400,
-    "output_tokens": 420
+    "input_tokens": 251,
+    "output_tokens": 496
   }
 }

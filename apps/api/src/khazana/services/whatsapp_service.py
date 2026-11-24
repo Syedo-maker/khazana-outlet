@@ -185,6 +185,11 @@ def _answer(db: Session, provider: WhatsAppProvider, inbound: InboundMessage) ->
             record.status = "rate_limited"
             _send(db, provider, phone=phone, text=message, user_id=user.id)
             return InboundResult(status=record.status, reply=message)
+        problem = _voice_problem(inbound.voice)
+        if problem is not None:
+            record.status = "voice_refused"
+            _send(db, provider, phone=phone, text=problem, user_id=user.id)
+            return InboundResult(status=record.status, reply=problem)
         transcript = whatsapp_providers.transcriber().transcribe(inbound.voice)
         record.transcript_confidence = transcript.confidence
         record.transcript_language = transcript.language
@@ -225,3 +230,23 @@ def _answer(db: Session, provider: WhatsAppProvider, inbound: InboundMessage) ->
         conversation_id=exchange.conversation.id,
     )
     return InboundResult(status=record.status, reply=exchange.reply.body)
+
+
+def _voice_problem(voice: whatsapp_providers.VoiceNote) -> str | None:
+    """Why a voice note will not be transcribed, or None when it will.
+
+    Transcription is billed by the minute, so a long recording is refused
+    before it reaches the speech service, not after.
+    """
+    limit = get_settings().voice_max_seconds
+    if voice.mime_type not in whatsapp_providers.VOICE_MIME_TYPES:
+        return (
+            "Sorry, I can only listen to WhatsApp voice notes. Please type your question.\n"
+            "Maaf kijiye, sirf WhatsApp voice note sun sakta hoon. Apna sawal likh kar bhejein."
+        )
+    if voice.duration_seconds <= 0 or voice.duration_seconds > limit:
+        return (
+            f"Please keep voice notes under {limit // 60} minutes, or type your question.\n"
+            f"Voice note {limit // 60} minute se chhota rakhein, ya sawal likh kar bhejein."
+        )
+    return None

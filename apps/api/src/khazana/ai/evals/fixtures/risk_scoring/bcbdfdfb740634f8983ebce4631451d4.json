@@ -1,26 +1,35 @@
 {
   "_case": "a_grade_claim_that_contradicts_the_defects_is_caught",
-  "_note": "Golden fixture. Pins the pipeline, does not measure the model. Re record with: python -m khazana.ai.evals.run --live --record",
   "content": {
-    "completeness": 85,
+    "completeness": 60,
     "counterfeit_signals": [],
     "findings": [
       {
-        "detail": "The listing claims grade A, meaning new with no defects, while six defects are itemised. One of the two is wrong.",
-        "kind": "condition_inconsistent",
+        "detail": "Grade A claim contradicts 6 itemised defects. Grade A should have no defects or only negligible cosmetic issues. Grade A listings typically show 0 defects.",
+        "kind": "condition_defects_mismatch",
         "severity": 4
+      },
+      {
+        "detail": "Manifest and total pieces both declare 100 units, but defects list includes 6 items. This suggests either damaged goods were not properly accounted for in the manifest, or the condition grade is inconsistent with the actual stock state.",
+        "kind": "manifest_detail_imbalance",
+        "severity": 3
+      },
+      {
+        "detail": "Description lacks color/pattern details, size range breakdown, specific defect descriptions, care instructions, and fabric composition percentages. For printed lawn suits, pattern detail and colorway information is typically expected.",
+        "kind": "incomplete_description",
+        "severity": 2
       }
     ],
     "manifest_consistent": true,
     "price_plausible": true,
     "recommend_human_review": true,
-    "score": 66
+    "score": 68
   },
-  "model": "claude-opus-5-5",
+  "model": "claude-haiku-4-5",
   "usage": {
-    "cache_read_tokens": 1800,
+    "cache_read_tokens": 0,
     "cache_write_tokens": 0,
-    "input_tokens": 2400,
-    "output_tokens": 420
+    "input_tokens": 1342,
+    "output_tokens": 246
   }
 }

@@ -28,6 +28,17 @@ class Settings(BaseSettings):
     api_base_url: str = "http://localhost:8000"
     web_base_url: str = "http://localhost:3000"
 
+    # ---------- Operations ----------
+    # json in staging and production, so a log aggregator can index each line.
+    log_format: Literal["text", "json"] = "text"
+    log_level: str = "INFO"
+    # Error reports go here when set: Sentry, or a self hosted GlitchTip.
+    sentry_dsn: str | None = None
+    # A public demonstration: only the sample accounts can sign in, the login
+    # page offers them, every page says it is a demo, and the data is reseeded
+    # every night. Production refuses to start with it on.
+    demo_mode: bool = False
+
     # ---------- Database ----------
     # 55432 to match .env.example and what compose publishes, not 5432.
     # Inside the containers compose sets this to db:5432 and none of it
@@ -47,6 +58,18 @@ class Settings(BaseSettings):
     otp_max_attempts: int = 5
     otp_resend_cooldown_seconds: int = 60
     otp_dev_echo: bool = True
+    # Codes one network address may request in an hour, across every phone
+    # number. Each code is an SMS someone pays for, so without this one script
+    # can send thousands to numbers it does not own.
+    otp_ip_hourly_limit: int = Field(default=20, ge=1)
+    # A rotated refresh token presented again after this many seconds is
+    # treated as stolen and signs the user out everywhere. Inside it, it is
+    # most likely two tabs refreshing at once, and only that request fails.
+    refresh_reuse_grace_seconds: int = Field(default=60, ge=0)
+    # How many proxies in front of the API append to X-Forwarded-For. Zero
+    # means the header is ignored, because a client can write anything in it.
+    # Behind the production Caddy proxy it is 1.
+    trusted_proxy_count: int = Field(default=0, ge=0, le=5)
 
     # ---------- Anthropic ----------
     anthropic_api_key: str | None = None
@@ -66,6 +89,9 @@ class Settings(BaseSettings):
     # Below this, a voice note transcript is not trusted and the buyer is asked
     # to type instead. A wrong lot code or quantity costs more than a retype.
     voice_min_confidence: float = Field(default=0.6, ge=0, le=1)
+    # Longest voice note sent for transcription. A buyer's question fits in a
+    # minute; transcription is billed per minute, so the cap is a cost control.
+    voice_max_seconds: int = Field(default=120, ge=10, le=600)
     # A WhatsApp message after this long a silence starts a new conversation,
     # so yesterday's search does not colour today's question.
     whatsapp_conversation_idle_hours: int = Field(default=12, ge=1)
@@ -141,6 +167,20 @@ class Settings(BaseSettings):
             problems.append("DATABASE_URL points at SQLite")
         if "SANDBOX" in self.bank_account_iban.upper():
             problems.append("BANK_ACCOUNT_IBAN is still the sandbox value")
+        if ":khazana@" in self.database_url:
+            problems.append("DATABASE_URL still uses the development password")
+        if "@" not in self.redis_url:
+            problems.append("REDIS_URL has no password")
+        for name, url in (("API_BASE_URL", self.api_base_url), ("WEB_BASE_URL", self.web_base_url)):
+            if not url.startswith("https://"):
+                problems.append(f"{name} is not https")
+        if self.demo_mode:
+            problems.append("DEMO_MODE must be off in production")
+        if self.trusted_proxy_count == 0:
+            # Behind a proxy with this at zero, every request appears to come
+            # from the proxy's own address, so the per address limit on login
+            # codes would lock everyone out after twenty sign ins an hour.
+            problems.append("TRUSTED_PROXY_COUNT is 0; set it to 1 behind the Caddy proxy")
         if problems:
             raise RuntimeError("Unsafe production configuration: " + "; ".join(problems))
 

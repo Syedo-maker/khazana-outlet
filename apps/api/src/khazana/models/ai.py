@@ -68,6 +68,12 @@ class AiJob(UUIDPrimaryKey, TimestampMixin, Base):
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error: Mapped[str | None] = mapped_column(Text, default=None)
 
+    # A job sent through the Message Batches API: the provider's batch id, and
+    # the prompt it was rendered from, which the reply is recorded against when
+    # it comes back hours later. Both empty for a live call.
+    batch_id: Mapped[str | None] = mapped_column(String(64), default=None)
+    prompt_ref: Mapped[str | None] = mapped_column(String(64), default=None)
+
     outputs: Mapped[list[AiOutput]] = relationship(
         back_populates="job", cascade="all, delete-orphan"
     )
@@ -76,6 +82,7 @@ class AiJob(UUIDPrimaryKey, TimestampMixin, Base):
         Index("ix_ai_jobs_feature_status", "feature", "status"),
         Index("ix_ai_jobs_entity", "entity_type", "entity_id"),
         Index("ix_ai_jobs_brand_created", "brand_id", "created_at"),
+        Index("ix_ai_jobs_batch_id", "batch_id"),
     )
 
 
@@ -125,6 +132,29 @@ class AiOutput(UUIDPrimaryKey, TimestampMixin, Base):
         Index("ix_ai_outputs_prompt", "prompt_name", "prompt_version"),
         Index("ix_ai_outputs_accepted", "accepted"),
     )
+
+
+class AiResponseCache(TimestampMixin, Base):
+    """A validated reply, kept so an identical request is not paid for twice.
+
+    Keyed by a hash of everything that shapes the reply: the feature, the
+    model and its effort, the prompt version, the full system and user text,
+    the output schema, every image's bytes, and the brand. Including the brand
+    means one brand's cached answer is never served to another, even for the
+    same input. Only routes that set ``response_cache_hours`` use it, and only
+    replies from a real call are stored, never fixtures.
+    """
+
+    __tablename__ = "ai_response_cache"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    feature: Mapped[AiFeature] = mapped_column(nullable=False)
+    model: Mapped[str] = mapped_column(String(64), nullable=False)
+    output: Mapped[dict[str, object]] = mapped_column(nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    hits: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    __table_args__ = (Index("ix_ai_response_cache_expires_at", "expires_at"),)
 
 
 class AiSpend(UUIDPrimaryKey, TimestampMixin, Base):

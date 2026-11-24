@@ -71,6 +71,7 @@ PURPOSES = {
     "ai_jobs": "One row per unit of AI work, including blocked ones.",
     "ai_outputs": "What the model produced, what it cost, what the human changed.",
     "ai_spend": "Daily spend per feature and brand. Caps are enforced on it.",
+    "ai_response_cache": "A validated AI reply kept so an identical request is not paid twice.",
     "embeddings": "Vectors for visual and semantic search.",
     "audit_log": "Append only before and after snapshots of consequential actions.",
 }

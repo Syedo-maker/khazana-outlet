@@ -10,10 +10,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
+from pydantic import BaseModel
+from sqlalchemy import select, text
 
 from ... import __version__
 from ...config import get_settings
+from ...models import User
+from ...models.enums import UserRole
 from ..deps import Db
 from ..schemas import HealthOut
 
@@ -67,3 +70,37 @@ def ready(db: Db) -> JSONResponse:
             "version": __version__,
         },
     )
+
+
+class DemoAccount(BaseModel):
+    role: UserRole
+    phone: str
+    name: str
+
+
+class DemoOut(BaseModel):
+    enabled: bool
+    accounts: list[DemoAccount]
+
+
+@router.get(
+    "/demo",
+    operation_id="ops_demo",
+    summary="Whether this is a public demo, and its sample accounts",
+    response_model=DemoOut,
+)
+def demo(db: Db) -> DemoOut:
+    """The sample accounts the login page offers on a demo, one per role.
+
+    Empty unless DEMO_MODE is on, so a real deployment never lists accounts.
+    """
+    if not get_settings().demo_mode:
+        return DemoOut(enabled=False, accounts=[])
+    accounts = []
+    for role in (UserRole.RESELLER, UserRole.BRAND, UserRole.ADMIN):
+        user = db.scalars(
+            select(User).where(User.role == role, User.is_active.is_(True)).order_by(User.phone)
+        ).first()
+        if user is not None:
+            accounts.append(DemoAccount(role=role, phone=user.phone, name=user.full_name))
+    return DemoOut(enabled=True, accounts=accounts)
