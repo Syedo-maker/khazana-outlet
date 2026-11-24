@@ -21,6 +21,8 @@ export default defineConfig({
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL: process.env.WEB_URL ?? "http://localhost:3000",
+    // Staging runs behind Caddy with its own local certificate authority.
+    ignoreHTTPSErrors: Boolean(process.env.E2E_IGNORE_HTTPS_ERRORS),
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     launchOptions: process.env.CHROMIUM_PATH

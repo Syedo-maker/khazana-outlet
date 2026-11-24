@@ -1,0 +1,44 @@
+# The one public entry point: HTTPS, the web app at /, the API at /api.
+#
+# Serving the API under the web app's own origin is a performance decision as
+# much as a tidy one. On a 300 ms phone connection every cross origin API call
+# cost a CORS preflight round trip first (docs/performance.md, week 52); on
+# one origin there are none.
+#
+# Caddy obtains and renews the certificate itself. With DOMAIN=localhost, as
+# in staging on a laptop, it issues one from its own local authority instead.
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	log {
+		output stdout
+		format json
+	}
+
+	# The API refuses anything over 10 MB itself; this stops a larger body at
+	# the edge, before it is read into a container at all.
+	request_body {
+		max_size 12MB
+	}
+
+	# handle_path strips /api, and the API runs with --root-path /api so its
+	# own docs and redirects still point at the right place.
+	handle_path /api/* {
+		# Metrics are for the monitoring network, never the internet. This
+		# sits inside the handler on purpose: a respond outside it never runs,
+		# because Caddy orders handle_path ahead of respond.
+		@metrics path /metrics /metrics/*
+		respond @metrics 404
+		reverse_proxy api:8000
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+}

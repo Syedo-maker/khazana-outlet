@@ -156,3 +156,40 @@ again for the risk score, though the query had already loaded three of them.
   in it.
 - Static assets are served with Next.js's immutable cache headers; photos
   are `private, max-age=300`, because every one sits behind sign in.
+
+## Week 56: the production stack, as staging
+
+`docker-compose.prod.yml` with `.env.staging`: Caddy in front with HTTPS,
+the API image with three uvicorn workers, the standalone web build, the same
+500 lot catalogue as week 50.
+
+### Load test, the production API image
+
+| Run | Catalogue p95 | Search p95 | Lot page p95 | Requests a second | Errors |
+| --- | --- | --- | --- | --- | --- |
+| 50 users with pauses | 68 ms | 59 ms | 67 ms | 17.4 | 0% |
+| 20 users, no pauses | 376 ms | 322 ms | 423 ms | 79.9 | 0% |
+
+Three workers serve twice what the single development process did, about 80
+requests a second against 40, and stay inside the 500 ms budget with no
+pauses at all. k6 ran on the staging network against the API container
+directly, so these numbers leave out Caddy.
+
+### Pages on Regular 3G, through Caddy on one origin
+
+| Page | Heading on screen | Transferred | Requests, staging | Requests, week 52 |
+| --- | --- | --- | --- | --- |
+| Login | 1.3 s | 140 KB | 12 | 9 |
+| Catalogue | 3.5 s | 152 KB | 19 | 37 |
+| Lot | 5.6 s | 150 KB | 16 | 33 |
+| Orders | 3.3 s | 144 KB | 16 | 20 |
+| Brand dashboard | 5.5 s | 146 KB | 15 | 17 |
+| Brand lots | 1.3 s | 154 KB | 22 | 24 |
+
+With the API on the web app's origin there are no CORS preflights, and the
+catalogue and lot pages make half the requests they did. Caddy compresses
+every response, so pages are about a quarter smaller. Load times are not
+directly comparable with week 52 and this table does not claim they improved:
+staging adds the TLS handshake, one or two extra round trips at 300 ms each
+on 3G, and serves a 500 lot catalogue rather than 30 lots. The JavaScript,
+about 135 KB compressed per page, remains the floor on every page.

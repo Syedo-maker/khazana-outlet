@@ -19,6 +19,7 @@ export default defineConfig({
   reporter: "list",
   use: {
     baseURL: process.env.WEB_URL ?? "http://localhost:3000",
+    ignoreHTTPSErrors: Boolean(process.env.E2E_IGNORE_HTTPS_ERRORS),
     launchOptions: process.env.CHROMIUM_PATH
       ? { executablePath: process.env.CHROMIUM_PATH }
       : undefined,

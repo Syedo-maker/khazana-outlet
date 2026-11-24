@@ -1,0 +1,203 @@
+# Khazana Outlet, production and staging.
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+#
+# Staging is this same file with a staging env file, so it mirrors production
+# by construction rather than by effort:
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.staging up -d --build
+#
+# What runs: Caddy terminates HTTPS and is the only service with public ports;
+# the web app and the API sit behind it on one origin. A migrate step runs
+# before the API starts. The scheduler runs the timed jobs, and the backup
+# service writes a database dump every night. Prometheus is optional:
+#   --profile monitoring
+# See docs/deployment.md for the full procedure, the checklist before a real
+# launch, and how to restore.
+
+name: khazana-prod
+
+x-logging: &logging
+  driver: json-file
+  options:
+    # Bounded, so a noisy day cannot fill the disk. Ship these to a log
+    # service with any Docker logging driver; see docs/deployment.md.
+    max-size: "10m"
+    max-file: "5"
+
+x-api-env: &api-env
+  ENVIRONMENT: ${ENVIRONMENT:-production}
+  DATABASE_URL: postgresql+psycopg://khazana:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/khazana
+  REDIS_URL: redis://:${REDIS_PASSWORD:?set REDIS_PASSWORD}@redis:6379/0
+  SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY}
+  API_BASE_URL: https://${DOMAIN}/api
+  WEB_BASE_URL: https://${DOMAIN}
+  # Caddy is the one proxy in front of the API.
+  TRUSTED_PROXY_COUNT: "1"
+  OTP_DEV_ECHO: ${OTP_DEV_ECHO:-false}
+  OTP_RESEND_COOLDOWN_SECONDS: ${OTP_RESEND_COOLDOWN_SECONDS:-60}
+  AI_OFFLINE: ${AI_OFFLINE:-false}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  AI_DAILY_SPEND_LIMIT_USD: ${AI_DAILY_SPEND_LIMIT_USD:-25}
+  AI_BRAND_MONTHLY_SPEND_LIMIT_USD: ${AI_BRAND_MONTHLY_SPEND_LIMIT_USD:-50}
+  BANK_ACCOUNT_TITLE: ${BANK_ACCOUNT_TITLE:-}
+  BANK_ACCOUNT_IBAN: ${BANK_ACCOUNT_IBAN:-PK00SANDBOX0000000000000}
+  STORAGE_LOCAL_PATH: /app/uploads
+  LOG_FORMAT: json
+  SENTRY_DSN: ${SENTRY_DSN:-}
+
+services:
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - api
+    logging: *logging
+
+  web:
+    build:
+      context: ./apps/web
+      target: runtime
+      args:
+        # Same origin: the browser calls /api on the site it loaded from.
+        NEXT_PUBLIC_API_BASE_URL: /api
+    image: ${IMAGE_PREFIX:-khazana}-web:${VERSION:-local}
+    restart: unless-stopped
+    logging: *logging
+
+  migrate:
+    build:
+      context: ./apps/api
+      target: runtime
+    image: ${IMAGE_PREFIX:-khazana}-api:${VERSION:-local}
+    command: ["alembic", "upgrade", "head"]
+    environment: *api-env
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+    logging: *logging
+
+  api:
+    image: ${IMAGE_PREFIX:-khazana}-api:${VERSION:-local}
+    restart: unless-stopped
+    command:
+      - uvicorn
+      - khazana.main:app
+      - --host=0.0.0.0
+      - --port=8000
+      - --workers=${API_WORKERS:-3}
+      - --root-path=/api
+      # The API reads X-Forwarded-For itself, trusting exactly one proxy.
+      - --no-proxy-headers
+      # The API logs each request itself, with its request id.
+      - --no-access-log
+    environment:
+      <<: *api-env
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus
+    tmpfs:
+      - /tmp/prometheus
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    logging: *logging
+
+  scheduler:
+    image: ${IMAGE_PREFIX:-khazana}-api:${VERSION:-local}
+    restart: unless-stopped
+    command: ["python", "-m", "khazana.scheduler"]
+    environment: *api-env
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    logging: *logging
+
+  backup:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    # Once at start, then every 24 hours. The dumps land in ./backups on the
+    # host; copying them off the machine is in docs/deployment.md.
+    entrypoint: ["sh", "-c", "while true; do bash /scripts/backup.sh || echo 'backup failed'; sleep 86400; done"]
+    environment:
+      PG_EXEC: ""
+      PGHOST: db
+      PGUSER: khazana
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: khazana
+      BACKUP_DIR: /backups
+      KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    volumes:
+      - ./scripts:/scripts:ro
+      - ./backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    logging: *logging
+
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: khazana
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: khazana
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U khazana -d khazana"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: *logging
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    logging: *logging
+
+  prometheus:
+    profiles: ["monitoring"]
+    image: prom/prometheus:v3.7.3
+    restart: unless-stopped
+    volumes:
+      - ./deploy/prometheus:/etc/prometheus:ro
+      - prometheus_data:/prometheus
+    ports:
+      # Localhost only: reach it through an SSH tunnel, never the internet.
+      - "127.0.0.1:9090:9090"
+    logging: *logging
+
+volumes:
+  caddy_data:
+  caddy_config:
+  db_data:
+  redis_data:
+  uploads:
+  prometheus_data:
