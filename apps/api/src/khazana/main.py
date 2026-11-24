@@ -15,7 +15,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from . import __version__
+from . import __version__, observability
 from .ai.gateway.limits import feature_switches
 from .api import openapi as api_spec
 from .api.routers import (
@@ -48,9 +48,14 @@ logger = logging.getLogger("khazana")
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
+    if settings.log_format == "json":
+        observability.configure_logging("json", settings.log_level)
     # Refuse to start a misconfigured production deployment rather than
     # discover it from a leaked OTP in the logs.
     settings.assert_production_ready()
+    observability.configure_errors(
+        settings.sentry_dsn, environment=settings.environment, release=__version__
+    )
     logger.info(
         "starting khazana api version=%s env=%s ai_offline=%s",
         __version__,
@@ -169,6 +174,8 @@ def create_app() -> FastAPI:
             "features": feature_switches(),
         }
 
+    # Request ids, request metrics and the /metrics route.
+    observability.install(app)
     # Authentication, the error shape and tag descriptions, added to the spec
     # FastAPI generates. See api/openapi.py.
     api_spec.install(app)

@@ -28,6 +28,13 @@ class Settings(BaseSettings):
     api_base_url: str = "http://localhost:8000"
     web_base_url: str = "http://localhost:3000"
 
+    # ---------- Operations ----------
+    # json in staging and production, so a log aggregator can index each line.
+    log_format: Literal["text", "json"] = "text"
+    log_level: str = "INFO"
+    # Error reports go here when set: Sentry, or a self hosted GlitchTip.
+    sentry_dsn: str | None = None
+
     # ---------- Database ----------
     # 55432 to match .env.example and what compose publishes, not 5432.
     # Inside the containers compose sets this to db:5432 and none of it
