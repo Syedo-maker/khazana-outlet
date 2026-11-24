@@ -1,6 +1,6 @@
 [project]
 name = "khazana-api"
-version = "0.1.0"
+version = "1.0.0"
 description = "Khazana Outlet API: AI native marketplace for brand surplus stock in Pakistan"
 requires-python = ">=3.11"
 dependencies = [

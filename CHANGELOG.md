@@ -1,13 +1,96 @@
 # Changelog
 
-Grouped by the roadmap weeks in `ROADMAP.md` rather than by release, because
-nothing has been released yet. Versions begin at `v1.0.0` in week 48.
+Releases are tagged on `main`. Each release's section is also its notes on
+GitHub, and the images it publishes are tagged with its version. Work before
+the first release is grouped by the roadmap weeks in `ROADMAP.md`.
 
-Dates are when the work landed, not when the week nominally fell. Several
-weeks of planned work landed on the same day early on, and padding the dates
-to match the plan would be a nicer looking lie.
+Dates are when the work landed, not when the week nominally fell.
 
-## Unreleased
+## [1.0.0], 2026-11-24
+
+The first release: Phases 1 to 5 of the roadmap. The platform is built,
+hardened, measured, documented and packaged for production, and runs on
+sandbox payment, courier, SMS and WhatsApp providers until real ones are
+connected in Phase 6. A demo runs the same stack with sample data only.
+
+### Phase 5, weeks 50 to 57: hardening, documentation and release
+
+**Tests**
+
+- **Added** The money path end to end over HTTP, from checkout to brand payout,
+  checking every amount and every permission; the money rules against
+  thousands of random cases; browser tests of the money path on a phone sized
+  screen, run in CI against the development stack and again against the
+  production stack through HTTPS.
+- **Added** A k6 load test of the catalogue and search, throttled page load
+  measurements on Regular 3G with a slowed CPU, and a test that fails if a
+  list page's query count grows with its length.
+
+**Security**
+
+- **Fixed** Signing out now ends access tokens at once instead of when they
+  expire; a reused refresh token signs the user out everywhere; login codes
+  are limited per network address against SMS pumping; `X-Forwarded-For` is
+  trusted only behind a configured proxy.
+- **Fixed** Uploads are read in chunks and refused past 10 MB, images are
+  checked for size before decoding, photographs keep their orientation when
+  metadata is stripped, and voice notes over two minutes are refused before
+  paid transcription.
+- **Fixed** A critical remote code execution advisory in Next.js, which the
+  dependency scan had been reporting as advisory only; the scan now blocks.
+  Pillow 13, and floors past advisories for certifi and opentelemetry-api.
+- **Added** Security headers on the API and a Content Security Policy on the
+  web app; values filled into prompts can no longer impersonate the prompt;
+  production refuses five more unsafe settings.
+- **Added** Database backup and restore scripts, with a backup restored and
+  compared table by table in CI on every push.
+
+**Performance**
+
+- **Fixed** Three list pages loaded related rows one at a time: the catalogue
+  (31 queries to 11, p95 on 500 lots from 875 ms to 58 ms), a brand's orders
+  (204 to 8) and the admin listing queue (207 to 8).
+- **Added** Thumbnails for catalogue cards (a textured photo 165 KB to
+  11 KB), photos that load as they near the screen, and no link prefetching
+  on metered connections.
+- **Changed** In production the API is served under the web app's origin, so
+  no request pays for a CORS preflight; the catalogue and lot pages make half
+  the requests they did.
+
+**AI cost and quality**
+
+- **Changed** Every eval suite was run live, and every mandatory case passed.
+  Models were chosen by the evals: the resell kit moved to Claude Haiku 5.5,
+  and the markdown agent and risk scoring stayed on Haiku 4.5 after Haiku 5.5
+  failed a case on every run. The whole pass cost USD 1.03.
+- **Added** A refusal fallback on Opus routes, a response cache for identical
+  requests, and the Message Batches API at half price for the daily markdown
+  run. Logo detection caches its prompt, 36% cheaper.
+- **Fixed** A dated model name in a response made every Haiku 4.5 reply fail
+  after it had been paid for.
+
+**Operations**
+
+- **Added** `docker-compose.prod.yml`: Caddy with automatic HTTPS, the API
+  with three workers, the web app, a migrate step, a scheduler for every timed
+  job, a nightly backup service, PostgreSQL and Redis with passwords, and an
+  optional Prometheus with alert rules. Staging is the same file with staging
+  settings, and CI starts it on every push.
+- **Added** JSON logs with request ids, Prometheus metrics, and error reports
+  to any Sentry compatible service with personal data stripped first.
+- **Added** A demo mode: sample accounts only, offered on the login page, a
+  banner on every page, and a reset every night.
+- **Added** A release workflow that publishes both images and these notes
+  when a version is tagged.
+
+**Documentation**
+
+- **Added** A setup guide, a deployment guide with the launch checklist, a
+  generated API reference with the OpenAPI spec, user guides for resellers,
+  brands and the Khazana team, five more decision records, security and
+  performance reports, and `CONTRIBUTING.md`.
+
+## Before 1.0.0
 
 ### Phase 4, weeks 32 to 49: the intelligence layer, 2026-11-20
 

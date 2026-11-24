@@ -5,7 +5,7 @@ by hand. The machine readable version is [`openapi.json`](openapi.json), and
 a running API serves the same spec at `/openapi.json` with interactive docs
 at `/docs`.
 
-Version 0.1.0. 171 operations.
+Version 1.0.0. 171 operations.
 
 ## Conventions
 
