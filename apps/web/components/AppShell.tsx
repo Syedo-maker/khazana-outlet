@@ -34,9 +34,37 @@ export function AppShell({
   userLabel?: string;
 }) {
   const [signedIn, setSignedIn] = useState(false);
+  const [demo, setDemo] = useState(false);
 
   useEffect(() => {
     setSignedIn(Boolean(getAccessToken()));
+  }, []);
+
+  // Whether this deployment is a public demo comes from the API at runtime,
+  // not from the build, so one published image serves production and a demo
+  // alike. Asked once per tab, then remembered for the tab.
+  useEffect(() => {
+    let cached: string | null = null;
+    try {
+      cached = sessionStorage.getItem(DEMO_KEY);
+    } catch {
+      cached = null;
+    }
+    if (cached !== null) {
+      setDemo(cached === "1");
+      return;
+    }
+    api
+      .demo()
+      .then((answer) => {
+        setDemo(answer.enabled);
+        try {
+          sessionStorage.setItem(DEMO_KEY, answer.enabled ? "1" : "0");
+        } catch {
+          // Private browsing can refuse storage; the banner still shows.
+        }
+      })
+      .catch(() => setDemo(false));
   }, []);
 
   const signOut = async () => {
@@ -54,7 +82,7 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen flex-col">
-      {DEMO ? (
+      {demo ? (
         <p className="border-b border-line bg-accent-subtle px-4 py-2 text-center text-sm font-semibold text-ink">
           {t(locale, "demo.banner")}
         </p>
@@ -138,8 +166,8 @@ export function AppShell({
   );
 }
 
-// Set at build time for a public demo: every page says the data is samples.
-const DEMO = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+// Remembers, for the tab, whether the API said this is a public demo.
+const DEMO_KEY = "khazana.demo";
 
 export const BRAND_NAV: NavItem[] = [
   { href: "/dashboard", labelKey: "nav.dashboard" },
