@@ -4,11 +4,14 @@ An AI native B2B marketplace for Pakistani brand surplus stock. Brands clear
 previous season, over produced and season end inventory in bulk lots; verified
 resellers and small shops buy original branded goods at wholesale prices.
 
-**Status: Phases 1 to 4 built.** The foundation, the AI engine, the
-marketplace and the intelligence layer are built and tested, on sandbox
-payment, courier and WhatsApp providers. Phase 5 hardens and releases it, and
-brand recruitment is Phase 6. See [ROADMAP.md](ROADMAP.md), and
-[DEPLOYMENT.md](DEPLOYMENT.md) for what a real deployment still needs.
+**Status: version 1.0, Phases 1 to 5 complete.** The foundation, the AI
+engine, the marketplace and the intelligence layer are built, then hardened:
+tested end to end, security reviewed, load tested, measured on a slow phone
+connection, costed against live models, documented, and packaged as a
+production stack with HTTPS, backups and monitoring. It runs on sandbox
+payment, courier, SMS and WhatsApp providers until Phase 6 connects real ones.
+See [ROADMAP.md](ROADMAP.md), and [docs/deployment.md](docs/deployment.md)
+for the launch checklist.
 
 ## Why this exists
 
@@ -50,6 +53,8 @@ the cost model.
 | Queue | Redis |
 | AI | Claude API through a single gateway service |
 | Embeddings | Self hosted open model, SigLIP or CLIP class |
+| Production | Docker Compose behind Caddy with automatic HTTPS |
+| Observability | JSON logs, Prometheus metrics, Sentry compatible error reports |
 
 ## Repository layout
 
@@ -57,7 +62,7 @@ the cost model.
 apps/
   api/                    FastAPI service
     src/khazana/
-      models/             SQLAlchemy models, 55 tables
+      models/             SQLAlchemy models, 56 tables
       core/               security, errors, tenancy
       services/           domain logic
       api/                routers, dependencies, schemas
@@ -67,21 +72,26 @@ apps/
         gateway/          the only code that talks to a model
         prompts/          versioned prompt files
         evals/            one suite per AI feature, runs in CI
+      scheduler.py        the timed jobs, run as their own service
+      observability.py    logs, request ids, metrics, error reports
       seed.py             synthetic marketplace generator
-    alembic/              migrations 0001 to 0016
-    tests/                about 810 tests
+    alembic/              migrations 0001 to 0018
+    tests/                about 935 tests
   web/                    Next.js application
-docs/                     architecture, schema, AI design
+e2e/                      browser end to end tests and throttled page timings
+loadtest/                 k6 load test of the catalogue and search
+deploy/                   Caddyfile, Prometheus configuration and alert rules
+docs/                     setup, deployment, architecture, API, AI, security, guides
 phase-6-brands-and-launch/  the brand and market work, runs last
 landing/                  waiting list page
-scripts/                  repository rules gate, ERD generator
+scripts/                  dev commands, rules gate, backups, doc generators
 ```
 
 ## Getting started
 
-The whole stack runs in containers, so the only requirement is Docker Desktop.
-Nothing has to be installed on the machine, and nothing depends on what the
-machine's security policy allows to run.
+The whole stack runs in containers, so the only requirement is Docker.
+[docs/setup-guide.md](docs/setup-guide.md) takes a fresh clone to a running
+platform with a sample marketplace in about 30 minutes:
 
 ```powershell
 .\scripts\dev.ps1 build     # once, and after changing pyproject.toml or package.json
@@ -90,19 +100,11 @@ machine's security policy allows to run.
 .\scripts\dev.ps1 up        # start the API and the web app
 ```
 
-The API is on http://localhost:8000 with interactive documentation at
-http://localhost:8000/docs. The web app is on http://localhost:3000.
-
-`DEPLOYMENT.md` has every command, the troubleshooting list and what is still
-left to do before a real deployment.
-
-Running it on the host instead needs Python 3.11 or newer and Node 20 or newer,
-and the `make` targets below. Note that `make` is not installed on the
-development machine, so the containerised path above is the supported one.
-
-Copy `.env.example` to `.env` first. The defaults work for local development
-with no API keys at all, because the AI layer starts in offline mode and reads
-recorded fixtures.
+The web app is on http://localhost:3000, the API on http://localhost:8000
+with interactive documentation at `/docs`. The AI layer starts offline and
+answers from recorded replies, so no API key is needed.
+[docs/development.md](docs/development.md) has every command and the
+troubleshooting list.
 
 ### Signing in locally
 
@@ -154,7 +156,7 @@ every feature switch.
 ## Testing
 
 ```
-About 810 tests, covering:
+About 935 API tests, covering:
   authentication      OTP single use, attempt caps, rate limits, token rotation,
                       and every route refusing an anonymous caller
   tenant isolation    cross brand reads on every brand scoped route, 404 not 403
@@ -166,7 +168,11 @@ About 810 tests, covering:
 ```
 
 Every AI feature also has an eval suite, run against recorded replies in CI and
-against the live model on demand.
+against the live model on demand; the last live run passed every mandatory
+case. Beyond the unit suite, CI walks one order from checkout to payout over
+HTTP, checks the money rules against thousands of random cases, runs the
+money path in a phone sized browser, backs up and restores the database, and
+starts the production stack as staging and tests it through HTTPS.
 
 The suite runs on SQLite for speed. The PostgreSQL specific parts, meaning the
 deferred manifest trigger, the append only triggers, the row level security
@@ -178,13 +184,21 @@ every migration, rolls it back and applies it again.
 
 | Document | What is in it |
 | --- | --- |
-| [ROADMAP.md](ROADMAP.md) | The six phases, week by week, and what is deliberately out of scope |
-| [docs/ai-architecture.md](docs/ai-architecture.md) | Model routing, cost control with arithmetic, the hard limits on what AI decides |
-| [docs/decisions/](docs/decisions/) | Decision records, starting with 0001 on AI value bands |
-| [DEPLOYMENT.md](DEPLOYMENT.md) | The development environment, every command, and what production still needs |
-| [CHANGELOG.md](CHANGELOG.md) | What landed, grouped by roadmap weeks |
+| [docs/setup-guide.md](docs/setup-guide.md) | From a fresh clone to running locally |
+| [docs/development.md](docs/development.md) | Every command, the stack, CI, troubleshooting |
+| [docs/deployment.md](docs/deployment.md) | Production and staging, backups, monitoring, the launch checklist |
+| [docs/architecture.md](docs/architecture.md) | How the platform is put together |
+| [docs/api-reference.md](docs/api-reference.md) | Every endpoint, generated from the code, with [openapi.json](docs/openapi.json) |
 | [docs/database-schema.md](docs/database-schema.md) | Generated ERD and the design decisions behind it |
-| [CLAUDE.md](CLAUDE.md) | Working rules for this repository |
+| [docs/ai-architecture.md](docs/ai-architecture.md) | Model routing, cost control, the hard limits on what AI decides |
+| [docs/ai-features.md](docs/ai-features.md) | Each AI feature, its model, eval results and measured cost |
+| [docs/security.md](docs/security.md) | Every control and the test that proves it |
+| [docs/performance.md](docs/performance.md) | Load tests, slow connection timings and what they changed |
+| [docs/user-guides/](docs/user-guides/) | For resellers, brands and the Khazana team |
+| [docs/decisions/](docs/decisions/) | Architecture decision records |
+| [ROADMAP.md](ROADMAP.md) | The six phases, week by week, and what is deliberately out of scope |
+| [CHANGELOG.md](CHANGELOG.md) | What landed, by release |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How work gets into the repository |
 | [phase-6-brands-and-launch/](phase-6-brands-and-launch/) | Brand outreach, interviews, unit economics, company registration, the manual sales playbook |
 
 ## Contributing rules that matter

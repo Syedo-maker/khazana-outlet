@@ -139,6 +139,12 @@ in `docs/deployment.md`.
   would close that, at the cost of CSRF handling.
 - Inline scripts are allowed by the web app's policy because Next.js emits
   them. A nonce based policy would remove that.
+- Untrusted text in prompts is labelled and neutralised but not yet wrapped in
+  explicit fence tags. New prompt versions with fences were considered in week
+  53 and left out: the renderer already stops a value impersonating the
+  prompt, and new versions would change model behaviour and need every suite
+  re-baselined, for little added protection. Worth doing with the next prompt
+  revision for the bargaining and buyer assistant prompts.
 - No web application firewall or bot protection in front of the login page
   beyond the rate limits. Worth adding with the real SMS gateway in Phase 6.
 - A penetration test by someone other than the people who built it.

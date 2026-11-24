@@ -82,7 +82,8 @@ The whole development environment runs in containers. One entry point:
 ```
 
 `Get-Help .\scripts\dev.ps1 -Full` lists all eighteen commands, and
-`DEPLOYMENT.md` documents the environment, the troubleshooting notes and what
+`docs/development.md` documents the environment and the troubleshooting notes,
+`docs/deployment.md` production, staging and what
 is still missing before a real deployment. Run `check` before every push.
 
 Two environment facts that bite if forgotten:
