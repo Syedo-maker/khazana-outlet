@@ -6,7 +6,10 @@ every account ready to sign in. Everything runs in Docker, so nothing else
 needs installing for the app itself.
 
 Budget about 30 minutes, most of it the first image build downloading
-dependencies.
+dependencies. Measured on 2026-11-24, following these steps from a fresh
+clone with Docker's build cache disabled: 3 minutes 54 seconds to the web app
+and the API answering, on a machine that already had the base images. A new
+machine downloads those too, a few hundred MB more.
 
 ## 1. What you need
 
