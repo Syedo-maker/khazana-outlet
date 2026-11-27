@@ -90,6 +90,9 @@ def assert_within_budget(
     # hundreds of requests.
     daily_limit = Decimal(str(settings.ai_daily_spend_limit_usd))
     if daily_limit > 0 and spend_today(db) + projected >= daily_limit:
+        from ...services import alert_service
+
+        alert_service.ai_cap_reached(db.get_bind())
         raise SpendLimitReached(
             "The daily AI budget has been reached. Work has been queued and will "
             "resume tomorrow, or raise AI_DAILY_SPEND_LIMIT_USD."

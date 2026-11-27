@@ -165,6 +165,14 @@ class Settings(BaseSettings):
     # One alert of a kind per this many minutes, so a failing job every
     # half hour is one email, not forty eight.
     alert_cooldown_minutes: int = Field(default=180, ge=1)
+    # The scheduler warns when the newest dump here is older than this.
+    backup_dir: str = "./backups"
+    backup_max_age_hours: int = Field(default=26, ge=1)
+    # The scheduler checks this every ten minutes and alerts when it fails.
+    # Set by docker-compose.prod.yml to the API on the internal network.
+    health_check_url: str | None = None
+    # Alert when free space on the uploads disk falls below this share.
+    disk_free_alert_percent: int = Field(default=10, ge=1, le=90)
 
     # ---------- Payments ----------
     # Shown to buyers paying by bank transfer. The defaults are obviously fake,

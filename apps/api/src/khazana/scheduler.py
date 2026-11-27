@@ -118,6 +118,30 @@ def _commission_invoices(db: Session) -> object:
     return commission_service.issue_previous_month(db)
 
 
+def _deliver_alerts(db: Session) -> object:
+    from .services import alert_service
+
+    return alert_service.deliver_pending(db)
+
+
+def _check_api(db: Session) -> object:
+    from .services import alert_service
+
+    return alert_service.check_api(db)
+
+
+def _check_backups(db: Session) -> object:
+    from .services import alert_service
+
+    return alert_service.check_backups(db)
+
+
+def _check_disk(db: Session) -> object:
+    from .services import alert_service
+
+    return alert_service.check_disk(db)
+
+
 def _purge_ai_cache(db: Session) -> object:
     from .ai.gateway import response_cache
 
@@ -135,7 +159,29 @@ JOBS: tuple[Job, ...] = (
     Job("purge-ai-cache", _purge_ai_cache, daily_at=(4, 30)),
     Job("demo-reset", _demo_reset, daily_at=(5, 0)),
     Job("commission-invoices", _commission_invoices, daily_at=(6, 0), monthday=1),
+    # The platform watching itself, and emailing the operator.
+    Job("deliver-alerts", _deliver_alerts, every_minutes=5),
+    Job("check-api", _check_api, every_minutes=10),
+    Job("check-backups", _check_backups, daily_at=(9, 0)),
+    Job("check-disk", _check_disk, every_minutes=60),
 )
+
+
+def _alert_job_failed(db: Session, job: Job, exc: Exception) -> None:
+    from .services import alert_service
+
+    try:
+        alert_service.raise_alert(
+            db,
+            f"job-failed:{job.name}",
+            f"Scheduled job {job.name} failed",
+            f"{type(exc).__name__} in {job.name}. The traceback is in the scheduler "
+            "log: docker compose logs scheduler. It runs again at its next slot.",
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("could not record the alert for job %s", job.name)
 
 
 def run_job(job: Job) -> bool:
@@ -145,9 +191,10 @@ def run_job(job: Job) -> bool:
         try:
             outcome = job.run(db)
             db.commit()
-        except Exception:
+        except Exception as exc:
             db.rollback()
             logger.exception("job %s failed", job.name)
+            _alert_job_failed(db, job, exc)
             return False
     logger.info("job %s done in %.1fs: %s", job.name, time.perf_counter() - started, outcome)
     return True

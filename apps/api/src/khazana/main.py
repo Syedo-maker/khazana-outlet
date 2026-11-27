@@ -134,6 +134,37 @@ def create_app() -> FastAPI:
             content={"code": exc.code, "message": exc.message},
         )
 
+    @app.exception_handler(Exception)
+    async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
+        """A bug reached the top. The person gets a plain sentence, the
+        operator gets an email, and the details stay in the log."""
+        from starlette.concurrency import run_in_threadpool
+
+        from .services import alert_service
+
+        request_id = observability.request_id.get()
+        logger.error(
+            "unhandled error path=%s request_id=%s",
+            request.url.path,
+            request_id,
+            exc_info=exc,
+        )
+        await run_in_threadpool(
+            alert_service.raise_alert_now,
+            "server-error",
+            "The API returned a server error",
+            f"{request.method} {request.url.path}\nRequest id: {request_id}\n"
+            f"Error type: {type(exc).__name__}\nThe traceback is in the api log.",
+            cooldown_minutes=60,
+        )
+        return JSONResponse(
+            status_code=500,
+            content={
+                "code": "internal_error",
+                "message": "Something went wrong on our side. It has been reported.",
+            },
+        )
+
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(invites.router)

@@ -17,6 +17,7 @@ index, are created in migration 0001 and verified by the migration job in CI.
 | `ai_outputs` | 19 | no | What the model produced, what it cost, what the human changed. |
 | `ai_response_cache` | 8 | no | A validated AI reply kept so an identical request is not paid twice. |
 | `ai_spend` | 8 | no | Daily spend per feature and brand. Caps are enforced on it. |
+| `alerts` | 10 | no | Operator alerts waiting to be emailed, one per kind per cooldown. |
 | `assistant_conversations` | 8 | no | A thread with the buyer or brand assistant. |
 | `assistant_messages` | 12 | no | One message in a thread, with its cost and grounding. |
 | `audit_log` | 15 | no | Append only before and after snapshots of consequential actions. |
@@ -171,6 +172,18 @@ erDiagram
         string brand_id "FK"
         int calls "required"
         decimal cost_usd "required"
+        string id "PK"
+        datetime created_at "required"
+        datetime updated_at "required"
+    }
+    alerts {
+        string kind "required"
+        string subject "required"
+        text body "required"
+        string status "required"
+        int attempts "required"
+        string last_error
+        datetime delivered_at
         string id "PK"
         datetime created_at "required"
         datetime updated_at "required"
