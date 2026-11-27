@@ -352,6 +352,22 @@ export type Cart = {
 
 export type SettlementMode = "platform" | "direct";
 
+export type Invite = {
+  id: string;
+  purpose: "signup" | "login";
+  phone: string;
+  full_name: string | null;
+  role: "reseller" | "brand" | "admin";
+  brand_id: string | null;
+  note: string | null;
+  status: "pending" | "used" | "expired" | "revoked";
+  created_at: string;
+  expires_at: string;
+  used_at: string | null;
+};
+
+export type CreatedInvite = Invite & { link: string; whatsapp_url: string };
+
 export type CommissionInvoice = {
   id: string;
   number: string;
@@ -1129,6 +1145,19 @@ export const adminApi = {
       token,
       body: { reference },
     }),
+  invites: (token: string) => request<Invite[]>("/admin/invites", { token }),
+  createInvite: (
+    token: string,
+    body: {
+      phone: string;
+      full_name: string | null;
+      role: "reseller" | "brand";
+      brand_id: string | null;
+      note: string | null;
+    },
+  ) => request<CreatedInvite>("/admin/invites", { method: "POST", token, body }),
+  revokeInvite: (token: string, id: string) =>
+    request<Invite>(`/admin/invites/${id}/revoke`, { method: "POST", token }),
   commissionInvoices: (token: string, status?: CommissionInvoice["status"]) =>
     request<CommissionInvoice[]>(
       `/admin/commission-invoices${status ? `?status=${status}` : ""}`,

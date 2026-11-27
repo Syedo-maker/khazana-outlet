@@ -66,8 +66,11 @@ class TestSchemaInvariants:
         # owned rows: they are platform records that reference a brand.
         # assistant_conversations is owned by a user; its brand_id says which
         # brand a brand assistant thread is about and is checked on every read.
+        # invites are made and read by admins only; their brand_id is the
+        # brand a staff member joins when the link is used.
         allowed_extras = {
             "brands",
+            "invites",
             "ai_jobs",
             "ai_spend",
             "embeddings",

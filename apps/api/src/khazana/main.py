@@ -29,6 +29,7 @@ from .api.routers import (
     commissions,
     forecasts,
     health,
+    invites,
     logistics,
     negotiations,
     orders,
@@ -135,6 +136,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(auth.router)
+    app.include_router(invites.router)
     app.include_router(ai.router)
     app.include_router(assistant.router)
     app.include_router(brands.router)

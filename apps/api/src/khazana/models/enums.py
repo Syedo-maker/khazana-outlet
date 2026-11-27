@@ -152,6 +152,13 @@ class PaymentMethod(StrEnum):
     COD = "cod"
 
 
+class InvitePurpose(StrEnum):
+    # A new account: the link creates it.
+    SIGNUP = "signup"
+    # An existing account signing in again.
+    LOGIN = "login"
+
+
 class SettlementMode(StrEnum):
     """Who collects the buyer's money.
 

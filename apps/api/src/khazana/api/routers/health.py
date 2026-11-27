@@ -14,9 +14,12 @@ from pydantic import BaseModel
 from sqlalchemy import select, text
 
 from ... import __version__
+from ...ai import availability
 from ...config import get_settings
+from ...legal import TERMS_VERSION
 from ...models import User
 from ...models.enums import UserRole
+from ...services import auth_service
 from ..deps import Db
 from ..schemas import HealthOut
 
@@ -104,3 +107,58 @@ def demo(db: Db) -> DemoOut:
         if user is not None:
             accounts.append(DemoAccount(role=role, phone=user.phone, name=user.full_name))
     return DemoOut(enabled=True, accounts=accounts)
+
+
+class AiFeaturesOut(BaseModel):
+    enabled: bool
+    # False once today's spend has reached the cap: every AI feature then
+    # shows its manual path until the next day.
+    available_today: bool
+    daily_cap_usd: float
+
+
+class FeaturesOut(BaseModel):
+    """What this deployment has switched on. The pilot runs with no paid
+    provider, so most of these are off, and the interface says so instead of
+    failing."""
+
+    sms_login: bool
+    # Sign in only with a link an admin made.
+    invite_only: bool
+    # Whether the login page can ask for a code at all: sent by SMS, or shown
+    # on screen in development and on a demo.
+    login_codes: bool
+    whatsapp: bool
+    speech_to_text: bool
+    visual_search: bool
+    ai: AiFeaturesOut
+    settlement_default: str
+    terms_version: str
+    demo: bool
+
+
+@router.get(
+    "/features",
+    operation_id="ops_features",
+    summary="Which optional features this deployment has switched on",
+    response_model=FeaturesOut,
+)
+def features(db: Db) -> FeaturesOut:
+    settings = get_settings()
+    sms = settings.sms_login_enabled
+    return FeaturesOut(
+        sms_login=sms,
+        invite_only=not sms,
+        login_codes=auth_service.sms_codes_available(),
+        whatsapp=settings.whatsapp_enabled,
+        speech_to_text=settings.speech_to_text_enabled,
+        visual_search=settings.visual_search_enabled,
+        ai=AiFeaturesOut(
+            enabled=settings.ai_enabled,
+            available_today=availability.available_today(db),
+            daily_cap_usd=settings.ai_daily_spend_limit_usd,
+        ),
+        settlement_default=settings.default_settlement_mode,
+        terms_version=TERMS_VERSION,
+        demo=settings.demo_mode,
+    )

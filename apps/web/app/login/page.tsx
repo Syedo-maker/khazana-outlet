@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Field, TextInput } from "@/components/ui/Field";
 import { ApiError, api } from "@/lib/api";
-import { useLocale } from "@/lib/hooks";
+import { useFeatures, useLocale } from "@/lib/hooks";
 import { t } from "@/lib/i18n";
 import { saveTokens } from "@/lib/session";
 
@@ -25,6 +25,7 @@ type Step = "phone" | "code";
  */
 export default function LoginPage() {
   const locale = useLocale();
+  const features = useFeatures();
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
@@ -103,7 +104,15 @@ export default function LoginPage() {
             <CardTitle as="h1">{t(locale, "login.title")}</CardTitle>
           </CardHeader>
           <CardBody>
-            {step === "phone" ? (
+            {features && !features.login_codes ? (
+              // No SMS gateway: the only way in is a link an admin sent.
+              <section aria-labelledby="invite-only-title">
+                <h2 id="invite-only-title" className="text-base font-semibold">
+                  {t(locale, "invite.onlyTitle")}
+                </h2>
+                <p className="mt-2 text-sm">{t(locale, "invite.onlyBody")}</p>
+              </section>
+            ) : step === "phone" ? (
               <form
                 onSubmit={(event) => {
                   event.preventDefault();

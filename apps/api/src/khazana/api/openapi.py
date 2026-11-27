@@ -80,8 +80,9 @@ def build(app: FastAPI) -> dict[str, Any]:
         "bearer": {
             "type": "http",
             "scheme": "bearer",
-            "description": "The access token from `POST /auth/otp/verify` or "
-            "`POST /auth/refresh`. It lasts an hour; refresh before it ends.",
+            "description": "The access token from `POST /auth/invites/{token}/accept`, "
+            "`POST /auth/otp/verify` or `POST /auth/refresh`. It lasts an hour; refresh "
+            "before it ends.",
         }
     }
     for path_item in spec.get("paths", {}).values():

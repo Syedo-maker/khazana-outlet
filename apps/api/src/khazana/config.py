@@ -75,7 +75,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None
     ai_model_default: str = "claude-opus-5-5"
     ai_model_bulk: str = "claude-haiku-4-5"
-    # The whole platform's model spend in one Pakistan day. When it is
+    # The whole platform's model spend in one day (UTC). When it is
     # reached every AI feature falls back to its manual path until midnight;
     # nothing errors. One dollar is the pilot's budget.
     ai_daily_spend_limit_usd: float = Field(default=1.00, ge=0)

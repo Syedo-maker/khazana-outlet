@@ -66,6 +66,7 @@ PURPOSES = {
     "order_lines": "What was actually bought, by size and colour.",
     "payments": "Money in, and the escrow state machine.",
     "payouts": "Money out to a brand, one per order.",
+    "invites": "Single use sign in links an admin sends by hand, in place of SMS codes.",
     "commission_invoices": "A brand's monthly bill for commission on orders it was paid for directly.",
     "shipments": "Courier consignments.",
     "disputes": "A buyer says the goods do not match the manifest.",

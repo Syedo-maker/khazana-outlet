@@ -157,7 +157,49 @@ export type Me = {
   is_admin: boolean;
 };
 
+export type Features = {
+  sms_login: boolean;
+  invite_only: boolean;
+  login_codes: boolean;
+  whatsapp: boolean;
+  speech_to_text: boolean;
+  visual_search: boolean;
+  ai: { enabled: boolean; available_today: boolean; daily_cap_usd: number };
+  settlement_default: "platform" | "direct";
+  terms_version: string;
+  demo: boolean;
+};
+
+export type InvitePreview = {
+  valid: boolean;
+  message: string | null;
+  purpose: "signup" | "login" | null;
+  role: "reseller" | "brand" | "admin" | null;
+  full_name: string | null;
+  phone_hint: string | null;
+  expires_at: string | null;
+  terms_version: string;
+};
+
 export const api = {
+  features: () => request<Features>("/features"),
+
+  invite: (token: string) => request<InvitePreview>(`/auth/invites/${encodeURIComponent(token)}`),
+
+  acceptInvite: (
+    token: string,
+    body: {
+      accept_terms: boolean;
+      full_name?: string | null;
+      business_name?: string | null;
+      city?: string | null;
+    },
+  ) =>
+    request<TokenPair>(`/auth/invites/${encodeURIComponent(token)}/accept`, {
+      method: "POST",
+      body,
+    }),
+
   demo: () =>
     request<{ enabled: boolean; accounts: { role: string; phone: string; name: string }[] }>(
       "/demo",

@@ -90,6 +90,7 @@ ENUM_TYPES: tuple[type[StrEnum], ...] = (
     enums.DisputeStatus,
     enums.DocumentType,
     enums.EmbeddingOwner,
+    enums.InvitePurpose,
     enums.LotStatus,
     enums.MessageDirection,
     enums.NegotiationStatus,

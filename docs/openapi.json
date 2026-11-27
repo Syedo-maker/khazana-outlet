@@ -1,6 +1,56 @@
 {
  "components": {
   "schemas": {
+   "AcceptIn": {
+    "additionalProperties": false,
+    "properties": {
+     "accept_terms": {
+      "title": "Accept Terms",
+      "type": "boolean"
+     },
+     "business_name": {
+      "anyOf": [
+       {
+        "maxLength": 160,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Business Name"
+     },
+     "city": {
+      "anyOf": [
+       {
+        "maxLength": 80,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "City"
+     },
+     "full_name": {
+      "anyOf": [
+       {
+        "maxLength": 120,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Full Name"
+     }
+    },
+    "required": [
+     "accept_terms"
+    ],
+    "title": "AcceptIn",
+    "type": "object"
+   },
    "AdminBrandOut": {
     "properties": {
      "brand": {
@@ -246,6 +296,29 @@
      "auto_markdown_enabled"
     ],
     "title": "AgentsOut",
+    "type": "object"
+   },
+   "AiFeaturesOut": {
+    "properties": {
+     "available_today": {
+      "title": "Available Today",
+      "type": "boolean"
+     },
+     "daily_cap_usd": {
+      "title": "Daily Cap Usd",
+      "type": "number"
+     },
+     "enabled": {
+      "title": "Enabled",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "enabled",
+     "available_today",
+     "daily_cap_usd"
+    ],
+    "title": "AiFeaturesOut",
     "type": "object"
    },
    "ApprovalOut": {
@@ -1195,6 +1268,11 @@
       "title": "Lot Id",
       "type": "string"
      },
+     "pays_brand_directly": {
+      "default": false,
+      "title": "Pays Brand Directly",
+      "type": "boolean"
+     },
      "pieces": {
       "anyOf": [
        {
@@ -1287,6 +1365,11 @@
    },
    "CartOut": {
     "properties": {
+     "cash_on_delivery_only": {
+      "default": false,
+      "title": "Cash On Delivery Only",
+      "type": "boolean"
+     },
      "delivery_city": {
       "anyOf": [
        {
@@ -1520,6 +1603,11 @@
       },
       "title": "Manifest Lines",
       "type": "array"
+     },
+     "pays_brand_directly": {
+      "default": false,
+      "title": "Pays Brand Directly",
+      "type": "boolean"
      },
      "photos": {
       "items": {
@@ -2226,6 +2314,114 @@
     "title": "CourierUpdateIn",
     "type": "object"
    },
+   "CreatedInviteOut": {
+    "properties": {
+     "brand_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Brand Id"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+     },
+     "full_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Full Name"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "link": {
+      "title": "Link",
+      "type": "string"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     },
+     "phone": {
+      "title": "Phone",
+      "type": "string"
+     },
+     "purpose": {
+      "$ref": "#/components/schemas/InvitePurpose"
+     },
+     "role": {
+      "$ref": "#/components/schemas/UserRole"
+     },
+     "status": {
+      "enum": [
+       "pending",
+       "used",
+       "expired",
+       "revoked"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "used_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Used At"
+     },
+     "whatsapp_url": {
+      "title": "Whatsapp Url",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "purpose",
+     "phone",
+     "full_name",
+     "role",
+     "brand_id",
+     "note",
+     "status",
+     "created_at",
+     "expires_at",
+     "used_at",
+     "link",
+     "whatsapp_url"
+    ],
+    "title": "CreatedInviteOut",
+    "type": "object"
+   },
    "DashboardOut": {
     "properties": {
      "awaiting_payout_pkr": {
@@ -2777,6 +2973,64 @@
     "title": "EventOut",
     "type": "object"
    },
+   "FeaturesOut": {
+    "description": "What this deployment has switched on. The pilot runs with no paid\nprovider, so most of these are off, and the interface says so instead of\nfailing.",
+    "properties": {
+     "ai": {
+      "$ref": "#/components/schemas/AiFeaturesOut"
+     },
+     "demo": {
+      "title": "Demo",
+      "type": "boolean"
+     },
+     "invite_only": {
+      "title": "Invite Only",
+      "type": "boolean"
+     },
+     "login_codes": {
+      "title": "Login Codes",
+      "type": "boolean"
+     },
+     "settlement_default": {
+      "title": "Settlement Default",
+      "type": "string"
+     },
+     "sms_login": {
+      "title": "Sms Login",
+      "type": "boolean"
+     },
+     "speech_to_text": {
+      "title": "Speech To Text",
+      "type": "boolean"
+     },
+     "terms_version": {
+      "title": "Terms Version",
+      "type": "string"
+     },
+     "visual_search": {
+      "title": "Visual Search",
+      "type": "boolean"
+     },
+     "whatsapp": {
+      "title": "Whatsapp",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "sms_login",
+     "invite_only",
+     "login_codes",
+     "whatsapp",
+     "speech_to_text",
+     "visual_search",
+     "ai",
+     "settlement_default",
+     "terms_version",
+     "demo"
+    ],
+    "title": "FeaturesOut",
+    "type": "object"
+   },
    "HTTPValidationError": {
     "properties": {
      "detail": {
@@ -2840,6 +3094,258 @@
     ],
     "title": "InboundOut",
     "type": "object"
+   },
+   "InviteIn": {
+    "additionalProperties": false,
+    "properties": {
+     "brand_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Brand Id"
+     },
+     "full_name": {
+      "anyOf": [
+       {
+        "maxLength": 120,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Full Name"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "maxLength": 300,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     },
+     "phone": {
+      "examples": [
+       "03001234567"
+      ],
+      "maxLength": 20,
+      "minLength": 10,
+      "title": "Phone",
+      "type": "string"
+     },
+     "role": {
+      "enum": [
+       "reseller",
+       "brand"
+      ],
+      "title": "Role",
+      "type": "string"
+     }
+    },
+    "required": [
+     "phone",
+     "role"
+    ],
+    "title": "InviteIn",
+    "type": "object"
+   },
+   "InviteOut": {
+    "properties": {
+     "brand_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Brand Id"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+     },
+     "full_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Full Name"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     },
+     "phone": {
+      "title": "Phone",
+      "type": "string"
+     },
+     "purpose": {
+      "$ref": "#/components/schemas/InvitePurpose"
+     },
+     "role": {
+      "$ref": "#/components/schemas/UserRole"
+     },
+     "status": {
+      "enum": [
+       "pending",
+       "used",
+       "expired",
+       "revoked"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "used_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Used At"
+     }
+    },
+    "required": [
+     "id",
+     "purpose",
+     "phone",
+     "full_name",
+     "role",
+     "brand_id",
+     "note",
+     "status",
+     "created_at",
+     "expires_at",
+     "used_at"
+    ],
+    "title": "InviteOut",
+    "type": "object"
+   },
+   "InvitePreviewOut": {
+    "properties": {
+     "expires_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Expires At"
+     },
+     "full_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Full Name"
+     },
+     "message": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Message"
+     },
+     "phone_hint": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone Hint"
+     },
+     "purpose": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/InvitePurpose"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "role": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/UserRole"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "terms_version": {
+      "default": "2026-11-beta",
+      "title": "Terms Version",
+      "type": "string"
+     },
+     "valid": {
+      "title": "Valid",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "valid"
+    ],
+    "title": "InvitePreviewOut",
+    "type": "object"
+   },
+   "InvitePurpose": {
+    "enum": [
+     "signup",
+     "login"
+    ],
+    "title": "InvitePurpose",
+    "type": "string"
    },
    "InvoiceLineOut": {
     "properties": {
@@ -10021,7 +10527,7 @@
   },
   "securitySchemes": {
    "bearer": {
-    "description": "The access token from `POST /auth/otp/verify` or `POST /auth/refresh`. It lasts an hour; refresh before it ends.",
+    "description": "The access token from `POST /auth/invites/{token}/accept`, `POST /auth/otp/verify` or `POST /auth/refresh`. It lasts an hour; refresh before it ends.",
     "scheme": "bearer",
     "type": "http"
    }
@@ -11157,6 +11663,171 @@
     "summary": "Demand",
     "tags": [
      "forecasts"
+    ]
+   }
+  },
+  "/admin/invites": {
+   "get": {
+    "operationId": "admin_invites",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/InviteOut"
+         },
+         "title": "Response Admin Invites",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     },
+     "4XX": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorBody"
+        }
+       }
+      },
+      "description": "The request was refused. The body says why."
+     }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "summary": "List Invites",
+    "tags": [
+     "auth",
+     "admin"
+    ]
+   },
+   "post": {
+    "description": "A single use link for one person, to send by hand. The link is in this\nresponse only.",
+    "operationId": "admin_create_invite",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/InviteIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatedInviteOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     },
+     "4XX": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorBody"
+        }
+       }
+      },
+      "description": "The request was refused. The body says why."
+     }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "summary": "Create Invite",
+    "tags": [
+     "auth",
+     "admin"
+    ]
+   }
+  },
+  "/admin/invites/{invite_id}/revoke": {
+   "post": {
+    "operationId": "admin_revoke_invite",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "invite_id",
+      "required": true,
+      "schema": {
+       "title": "Invite Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InviteOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     },
+     "4XX": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorBody"
+        }
+       }
+      },
+      "description": "The request was refused. The body says why."
+     }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "summary": "Revoke Invite",
+    "tags": [
+     "auth",
+     "admin"
     ]
    }
   },
@@ -13841,6 +14512,120 @@
     "summary": "Usage",
     "tags": [
      "assistant"
+    ]
+   }
+  },
+  "/auth/invites/{token}": {
+   "get": {
+    "operationId": "auth_invite_preview",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "token",
+      "required": true,
+      "schema": {
+       "title": "Token",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InvitePreviewOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     },
+     "4XX": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorBody"
+        }
+       }
+      },
+      "description": "The request was refused. The body says why."
+     }
+    },
+    "summary": "What an invite link is for, before it is used",
+    "tags": [
+     "auth"
+    ]
+   }
+  },
+  "/auth/invites/{token}/accept": {
+   "post": {
+    "operationId": "auth_invite_accept",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "token",
+      "required": true,
+      "schema": {
+       "title": "Token",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AcceptIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TokenPair"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     },
+     "4XX": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorBody"
+        }
+       }
+      },
+      "description": "The request was refused. The body says why."
+     }
+    },
+    "summary": "Use an invite link once, accepting the beta terms, and sign in",
+    "tags": [
+     "auth"
     ]
    }
   },
@@ -17098,6 +17883,37 @@
      }
     },
     "summary": "Whether this is a public demo, and its sample accounts",
+    "tags": [
+     "ops"
+    ]
+   }
+  },
+  "/features": {
+   "get": {
+    "operationId": "ops_features",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FeaturesOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "4XX": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorBody"
+        }
+       }
+      },
+      "description": "The request was refused. The body says why."
+     }
+    },
+    "summary": "Which optional features this deployment has switched on",
     "tags": [
      "ops"
     ]

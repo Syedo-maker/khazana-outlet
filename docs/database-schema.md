@@ -32,6 +32,7 @@ index, are created in migration 0001 and verified by the migration job in CI.
 | `disputes` | 14 | yes | A buyer says the goods do not match the manifest. |
 | `embeddings` | 10 | no | Vectors for visual and semantic search. |
 | `impact_factors` | 8 | no | Weight, water and carbon per piece for the impact report. |
+| `invites` | 15 | no | Single use sign in links an admin sends by hand, in place of SMS codes. |
 | `listing_approvals` | 11 | yes | Append only record of every approval decision. |
 | `lot_defects` | 8 | yes | Itemised defects, required for grade C. |
 | `lot_excluded_cities` | 6 | yes | Per lot region lock, overriding the brand default. |
@@ -67,7 +68,7 @@ index, are created in migration 0001 and verified by the migration job in CI.
 | `shipping_rates` | 10 | no | Configured delivery prices between city groups. |
 | `size_chart_rows` | 12 | yes | A brand's own size chart in centimetres. |
 | `standard_sizes` | 11 | no | The platform's reference size chart. |
-| `users` | 14 | no | One row per phone number. The identity anchor. |
+| `users` | 16 | no | One row per phone number. The identity anchor. |
 | `verification_documents` | 14 | yes | NTN, incorporation certificate, CNIC, with a review trail. |
 | `whatsapp_messages` | 14 | no | Every WhatsApp message in or out, idempotent by provider id. |
 
@@ -369,6 +370,23 @@ erDiagram
         decimal water_litres_per_kg "required"
         decimal co2_kg_per_kg "required"
         string source "required"
+        string id "PK"
+        datetime created_at "required"
+        datetime updated_at "required"
+    }
+    invites {
+        string token_hash "required"
+        string purpose "required"
+        string phone "required"
+        string full_name
+        string role "required"
+        string brand_id "FK"
+        string note
+        string created_by_user_id "FK"
+        datetime expires_at "required"
+        datetime used_at
+        string used_by_user_id "FK"
+        datetime revoked_at
         string id "PK"
         datetime created_at "required"
         datetime updated_at "required"
@@ -864,6 +882,8 @@ erDiagram
         datetime last_login_at
         string preferred_language "required"
         datetime tokens_valid_after
+        string terms_version
+        datetime terms_accepted_at
         string id "PK"
         datetime created_at "required"
         datetime updated_at "required"
@@ -929,6 +949,9 @@ erDiagram
     users ||--o{ disputes : resolved_by_user_id
     brands ||--o{ embeddings : brand_id
     lots ||--o{ embeddings : lot_id
+    brands ||--o{ invites : brand_id
+    users ||--o{ invites : created_by_user_id
+    users ||--o{ invites : used_by_user_id
     lots ||--o{ listing_approvals : lot_id
     brands ||--o{ listing_approvals : brand_id
     users ||--o{ listing_approvals : actor_user_id

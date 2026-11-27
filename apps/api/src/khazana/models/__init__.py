@@ -45,7 +45,7 @@ from .commerce import (
     ShippingRate,
 )
 from .forecast import DemandForecast, LotForecast, ProductionWarning, SeasonEvent
-from .identity import OtpChallenge, ResellerProfile, Session, User
+from .identity import Invite, OtpChallenge, ResellerProfile, Session, User
 from .indexes import QUERY_INDEXES
 from .insight import ResaleBenchmark, ResellKit
 from .negotiation import Negotiation, NegotiationMessage
@@ -108,6 +108,7 @@ __all__ = [
     "Dispute",
     "Embedding",
     "ImpactFactor",
+    "Invite",
     "ListingApproval",
     "Lot",
     "LotDefect",

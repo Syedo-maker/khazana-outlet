@@ -5,7 +5,7 @@ by hand. The machine readable version is [`openapi.json`](openapi.json), and
 a running API serves the same spec at `/openapi.json` with interactive docs
 at `/docs`.
 
-Version 1.0.0. 179 operations.
+Version 1.0.0. 185 operations.
 
 ## Conventions
 
@@ -20,8 +20,8 @@ Version 1.0.0. 179 operations.
 
 ## Contents
 
-- [ops](#ops) (4)
-- [auth](#auth) (5)
+- [ops](#ops) (5)
+- [auth](#auth) (10)
 - [brands](#brands) (12)
 - [catalog](#catalog) (29)
 - [search](#search) (10)
@@ -49,6 +49,7 @@ Health, readiness and the AI gateway status. Open without sign in.
 | `GET` | `/health` | Liveness, without touching the database | open |
 | `GET` | `/ready` | Readiness, including a database check | open |
 | `GET` | `/demo` | Whether this is a public demo, and its sample accounts | open |
+| `GET` | `/features` | Which optional features this deployment has switched on | open |
 | `GET` | `/ai/status` | AI mode, routed models, spend cap and feature switches | open |
 
 ### `GET /health`
@@ -77,6 +78,14 @@ Empty unless DEMO_MODE is on, so a real deployment never lists accounts.
 
 Returns `200` with `DemoOut`.
 
+### `GET /features`
+
+`ops_features`
+
+Which optional features this deployment has switched on
+
+Returns `200` with `FeaturesOut`.
+
 ### `GET /ai/status`
 
 `ops_ai_status`
@@ -100,6 +109,11 @@ Sign in with a one time code, refresh a session, sign out everywhere.
 | `POST` | `/auth/refresh` | Rotate a refresh token | open |
 | `POST` | `/auth/logout` | Revoke every session for this user | signed in |
 | `GET` | `/auth/me` | The signed in user and their brands | signed in |
+| `POST` | `/admin/invites` | Create Invite | signed in |
+| `GET` | `/admin/invites` | List Invites | signed in |
+| `POST` | `/admin/invites/{invite_id}/revoke` | Revoke Invite | signed in |
+| `GET` | `/auth/invites/{token}` | What an invite link is for, before it is used | open |
+| `POST` | `/auth/invites/{token}/accept` | Use an invite link once, accepting the beta terms, and sign in | open |
 
 ### `POST /auth/otp/request`
 
@@ -149,6 +163,63 @@ Returns `204`.
 The signed in user and their brands
 
 Returns `200` with `MeOut`.
+
+### `POST /admin/invites`
+
+`admin_create_invite`
+
+A single use link for one person, to send by hand. The link is in this
+response only.
+
+Request body: `InviteIn`
+
+Returns `201` with `CreatedInviteOut`.
+
+### `GET /admin/invites`
+
+`admin_invites`
+
+List Invites
+
+Returns `200` with `list of InviteOut`.
+
+### `POST /admin/invites/{invite_id}/revoke`
+
+`admin_revoke_invite`
+
+Revoke Invite
+
+| Parameter | In | Required |
+| --- | --- | --- |
+| `invite_id` | path | yes |
+
+Returns `200` with `InviteOut`.
+
+### `GET /auth/invites/{token}`
+
+`auth_invite_preview`
+
+What an invite link is for, before it is used
+
+| Parameter | In | Required |
+| --- | --- | --- |
+| `token` | path | yes |
+
+Returns `200` with `InvitePreviewOut`.
+
+### `POST /auth/invites/{token}/accept`
+
+`auth_invite_accept`
+
+Use an invite link once, accepting the beta terms, and sign in
+
+| Parameter | In | Required |
+| --- | --- | --- |
+| `token` | path | yes |
+
+Request body: `AcceptIn`
+
+Returns `200` with `TokenPair`.
 
 ## brands
 
