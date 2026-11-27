@@ -5,7 +5,7 @@ by hand. The machine readable version is [`openapi.json`](openapi.json), and
 a running API serves the same spec at `/openapi.json` with interactive docs
 at `/docs`.
 
-Version 1.0.0. 171 operations.
+Version 1.0.0. 179 operations.
 
 ## Conventions
 
@@ -27,7 +27,8 @@ Version 1.0.0. 171 operations.
 - [search](#search) (10)
 - [orders](#orders) (13)
 - [payments](#payments) (4)
-- [logistics](#logistics) (6)
+- [commissions](#commissions) (6)
+- [logistics](#logistics) (8)
 - [pools](#pools) (6)
 - [bargaining](#bargaining) (11)
 - [resell-kits](#resell-kits) (3)
@@ -1197,6 +1198,92 @@ Receive a provider event. A repeated event is accepted and ignored.
 
 Returns `200`.
 
+## commissions
+
+Monthly commission invoices for brands paid directly by cash on delivery.
+
+| Method | Path | Summary | Access |
+| --- | --- | --- | --- |
+| `GET` | `/brands/{brand_id}/commission-invoices` | Brand Invoices | signed in |
+| `GET` | `/brands/{brand_id}/commission-summary` | Brand Summary | signed in |
+| `GET` | `/commission-invoices/{invoice_id}` | Get Invoice | signed in |
+| `GET` | `/admin/commission-invoices` | Admin Invoices | signed in |
+| `POST` | `/admin/commission-invoices/issue` | Issue | signed in |
+| `POST` | `/admin/commission-invoices/{invoice_id}/paid` | Mark Paid | signed in |
+
+### `GET /brands/{brand_id}/commission-invoices`
+
+`brands_commission_invoices`
+
+Brand Invoices
+
+| Parameter | In | Required |
+| --- | --- | --- |
+| `brand_id` | path | yes |
+
+Returns `200` with `list of CommissionInvoiceOut`.
+
+### `GET /brands/{brand_id}/commission-summary`
+
+`brands_commission_summary`
+
+Brand Summary
+
+| Parameter | In | Required |
+| --- | --- | --- |
+| `brand_id` | path | yes |
+
+Returns `200` with `BrandCommissionSummaryOut`.
+
+### `GET /commission-invoices/{invoice_id}`
+
+`commission_invoices_detail`
+
+Get Invoice
+
+| Parameter | In | Required |
+| --- | --- | --- |
+| `invoice_id` | path | yes |
+
+Returns `200` with `CommissionInvoiceDetailOut`.
+
+### `GET /admin/commission-invoices`
+
+`admin_commission_invoices`
+
+Admin Invoices
+
+| Parameter | In | Required |
+| --- | --- | --- |
+| `status` | query | no |
+
+Returns `200` with `list of CommissionInvoiceOut`.
+
+### `POST /admin/commission-invoices/issue`
+
+`admin_issue_commission_invoices`
+
+Issue a month's invoices now. The scheduler does this on the first of
+each month for the month before; running it again issues nothing twice.
+
+Request body: `IssueIn`
+
+Returns `200` with `list of CommissionInvoiceOut`.
+
+### `POST /admin/commission-invoices/{invoice_id}/paid`
+
+`admin_commission_invoice_paid`
+
+Mark Paid
+
+| Parameter | In | Required |
+| --- | --- | --- |
+| `invoice_id` | path | yes |
+
+Request body: `PaidIn`
+
+Returns `200` with `CommissionInvoiceOut`.
+
 ## logistics
 
 Shipments, pickups, labels, tracking and courier callbacks.
@@ -1204,6 +1291,8 @@ Shipments, pickups, labels, tracking and courier callbacks.
 | Method | Path | Summary | Access |
 | --- | --- | --- | --- |
 | `POST` | `/orders/{order_id}/shipments` | Book Shipment | signed in |
+| `POST` | `/orders/{order_id}/shipments/manual` | Enter Shipment | signed in |
+| `POST` | `/shipments/{shipment_id}/manual-status` | Enter Outcome | signed in |
 | `GET` | `/orders/{order_id}/tracking` | Order Tracking | signed in |
 | `PUT` | `/shipments/{shipment_id}/pickup` | Schedule Pickup | signed in |
 | `GET` | `/shipments/{shipment_id}/label` | Shipment Label | signed in |
@@ -1221,6 +1310,37 @@ Book Shipment
 | `order_id` | path | yes |
 
 Returns `201` with `ShipmentOut`.
+
+### `POST /orders/{order_id}/shipments/manual`
+
+`orders_enter_shipment`
+
+Cash on delivery to the brand: record the brand's own courier and
+tracking number. The order becomes shipped.
+
+| Parameter | In | Required |
+| --- | --- | --- |
+| `order_id` | path | yes |
+
+Request body: `ManualShipmentIn`
+
+Returns `201` with `ShipmentOut`.
+
+### `POST /shipments/{shipment_id}/manual-status`
+
+`shipments_enter_outcome`
+
+Cash on delivery to the brand: what the courier reported. Delivered
+starts the buyer's window to report a problem; returned cancels the order
+and puts the pieces back on sale.
+
+| Parameter | In | Required |
+| --- | --- | --- |
+| `shipment_id` | path | yes |
+
+Request body: `ManualStatusIn`
+
+Returns `200` with `ShipmentOut`.
 
 ### `GET /orders/{order_id}/tracking`
 

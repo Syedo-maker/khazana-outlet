@@ -61,7 +61,7 @@ docker compose run --rm api python -m khazana.seed
 docker compose up -d
 ```
 
-The seed loads 18 categories, sample brands with 30 lots, resellers and
+The seed loads 18 categories, sample brands with 50 lots, resellers and
 orders. Every brand and shop name is synthetic and marked `(sample)`.
 
 ## 5. Open it

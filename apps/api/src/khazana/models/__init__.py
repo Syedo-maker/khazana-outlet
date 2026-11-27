@@ -29,6 +29,7 @@ from .catalog import (
 )
 from .commerce import (
     CartItem,
+    CommissionInvoice,
     Courier,
     Dispute,
     Order,
@@ -81,6 +82,7 @@ BRAND_SCOPED_TABLES: tuple[str, ...] = (
     "production_warnings",
     "size_chart_rows",
     "redirections",
+    "commission_invoices",
 )
 
 __all__ = [
@@ -100,6 +102,7 @@ __all__ = [
     "BrandPolicy",
     "CartItem",
     "Category",
+    "CommissionInvoice",
     "Courier",
     "DemandForecast",
     "Dispute",

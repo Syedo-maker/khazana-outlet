@@ -75,9 +75,15 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None
     ai_model_default: str = "claude-opus-5-5"
     ai_model_bulk: str = "claude-haiku-4-5"
-    ai_daily_spend_limit_usd: float = 5.00
+    # The whole platform's model spend in one Pakistan day. When it is
+    # reached every AI feature falls back to its manual path until midnight;
+    # nothing errors. One dollar is the pilot's budget.
+    ai_daily_spend_limit_usd: float = Field(default=1.00, ge=0)
     ai_brand_monthly_spend_limit_usd: float = 20.00
     ai_offline: bool = True
+    # Off: no model is called at all, and every AI feature shows its manual
+    # path. For running with no Anthropic key.
+    ai_enabled: bool = True
 
     # ---------- Assistant ----------
     # Each buyer message costs two model calls, so a per user daily cap is the
@@ -125,6 +131,41 @@ class Settings(BaseSettings):
     default_min_lot_value_pkr: int = 25_000
     dispute_window_days: int = 3
 
+    # ---------- Pilot switches ----------
+    # Who collects the buyer's money on a new brand's orders. "direct": the
+    # buyer pays the brand's own courier on delivery and the platform invoices
+    # its commission monthly; the platform never holds money. "platform": the
+    # platform holds payment until the buyer confirms. Existing brands keep
+    # their own policy row.
+    default_settlement_mode: Literal["platform", "direct"] = "direct"
+    # Days a brand has to pay its monthly commission invoice.
+    commission_invoice_due_days: int = Field(default=15, ge=1, le=90)
+    # SMS login codes need a paid SMS gateway. Off: people sign in with a
+    # single use link an admin creates and sends them by hand.
+    sms_login_enabled: bool = False
+    # How long an invite or sign in link works for.
+    invite_ttl_hours: int = Field(default=72, ge=1, le=720)
+    # Each of these needs a paid provider. Off: the feature explains itself in
+    # the interface instead of failing.
+    whatsapp_enabled: bool = False
+    speech_to_text_enabled: bool = False
+    visual_search_enabled: bool = False
+
+    # ---------- Alerts ----------
+    # Plain email to one address through any SMTP server. Unset: alerts are
+    # logged only. See docs/deployment.md for a free provider.
+    alert_email_to: str | None = None
+    alert_email_from: str | None = None
+    smtp_host: str | None = None
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    # STARTTLS on 587. Set false and use port 465 for implicit TLS instead.
+    smtp_starttls: bool = True
+    # One alert of a kind per this many minutes, so a failing job every
+    # half hour is one email, not forty eight.
+    alert_cooldown_minutes: int = Field(default=180, ge=1)
+
     # ---------- Payments ----------
     # Shown to buyers paying by bank transfer. The defaults are obviously fake,
     # and production refuses to start with them.
@@ -159,13 +200,19 @@ class Settings(BaseSettings):
             problems.append("SECRET_KEY is shorter than 32 characters")
         if self.otp_dev_echo:
             problems.append("OTP_DEV_ECHO must be false in production")
-        if self.ai_offline:
-            problems.append("AI_OFFLINE must be false in production")
-        if not self.anthropic_api_key:
-            problems.append("ANTHROPIC_API_KEY is not set")
+        if self.ai_enabled:
+            # With AI deliberately switched off there is no key to check and
+            # no fixtures can be served by mistake: every feature is manual.
+            if self.ai_offline:
+                problems.append("AI_OFFLINE must be false in production")
+            if not self.anthropic_api_key:
+                problems.append("ANTHROPIC_API_KEY is not set; set it, or AI_ENABLED=false")
         if self.database_url.startswith("sqlite"):
             problems.append("DATABASE_URL points at SQLite")
-        if "SANDBOX" in self.bank_account_iban.upper():
+        if (
+            self.default_settlement_mode == "platform"
+            and "SANDBOX" in self.bank_account_iban.upper()
+        ):
             problems.append("BANK_ACCOUNT_IBAN is still the sandbox value")
         if ":khazana@" in self.database_url:
             problems.append("DATABASE_URL still uses the development password")

@@ -32,11 +32,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base, TimestampMixin, UUIDPrimaryKey
 from .enums import (
+    CommissionInvoiceStatus,
     DisputeStatus,
     OrderStatus,
     PaymentMethod,
     PaymentStatus,
     PayoutStatus,
+    SettlementMode,
     ShipmentStatus,
 )
 
@@ -77,6 +79,18 @@ class Order(UUIDPrimaryKey, TimestampMixin, Base):
     commission_percent: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
     commission_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
     brand_payout_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    # Copied from the brand policy when the order is placed, like commission.
+    settlement_mode: Mapped[SettlementMode] = mapped_column(
+        nullable=False, default=SettlementMode.PLATFORM, server_default="platform"
+    )
+    # Direct settlement only: the commission the brand owes once the order is
+    # confirmed, after any refund the brand made to the buyer, and the monthly
+    # invoice that bills it.
+    commission_due_pkr: Mapped[int | None] = mapped_column(Integer, default=None)
+    commission_invoice_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("commission_invoices.id", ondelete="RESTRICT"), default=None
+    )
 
     status: Mapped[OrderStatus] = mapped_column(nullable=False, default=OrderStatus.CREATED)
     payment_method: Mapped[PaymentMethod] = mapped_column(
@@ -129,6 +143,11 @@ class Order(UUIDPrimaryKey, TimestampMixin, Base):
         Index("ix_orders_brand_status", "brand_id", "status"),
         Index("ix_orders_buyer_created", "buyer_user_id", "created_at"),
         Index("ix_orders_lot", "lot_id"),
+        Index("ix_orders_commission_invoice", "commission_invoice_id"),
+        CheckConstraint(
+            "commission_due_pkr is null or commission_due_pkr >= 0",
+            name="order_commission_due_non_negative",
+        ),
     )
 
 
@@ -498,4 +517,44 @@ class Dispute(UUIDPrimaryKey, TimestampMixin, Base):
     __table_args__ = (
         CheckConstraint("refund_pkr is null or refund_pkr >= 0", name="refund_non_negative"),
         Index("ix_disputes_status_created", "status", "created_at"),
+    )
+
+
+class CommissionInvoice(UUIDPrimaryKey, TimestampMixin, Base):
+    """What one brand owes the platform for one month of direct orders.
+
+    Under direct settlement the brand collects the cash, so the money flows
+    the other way: the platform bills its commission. The orders it covers
+    point at it through ``orders.commission_invoice_id``, so an order is
+    billed once. An admin records the payment by hand; nothing here moves
+    money.
+    """
+
+    __tablename__ = "commission_invoices"
+
+    brand_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("brands.id", ondelete="RESTRICT"), nullable=False
+    )
+    number: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    order_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    sales_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
+    commission_pkr: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[CommissionInvoiceStatus] = mapped_column(
+        nullable=False, default=CommissionInvoiceStatus.ISSUED
+    )
+    issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    paid_reference: Mapped[str | None] = mapped_column(String(120), default=None)
+    recorded_by_user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), default=None
+    )
+
+    __table_args__ = (
+        UniqueConstraint("brand_id", "period_start", name="one_commission_invoice_per_month"),
+        CheckConstraint("commission_pkr >= 0", name="commission_invoice_non_negative"),
+        CheckConstraint("order_count > 0", name="commission_invoice_has_orders"),
+        Index("ix_commission_invoices_brand_status", "brand_id", "status"),
     )

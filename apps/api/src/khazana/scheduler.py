@@ -42,6 +42,8 @@ class Job:
     every_minutes: int | None = None
     daily_at: tuple[int, int] | None = None
     weekday: int | None = None
+    # Only on this day of the month, for a monthly job.
+    monthday: int | None = None
 
     def next_after(self, moment: datetime) -> datetime:
         """The first time strictly after ``moment`` this job is due."""
@@ -57,6 +59,8 @@ class Job:
         if candidate <= local:
             candidate += timedelta(days=1)
         while self.weekday is not None and candidate.weekday() != self.weekday:
+            candidate += timedelta(days=1)
+        while self.monthday is not None and candidate.day != self.monthday:
             candidate += timedelta(days=1)
         return candidate.astimezone(UTC)
 
@@ -106,6 +110,14 @@ def _demo_reset(db: Session) -> object:
     return seed.main(["--reset"])
 
 
+def _commission_invoices(db: Session) -> object:
+    """Invoice last month's direct orders. Due on the first of the month; at
+    any other time it bills only what that run missed, never anything twice."""
+    from .services import commission_service
+
+    return commission_service.issue_previous_month(db)
+
+
 def _purge_ai_cache(db: Session) -> object:
     from .ai.gateway import response_cache
 
@@ -122,6 +134,7 @@ JOBS: tuple[Job, ...] = (
     Job("forecast", _forecast, daily_at=(4, 0), weekday=0),
     Job("purge-ai-cache", _purge_ai_cache, daily_at=(4, 30)),
     Job("demo-reset", _demo_reset, daily_at=(5, 0)),
+    Job("commission-invoices", _commission_invoices, daily_at=(6, 0), monthday=1),
 )
 
 

@@ -718,6 +718,20 @@
     "title": "Body_lots_import_manifest",
     "type": "object"
    },
+   "BrandCommissionSummaryOut": {
+    "description": "Accrued on confirmed orders and not yet on an invoice.",
+    "properties": {
+     "unbilled_commission_pkr": {
+      "title": "Unbilled Commission Pkr",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "unbilled_commission_pkr"
+    ],
+    "title": "BrandCommissionSummaryOut",
+    "type": "object"
+   },
    "BrandForecastOut": {
     "properties": {
      "at_risk": {
@@ -1819,6 +1833,215 @@
     "title": "CommercialTermsIn",
     "type": "object"
    },
+   "CommissionInvoiceDetailOut": {
+    "properties": {
+     "brand_id": {
+      "title": "Brand Id",
+      "type": "string"
+     },
+     "brand_name": {
+      "title": "Brand Name",
+      "type": "string"
+     },
+     "commission_pkr": {
+      "title": "Commission Pkr",
+      "type": "integer"
+     },
+     "due_at": {
+      "format": "date-time",
+      "title": "Due At",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "issued_at": {
+      "format": "date-time",
+      "title": "Issued At",
+      "type": "string"
+     },
+     "lines": {
+      "items": {
+       "$ref": "#/components/schemas/InvoiceLineOut"
+      },
+      "title": "Lines",
+      "type": "array"
+     },
+     "number": {
+      "title": "Number",
+      "type": "string"
+     },
+     "order_count": {
+      "title": "Order Count",
+      "type": "integer"
+     },
+     "paid_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Paid At"
+     },
+     "paid_reference": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Paid Reference"
+     },
+     "period_end": {
+      "format": "date-time",
+      "title": "Period End",
+      "type": "string"
+     },
+     "period_start": {
+      "format": "date-time",
+      "title": "Period Start",
+      "type": "string"
+     },
+     "sales_pkr": {
+      "title": "Sales Pkr",
+      "type": "integer"
+     },
+     "status": {
+      "$ref": "#/components/schemas/CommissionInvoiceStatus"
+     }
+    },
+    "required": [
+     "id",
+     "number",
+     "brand_id",
+     "brand_name",
+     "period_start",
+     "period_end",
+     "order_count",
+     "sales_pkr",
+     "commission_pkr",
+     "status",
+     "issued_at",
+     "due_at",
+     "paid_at",
+     "paid_reference",
+     "lines"
+    ],
+    "title": "CommissionInvoiceDetailOut",
+    "type": "object"
+   },
+   "CommissionInvoiceOut": {
+    "properties": {
+     "brand_id": {
+      "title": "Brand Id",
+      "type": "string"
+     },
+     "brand_name": {
+      "title": "Brand Name",
+      "type": "string"
+     },
+     "commission_pkr": {
+      "title": "Commission Pkr",
+      "type": "integer"
+     },
+     "due_at": {
+      "format": "date-time",
+      "title": "Due At",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "issued_at": {
+      "format": "date-time",
+      "title": "Issued At",
+      "type": "string"
+     },
+     "number": {
+      "title": "Number",
+      "type": "string"
+     },
+     "order_count": {
+      "title": "Order Count",
+      "type": "integer"
+     },
+     "paid_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Paid At"
+     },
+     "paid_reference": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Paid Reference"
+     },
+     "period_end": {
+      "format": "date-time",
+      "title": "Period End",
+      "type": "string"
+     },
+     "period_start": {
+      "format": "date-time",
+      "title": "Period Start",
+      "type": "string"
+     },
+     "sales_pkr": {
+      "title": "Sales Pkr",
+      "type": "integer"
+     },
+     "status": {
+      "$ref": "#/components/schemas/CommissionInvoiceStatus"
+     }
+    },
+    "required": [
+     "id",
+     "number",
+     "brand_id",
+     "brand_name",
+     "period_start",
+     "period_end",
+     "order_count",
+     "sales_pkr",
+     "commission_pkr",
+     "status",
+     "issued_at",
+     "due_at",
+     "paid_at",
+     "paid_reference"
+    ],
+    "title": "CommissionInvoiceOut",
+    "type": "object"
+   },
+   "CommissionInvoiceStatus": {
+    "enum": [
+     "issued",
+     "paid",
+     "void"
+    ],
+    "title": "CommissionInvoiceStatus",
+    "type": "string"
+   },
    "ConditionGrade": {
     "description": "Grades are contractual, not descriptive. See the manifest template.\n\nA: new, unused, with tags, no defects.\nB: new or unused, no tags, minor shelf wear, no functional defect.\nC: factory seconds or visible defects, each one itemised.",
     "enum": [
@@ -2616,6 +2839,80 @@
      "duplicate"
     ],
     "title": "InboundOut",
+    "type": "object"
+   },
+   "InvoiceLineOut": {
+    "properties": {
+     "commission_percent": {
+      "title": "Commission Percent",
+      "type": "number"
+     },
+     "commission_pkr": {
+      "title": "Commission Pkr",
+      "type": "integer"
+     },
+     "confirmed_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confirmed At"
+     },
+     "order_code": {
+      "title": "Order Code",
+      "type": "string"
+     },
+     "order_id": {
+      "title": "Order Id",
+      "type": "string"
+     },
+     "refunded_pkr": {
+      "title": "Refunded Pkr",
+      "type": "integer"
+     },
+     "subtotal_pkr": {
+      "title": "Subtotal Pkr",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "order_id",
+     "order_code",
+     "confirmed_at",
+     "subtotal_pkr",
+     "refunded_pkr",
+     "commission_percent",
+     "commission_pkr"
+    ],
+    "title": "InvoiceLineOut",
+    "type": "object"
+   },
+   "IssueIn": {
+    "additionalProperties": false,
+    "properties": {
+     "month": {
+      "maximum": 12.0,
+      "minimum": 1.0,
+      "title": "Month",
+      "type": "integer"
+     },
+     "year": {
+      "maximum": 2100.0,
+      "minimum": 2026.0,
+      "title": "Year",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "year",
+     "month"
+    ],
+    "title": "IssueIn",
     "type": "object"
    },
    "KitIn": {
@@ -3915,6 +4212,67 @@
     "title": "ManifestLineOut",
     "type": "object"
    },
+   "ManualShipmentIn": {
+    "additionalProperties": false,
+    "description": "A direct order sent with the brand's own courier.",
+    "properties": {
+     "courier": {
+      "maxLength": 40,
+      "minLength": 2,
+      "title": "Courier",
+      "type": "string"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "maxLength": 300,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     },
+     "tracking_number": {
+      "maxLength": 80,
+      "minLength": 4,
+      "title": "Tracking Number",
+      "type": "string"
+     }
+    },
+    "required": [
+     "courier",
+     "tracking_number"
+    ],
+    "title": "ManualShipmentIn",
+    "type": "object"
+   },
+   "ManualStatusIn": {
+    "additionalProperties": false,
+    "properties": {
+     "note": {
+      "anyOf": [
+       {
+        "maxLength": 300,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ShipmentStatus"
+     }
+    },
+    "required": [
+     "status"
+    ],
+    "title": "ManualStatusIn",
+    "type": "object"
+   },
    "MarkdownRunOut": {
     "properties": {
      "after_percent": {
@@ -4523,6 +4881,28 @@
       ],
       "title": "Cancelled At"
      },
+     "commission_due_pkr": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Commission Due Pkr"
+     },
+     "commission_invoice_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Commission Invoice Id"
+     },
      "commission_percent": {
       "anyOf": [
        {
@@ -4675,6 +5055,9 @@
       "title": "Seller Name",
       "type": "string"
      },
+     "settlement_mode": {
+      "$ref": "#/components/schemas/SettlementMode"
+     },
      "shipping_pkr": {
       "title": "Shipping Pkr",
       "type": "integer"
@@ -4704,6 +5087,7 @@
      "seller_name",
      "status",
      "payment_method",
+     "settlement_mode",
      "pieces",
      "unit_price_pkr",
      "rounding_adjustment_pkr",
@@ -4846,6 +5230,28 @@
       ],
       "title": "Cancelled At"
      },
+     "commission_due_pkr": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Commission Due Pkr"
+     },
+     "commission_invoice_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Commission Invoice Id"
+     },
      "commission_percent": {
       "anyOf": [
        {
@@ -4977,6 +5383,9 @@
       "title": "Seller Name",
       "type": "string"
      },
+     "settlement_mode": {
+      "$ref": "#/components/schemas/SettlementMode"
+     },
      "shipping_pkr": {
       "title": "Shipping Pkr",
       "type": "integer"
@@ -5006,6 +5415,7 @@
      "seller_name",
      "status",
      "payment_method",
+     "settlement_mode",
      "pieces",
      "unit_price_pkr",
      "rounding_adjustment_pkr",
@@ -5150,6 +5560,22 @@
      "code"
     ],
     "title": "OtpVerifyIn",
+    "type": "object"
+   },
+   "PaidIn": {
+    "additionalProperties": false,
+    "properties": {
+     "reference": {
+      "maxLength": 120,
+      "minLength": 3,
+      "title": "Reference",
+      "type": "string"
+     }
+    },
+    "required": [
+     "reference"
+    ],
+    "title": "PaidIn",
     "type": "object"
    },
    "PartnerIn": {
@@ -8064,6 +8490,15 @@
     "title": "SendOut",
     "type": "object"
    },
+   "SettlementMode": {
+    "description": "Who collects the buyer's money.\n\n``platform``: the platform holds the payment until the buyer confirms, then\npays the brand out. ``direct``: the buyer pays the brand's own courier on\ndelivery, the platform never touches the money, and the brand is invoiced\nmonthly for the commission it owes.",
+    "enum": [
+     "platform",
+     "direct"
+    ],
+    "title": "SettlementMode",
+    "type": "string"
+   },
    "ShipmentEventOut": {
     "properties": {
      "created_at": {
@@ -10030,6 +10465,202 @@
     "summary": "Update Terms",
     "tags": [
      "admin"
+    ]
+   }
+  },
+  "/admin/commission-invoices": {
+   "get": {
+    "operationId": "admin_commission_invoices",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/CommissionInvoiceStatus"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/CommissionInvoiceOut"
+         },
+         "title": "Response Admin Commission Invoices",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     },
+     "4XX": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorBody"
+        }
+       }
+      },
+      "description": "The request was refused. The body says why."
+     }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "summary": "Admin Invoices",
+    "tags": [
+     "commissions"
+    ]
+   }
+  },
+  "/admin/commission-invoices/issue": {
+   "post": {
+    "description": "Issue a month's invoices now. The scheduler does this on the first of\neach month for the month before; running it again issues nothing twice.",
+    "operationId": "admin_issue_commission_invoices",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/IssueIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/CommissionInvoiceOut"
+         },
+         "title": "Response Admin Issue Commission Invoices",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     },
+     "4XX": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorBody"
+        }
+       }
+      },
+      "description": "The request was refused. The body says why."
+     }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "summary": "Issue",
+    "tags": [
+     "commissions"
+    ]
+   }
+  },
+  "/admin/commission-invoices/{invoice_id}/paid": {
+   "post": {
+    "operationId": "admin_commission_invoice_paid",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "invoice_id",
+      "required": true,
+      "schema": {
+       "title": "Invoice Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PaidIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CommissionInvoiceOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     },
+     "4XX": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorBody"
+        }
+       }
+      },
+      "description": "The request was refused. The body says why."
+     }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "summary": "Mark Paid",
+    "tags": [
+     "commissions"
     ]
    }
   },
@@ -13846,6 +14477,124 @@
     ]
    }
   },
+  "/brands/{brand_id}/commission-invoices": {
+   "get": {
+    "operationId": "brands_commission_invoices",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "brand_id",
+      "required": true,
+      "schema": {
+       "title": "Brand Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/CommissionInvoiceOut"
+         },
+         "title": "Response Brands Commission Invoices",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     },
+     "4XX": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorBody"
+        }
+       }
+      },
+      "description": "The request was refused. The body says why."
+     }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "summary": "Brand Invoices",
+    "tags": [
+     "commissions"
+    ]
+   }
+  },
+  "/brands/{brand_id}/commission-summary": {
+   "get": {
+    "operationId": "brands_commission_summary",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "brand_id",
+      "required": true,
+      "schema": {
+       "title": "Brand Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BrandCommissionSummaryOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     },
+     "4XX": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorBody"
+        }
+       }
+      },
+      "description": "The request was refused. The body says why."
+     }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "summary": "Brand Summary",
+    "tags": [
+     "commissions"
+    ]
+   }
+  },
   "/brands/{brand_id}/dashboard": {
    "get": {
     "operationId": "brands_dashboard",
@@ -16262,6 +17011,63 @@
     "summary": "Profit Estimate",
     "tags": [
      "catalog"
+    ]
+   }
+  },
+  "/commission-invoices/{invoice_id}": {
+   "get": {
+    "operationId": "commission_invoices_detail",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "invoice_id",
+      "required": true,
+      "schema": {
+       "title": "Invoice Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CommissionInvoiceDetailOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     },
+     "4XX": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorBody"
+        }
+       }
+      },
+      "description": "The request was refused. The body says why."
+     }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "summary": "Get Invoice",
+    "tags": [
+     "commissions"
     ]
    }
   },
@@ -19613,6 +20419,74 @@
     ]
    }
   },
+  "/orders/{order_id}/shipments/manual": {
+   "post": {
+    "description": "Cash on delivery to the brand: record the brand's own courier and\ntracking number. The order becomes shipped.",
+    "operationId": "orders_enter_shipment",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "order_id",
+      "required": true,
+      "schema": {
+       "title": "Order Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ManualShipmentIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ShipmentOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     },
+     "4XX": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorBody"
+        }
+       }
+      },
+      "description": "The request was refused. The body says why."
+     }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "summary": "Enter Shipment",
+    "tags": [
+     "logistics"
+    ]
+   }
+  },
   "/orders/{order_id}/tracking": {
    "get": {
     "operationId": "orders_tracking",
@@ -20401,6 +21275,74 @@
     ]
    }
   },
+  "/shipments/{shipment_id}/manual-status": {
+   "post": {
+    "description": "Cash on delivery to the brand: what the courier reported. Delivered\nstarts the buyer's window to report a problem; returned cancels the order\nand puts the pieces back on sale.",
+    "operationId": "shipments_enter_outcome",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "shipment_id",
+      "required": true,
+      "schema": {
+       "title": "Shipment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ManualStatusIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ShipmentOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     },
+     "4XX": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorBody"
+        }
+       }
+      },
+      "description": "The request was refused. The body says why."
+     }
+    },
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "summary": "Enter Outcome",
+    "tags": [
+     "logistics"
+    ]
+   }
+  },
   "/shipments/{shipment_id}/pickup": {
    "put": {
     "operationId": "shipments_schedule_pickup",
@@ -20627,6 +21569,10 @@
   {
    "description": "Starting a payment, provider callbacks and brand payouts.",
    "name": "payments"
+  },
+  {
+   "description": "Monthly commission invoices for brands paid directly by cash on delivery.",
+   "name": "commissions"
   },
   {
    "description": "Shipments, pickups, labels, tracking and courier callbacks.",

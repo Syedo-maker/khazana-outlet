@@ -30,6 +30,7 @@ from ..models.enums import (
     PaymentMethod,
     PaymentStatus,
     PayoutStatus,
+    SettlementMode,
 )
 from . import audit_service, order_service
 from .payment_providers import Checkout, Outcome, provider_for, wallet_named
@@ -302,6 +303,16 @@ def resolve_dispute(
     order = order_service.get_order(db, dispute.order_id)
     if OrderStatus(order.status) != OrderStatus.DISPUTED:
         raise Conflict("This order is not in dispute.")
+    if SettlementMode(order.settlement_mode) == SettlementMode.DIRECT:
+        return _resolve_direct_dispute(
+            db,
+            dispute=dispute,
+            order=order,
+            admin=admin,
+            resolution=cleaned,
+            refund_pkr=refund_pkr,
+            ip=ip,
+        )
     payment = current_payment(order)
     held = payment is not None and PaymentStatus(payment.status) == PaymentStatus.HELD
     if refund_pkr < 0 or (refund_pkr > 0 and not held):
@@ -335,6 +346,60 @@ def resolve_dispute(
         actor_role=admin.role,
         after={"refund_pkr": refund_pkr, "status": DisputeStatus(dispute.status).value},
         note=cleaned,
+        ip=ip,
+    )
+    return order
+
+
+def _resolve_direct_dispute(
+    db: Session,
+    *,
+    dispute: Dispute,
+    order: Order,
+    admin: User,
+    resolution: str,
+    refund_pkr: int,
+    ip: str | None,
+) -> Order:
+    """A dispute on an order the brand was paid for directly.
+
+    The platform holds nothing to refund, so the decision records what the
+    brand gives back to the buyer itself. A partial refund completes the order
+    with commission on what the buyer kept; a refund of all the goods reverses
+    the sale and no commission is owed.
+    """
+    from . import direct_service
+
+    limit = direct_service.refund_limit(order)
+    if refund_pkr < 0 or refund_pkr > limit:
+        raise ValidationFailed(f"The brand can refund at most {limit:,} PKR for the goods.")
+
+    dispute.resolution = resolution
+    dispute.refund_pkr = refund_pkr
+    dispute.resolved_by_user_id = admin.id
+    dispute.resolved_at = utcnow()
+    dispute.status = (
+        DisputeStatus.RESOLVED_BUYER if refund_pkr > 0 else DisputeStatus.RESOLVED_SELLER
+    )
+    if refund_pkr == limit:
+        order_service.move_to_refunded(db, order, actor=admin, note=resolution)
+    else:
+        order_service.complete_after_dispute(db, order, actor=admin, note=resolution)
+
+    audit_service.record(
+        db,
+        action="dispute.resolved",
+        entity_type="dispute",
+        entity_id=dispute.id,
+        brand_id=order.brand_id,
+        actor_user_id=admin.id,
+        actor_role=admin.role,
+        after={
+            "refund_pkr": refund_pkr,
+            "refunded_by": "brand",
+            "status": DisputeStatus(dispute.status).value,
+        },
+        note=resolution,
         ip=ip,
     )
     return order

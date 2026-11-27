@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from ..config import get_settings
 from ..core.errors import Conflict, Forbidden, NotFound, ValidationFailed
 from ..models import (
     Brand,
@@ -43,6 +44,7 @@ from ..models.enums import (
     DocumentType,
     LotStatus,
     OrderStatus,
+    SettlementMode,
     UserRole,
     VerificationStatus,
     Visibility,
@@ -175,7 +177,7 @@ def register_brand(
     db.add(brand)
     db.flush()
 
-    db.add(BrandPolicy(brand_id=brand.id))
+    db.add(BrandPolicy(brand_id=brand.id, settlement_mode=default_settlement_mode()))
     db.add(BrandMember(brand_id=brand.id, user_id=owner.id, role_in_brand=BrandMemberRole.OWNER))
 
     # The person registering a brand becomes a brand user. Without this they
@@ -703,3 +705,8 @@ def _get_brand(db: Session, brand_id: str) -> Brand:
     if brand is None or brand.is_deleted:
         raise NotFound("That brand does not exist.")
     return brand
+
+
+def default_settlement_mode() -> SettlementMode:
+    """How a newly registered brand is paid: direct to the brand in the pilot."""
+    return SettlementMode(get_settings().default_settlement_mode)

@@ -12,10 +12,10 @@ from typing import Literal
 from fastapi import APIRouter, Header, Request
 from pydantic import BaseModel, ConfigDict, Field
 
-from ...core.errors import NotFound
+from ...core.errors import Conflict, NotFound
 from ...models import Order, Payment
 from ...models.enums import PaymentMethod, PaymentStatus
-from ...services import order_service, payment_service
+from ...services import direct_service, order_service, payment_service
 from ..deps import CurrentPrincipal, Db, Principal
 
 router = APIRouter(tags=["payments"])
@@ -72,6 +72,11 @@ def _buyers_order(db: Db, principal: Principal, order_id: str) -> Order:
     order = order_service.get_order(db, order_id)
     if order.buyer_user_id != principal.user_id:
         raise NotFound("That order does not exist.")
+    if direct_service.is_direct(order):
+        raise Conflict(
+            "You pay the brand's courier in cash when the goods arrive. "
+            "There is nothing to pay here."
+        )
     return order
 
 

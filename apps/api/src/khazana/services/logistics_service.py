@@ -66,6 +66,15 @@ def default_courier(db: Session) -> Courier:
     return courier
 
 
+def has_default_courier(db: Session) -> bool:
+    return (
+        db.scalars(
+            select(Courier.id).where(Courier.is_active.is_(True), Courier.is_default.is_(True))
+        ).first()
+        is not None
+    )
+
+
 def _same_city(configured: str | None, city: str) -> bool:
     return configured is not None and configured.casefold() == city.casefold()
 
@@ -107,8 +116,12 @@ def quote(db: Session, *, lot: Lot, pieces: int, destination_city: str) -> Shipp
 
 def book_shipment(db: Session, *, order: Order, actor: User, ip: str | None = None) -> Shipment:
     """Book the courier for an order the brand has ready to send."""
-    from . import order_service
+    from . import direct_service, order_service
 
+    if direct_service.is_direct(order):
+        raise Conflict(
+            "This brand sends with its own courier. Enter the courier and tracking number instead."
+        )
     if OrderStatus(order.status) == OrderStatus.PAID:
         order_service.start_preparing(db, order, actor=actor, ip=ip)
     if OrderStatus(order.status) != OrderStatus.PREPARING:

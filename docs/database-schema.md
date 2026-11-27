@@ -22,10 +22,11 @@ index, are created in migration 0001 and verified by the migration job in CI.
 | `audit_log` | 15 | no | Append only before and after snapshots of consequential actions. |
 | `brand_excluded_cities` | 6 | yes | Default region lock per brand. |
 | `brand_members` | 6 | yes | Links users to brands. How tenancy is resolved. |
-| `brand_policies` | 24 | yes | Commission, discount band, protection defaults, AI budget. |
+| `brand_policies` | 25 | yes | Commission, discount band, protection defaults, AI budget. |
 | `brands` | 16 | no | The selling brand. The tenant boundary. |
 | `cart_items` | 7 | no | What a buyer intends to order, before checkout. |
 | `categories` | 8 | no | Two level taxonomy. The fixed list the AI must map into. |
+| `commission_invoices` | 16 | yes | A brand's monthly bill for commission on orders it was paid for directly. |
 | `couriers` | 7 | no | Delivery companies; one is the default. |
 | `demand_forecasts` | 11 | no | Expected pieces per category, city and week. |
 | `disputes` | 14 | yes | A buyer says the goods do not match the manifest. |
@@ -43,7 +44,7 @@ index, are created in migration 0001 and verified by the migration job in CI.
 | `order_events` | 10 | yes | Append only history of every order status change. |
 | `order_lines` | 9 | yes | What was actually bought, by size and colour. |
 | `order_returns` | 8 | yes | Returned pieces recorded against an order. |
-| `orders` | 27 | yes | One purchase of one lot, whole or part. |
+| `orders` | 30 | yes | One purchase of one lot, whole or part. |
 | `otp_challenges` | 10 | no | Pending phone verifications, code stored hashed. |
 | `partners` | 13 | no | Tailors, artisans, NGOs and recyclers who take unsellable stock. |
 | `payment_events` | 8 | no | Provider callbacks, stored once per event id. |
@@ -241,6 +242,7 @@ erDiagram
         string default_visibility "required"
         bool require_brand_approval "required"
         bool allow_cod "required"
+        string settlement_mode "required"
         bool allow_part_lot_orders "required"
         bool allow_pooled_orders "required"
         bool allow_bargaining "required"
@@ -289,6 +291,24 @@ erDiagram
         string slug "required"
         bool requires_expiry "required"
         int sort_order "required"
+        string id "PK"
+        datetime created_at "required"
+        datetime updated_at "required"
+    }
+    commission_invoices {
+        string brand_id "FK, required"
+        string number "required"
+        datetime period_start "required"
+        datetime period_end "required"
+        int order_count "required"
+        int sales_pkr "required"
+        int commission_pkr "required"
+        string status "required"
+        datetime issued_at "required"
+        datetime due_at "required"
+        datetime paid_at
+        string paid_reference
+        string recorded_by_user_id "FK"
         string id "PK"
         datetime created_at "required"
         datetime updated_at "required"
@@ -535,6 +555,9 @@ erDiagram
         decimal commission_percent "required"
         int commission_pkr "required"
         int brand_payout_pkr "required"
+        string settlement_mode "required"
+        int commission_due_pkr
+        string commission_invoice_id "FK"
         string status "required"
         string payment_method "required"
         string delivery_city "required"
@@ -897,6 +920,8 @@ erDiagram
     users ||--o{ cart_items : user_id
     lots ||--o{ cart_items : lot_id
     categories ||--o{ categories : parent_id
+    brands ||--o{ commission_invoices : brand_id
+    users ||--o{ commission_invoices : recorded_by_user_id
     categories ||--o{ demand_forecasts : category_id
     orders ||--o{ disputes : order_id
     brands ||--o{ disputes : brand_id
@@ -940,6 +965,7 @@ erDiagram
     lots ||--o{ orders : lot_id
     brands ||--o{ orders : brand_id
     users ||--o{ orders : buyer_user_id
+    commission_invoices ||--o{ orders : commission_invoice_id
     payments ||--o{ payment_events : payment_id
     orders ||--o{ payments : order_id
     users ||--o{ payout_runs : created_by_user_id

@@ -49,6 +49,7 @@ from ..models.enums import (
     LotStatus,
     OrderStatus,
     PaymentMethod,
+    SettlementMode,
     UserRole,
     VerificationStatus,
 )
@@ -63,7 +64,11 @@ ORDER_TRANSITIONS: dict[OrderStatus, frozenset[OrderStatus]] = {
     OrderStatus.PREPARING: frozenset(
         {OrderStatus.SHIPPED, OrderStatus.CANCELLED, OrderStatus.REFUNDED}
     ),
-    OrderStatus.SHIPPED: frozenset({OrderStatus.DELIVERED, OrderStatus.REFUNDED}),
+    # Cancelled from shipped only when a direct order is refused at the door;
+    # see cancel_refused_delivery. A platform order that was paid is refunded.
+    OrderStatus.SHIPPED: frozenset(
+        {OrderStatus.DELIVERED, OrderStatus.REFUNDED, OrderStatus.CANCELLED}
+    ),
     OrderStatus.DELIVERED: frozenset({OrderStatus.CONFIRMED, OrderStatus.DISPUTED}),
     OrderStatus.DISPUTED: frozenset({OrderStatus.CONFIRMED, OrderStatus.REFUNDED}),
     OrderStatus.CONFIRMED: frozenset(),
@@ -85,6 +90,10 @@ OFFERED_METHODS = frozenset(
         PaymentMethod.EASYPAISA,
         PaymentMethod.COD,
     }
+)
+
+DIRECT_ONLY_MESSAGE = (
+    "This brand takes cash on delivery only: you pay the brand's courier when the goods arrive."
 )
 
 _PHONE = re.compile(r"^03\d{9}$")
@@ -240,9 +249,14 @@ def price_purchase(
             f"The minimum order value for this brand is {policy.min_lot_value_pkr:,} PKR."
         )
 
-    shipping = logistics_service.quote(
-        db, lot=lot, pieces=pieces, destination_city=destination_city
-    ).cost_pkr
+    if _is_direct(policy) and not logistics_service.has_default_courier(db):
+        # The brand's own courier charges the buyer on delivery, and no rate
+        # table is set up to estimate it.
+        shipping = 0
+    else:
+        shipping = logistics_service.quote(
+            db, lot=lot, pieces=pieces, destination_city=destination_city
+        ).cost_pkr
     percent = Decimal(str(policy.commission_percent))
     commission = int(
         (Decimal(subtotal) * percent / Decimal(100)).quantize(Decimal(1), rounding=ROUND_HALF_UP)
@@ -324,9 +338,7 @@ def place_orders(
     orders: list[Order] = []
     for purchase in sorted(purchases, key=lambda item: item.lot_id):
         lot = buyable_lot(db, lot_id=purchase.lot_id, city=cleaned.city, lock=True)
-        policy = _policy(db, lot.brand_id)
-        if method == PaymentMethod.COD and not policy.allow_cod:
-            raise ValidationFailed(f"Cash on delivery is not available for {lot.lot_code}.")
+        check_method(_policy(db, lot.brand_id), method, lot.lot_code)
 
         pricing = price_purchase(
             db,
@@ -344,6 +356,20 @@ def place_orders(
     return orders
 
 
+def check_method(policy: BrandPolicy, method: PaymentMethod, lot_code: str) -> None:
+    """Whether this brand takes this way of paying.
+
+    A brand settled directly is paid by its own courier in cash, so that is
+    the only method, and it needs no separate cash on delivery switch.
+    """
+    if _is_direct(policy):
+        if method != PaymentMethod.COD:
+            raise ValidationFailed(DIRECT_ONLY_MESSAGE)
+        return
+    if method == PaymentMethod.COD and not policy.allow_cod:
+        raise ValidationFailed(f"Cash on delivery is not available for {lot_code}.")
+
+
 def create_order(
     db: Session,
     *,
@@ -359,8 +385,11 @@ def create_order(
     The caller has locked the lot and priced the purchase. Checkout and pooled
     orders both come through here, so an order is the same thing either way.
     """
+    policy = _policy(db, lot.brand_id)
+    check_method(policy, method, lot.lot_code)
     order = Order(
         order_code=_new_code(db),
+        settlement_mode=SettlementMode(policy.settlement_mode),
         lot_id=lot.id,
         brand_id=lot.brand_id,
         buyer_user_id=buyer.id,
@@ -490,6 +519,23 @@ def cancel(
     _move(db, order, OrderStatus.CANCELLED, actor=actor, note=cleaned, ip=ip)
     _payments().on_order_cancelled(db, order)
     return order
+
+
+def cancel_refused_delivery(
+    db: Session, order: Order, *, actor: User, reason: str, ip: str | None = None
+) -> Order:
+    """A direct order the buyer refused at the door.
+
+    No money changed hands, so it is cancelled, not refunded, and the pieces
+    go back on sale.
+    """
+    if not _is_direct(order):
+        raise Conflict("Only a cash on delivery order paid to the brand is cancelled this way.")
+    if OrderStatus(order.status) != OrderStatus.SHIPPED:
+        raise Conflict("Only an order on its way can be refused at delivery.")
+    order.cancelled_at = utcnow()
+    order.cancellation_reason = reason[:500]
+    return _move(db, order, OrderStatus.CANCELLED, actor=actor, note=reason, ip=ip)
 
 
 def confirm_delivery(db: Session, order: Order, *, actor: User, ip: str | None = None) -> Order:
@@ -651,7 +697,12 @@ def _complete(
 ) -> Order:
     order.confirmed_at = utcnow()
     _move(db, order, OrderStatus.CONFIRMED, actor=actor, note=note, ip=ip)
-    _payments().release_for_order(db, order)
+    if _is_direct(order):
+        from . import commission_service
+
+        commission_service.accrue(db, order)
+    else:
+        _payments().release_for_order(db, order)
     _mark_lot_sold_if_finished(db, order.lot_id, actor=actor)
     return order
 
@@ -689,7 +740,8 @@ def _move(
     ip: str | None = None,
 ) -> Order:
     current = OrderStatus(order.status)
-    if to not in ORDER_TRANSITIONS[current]:
+    refused = current == OrderStatus.SHIPPED and to == OrderStatus.CANCELLED
+    if to not in ORDER_TRANSITIONS[current] or (refused and not _is_direct(order)):
         raise Conflict(f"An order that is {current.value} cannot become {to.value}.")
 
     order.status = to
@@ -741,6 +793,10 @@ def _record_event(
         )
     )
     db.flush()
+
+
+def _is_direct(row: BrandPolicy | Order) -> bool:
+    return SettlementMode(row.settlement_mode) == SettlementMode.DIRECT
 
 
 def _policy(db: Session, brand_id: str) -> BrandPolicy:
