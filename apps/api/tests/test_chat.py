@@ -27,6 +27,10 @@ from khazana.models.enums import ChatChannel, ChatRole, MessageDirection
 from khazana.services import chat_service, whatsapp_providers, whatsapp_service
 from khazana.services.whatsapp_providers import VoiceNote
 
+# WhatsApp and voice notes are off by default for the pilot; these tests
+# exercise the sandbox providers behind those switches.
+pytestmark = pytest.mark.usefixtures("paid_providers_on")
+
 
 @dataclass
 class _Plan:
@@ -118,10 +122,22 @@ class TestConversations:
             chat_service.get_conversation(db, other.id, thread.id)
         assert len(stub.calls) == 1
 
-    def test_a_failed_model_call_stores_nothing(self, db: Session, stub: StubAssistant) -> None:
+    def test_with_no_model_available_the_buyer_gets_the_manual_reply(
+        self, db: Session, stub: StubAssistant
+    ) -> None:
+        """The daily cap reached is not an error: a fixed reply saying what
+        still works by hand, and nothing spent."""
         buyer = make_reseller(db)
         stub.fail_with = SpendLimitReached("cap")
-        with pytest.raises(SpendLimitReached):
+        exchange = chat_service.send(db, user_id=buyer.id, text="hello")
+        assert exchange.manual is True
+        assert exchange.reply.body == chat_service.RESTING_REPLY
+        assert exchange.reply.cost_usd == Decimal(0)
+
+    def test_any_other_failure_stores_nothing(self, db: Session, stub: StubAssistant) -> None:
+        buyer = make_reseller(db)
+        stub.fail_with = RuntimeError("a bug, not an unavailable model")
+        with pytest.raises(RuntimeError):
             chat_service.send(db, user_id=buyer.id, text="hello")
         assert db.scalar(select(AssistantMessage.id)) is None
         assert chat_service.messages_sent_today(db, buyer.id) == 0
@@ -307,8 +323,8 @@ class TestWhatsApp:
         make_reseller(db)
         stub.fail_with = SpendLimitReached("cap")
         result = self._inbound(db, phone="03007777777", text="hi")
-        assert result.status == "assistant_unavailable"
-        assert result.reply == whatsapp_service.UNAVAILABLE_REPLY
+        assert result.status == "assistant_resting"
+        assert result.reply == chat_service.RESTING_REPLY
 
 
 class TestVoiceNotes:

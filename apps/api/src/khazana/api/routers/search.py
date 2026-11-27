@@ -29,6 +29,10 @@ from ..deps import CurrentPrincipal, Db, Principal
 from ..uploads import read_upload
 from .catalog import BrowseItemOut, _browse_item, _buyer_view
 
+PHOTO_SEARCH_OFF = (
+    "Search by photo is switched off during the beta. Search by words or use the filters."
+)
+
 router = APIRouter(prefix="/catalog", tags=["search"])
 
 
@@ -340,8 +344,23 @@ async def search_catalog_by_photo(
     limit: Annotated[int, Query(ge=1, le=100)] = 24,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> SearchOut:
-    """Find listings that look like a photograph. The image is not stored."""
+    """Find listings that look like a photograph. The image is not stored.
+
+    Off unless VISUAL_SEARCH_ENABLED, because a real image model is a paid
+    service. Switched off, it answers with no results and the reason.
+    """
+    from ...config import get_settings
     from ...storage import ALLOWED_IMAGE_TYPES, StorageError, validate_upload
+
+    if not get_settings().visual_search_enabled:
+        return SearchOut(
+            items=[],
+            total=0,
+            limit=limit,
+            offset=offset,
+            method="unavailable",
+            note=PHOTO_SEARCH_OFF,
+        )
 
     data = await read_upload(file)
     try:

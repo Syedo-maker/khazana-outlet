@@ -971,6 +971,9 @@ Returns `200` with `khazana__api__routers__search__SearchOut`.
 
 Find listings that look like a photograph. The image is not stored.
 
+Off unless VISUAL_SEARCH_ENABLED, because a real image model is a paid
+service. Switched off, it answers with no results and the reason.
+
 | Parameter | In | Required |
 | --- | --- | --- |
 | `city` | query | no |

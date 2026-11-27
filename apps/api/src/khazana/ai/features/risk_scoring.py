@@ -29,9 +29,10 @@ from dataclasses import dataclass, field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ...core.errors import NotFound
+from ...core.errors import AiUnavailable, NotFound
 from ...models import Category, Lot, LotDefect, LotPhoto, ManifestLine
 from ...models.enums import AiFeature, ConditionGrade
+from .. import availability
 from ..gateway import AiResult, run_feature
 from ..schemas import RiskFinding, RiskScore
 
@@ -55,6 +56,8 @@ class RiskOutcome:
     computed_findings: list[RiskFinding] = field(default_factory=list)
     model_score: int = 0
     computed_score: int = 0
+    # Only the measured checks ran; a person reviews the rest.
+    manual: bool = False
 
     @property
     def needs_human_review(self) -> bool:
@@ -274,17 +277,20 @@ def score_lot(
     facts = compute_facts(db, lot)
     structural, structural_score = computed_findings(facts, lot)
 
-    result = run_feature(
-        db,
-        AiFeature.RISK_SCORING,
-        prompt_name=PROMPT,
-        prompt_values=facts.as_prompt_values(lot),
-        brand_id=lot.brand_id,
-        user_id=user_id,
-        entity_type="lot",
-        entity_id=lot.id,
-        record_fixture=record_fixture,
-    )
+    try:
+        result = run_feature(
+            db,
+            AiFeature.RISK_SCORING,
+            prompt_name=PROMPT,
+            prompt_values=facts.as_prompt_values(lot),
+            brand_id=lot.brand_id,
+            user_id=user_id,
+            entity_type="lot",
+            entity_id=lot.id,
+            record_fixture=record_fixture,
+        )
+    except AiUnavailable as exc:
+        return _measured_only(facts, structural, structural_score, availability.reason(exc))
 
     judged = result.output
     assert isinstance(judged, RiskScore)
@@ -297,6 +303,36 @@ def score_lot(
         computed_findings=structural,
         model_score=judged.score,
         computed_score=structural_score,
+    )
+
+
+def _measured_only(
+    facts: ListingFacts, structural: list[RiskFinding], structural_score: int, why: str
+) -> RiskOutcome:
+    """The computed checks alone, sent to a person for the judged part."""
+    judged = RiskScore(
+        score=structural_score,
+        findings=[
+            RiskFinding(
+                kind="judged_checks_not_run",
+                detail=f"{why} Only the measured checks ran; read the listing in full.",
+                severity=1,
+            )
+        ],
+        completeness=0,
+        manifest_consistent=facts.manifest_consistent,
+        price_plausible=True,
+        counterfeit_signals=[],
+        recommend_human_review=True,
+    )
+    combined = combine(judged, structural, structural_score, facts)
+    return RiskOutcome(
+        score=combined,
+        result=availability.manual_result(combined),
+        computed_findings=structural,
+        model_score=0,
+        computed_score=structural_score,
+        manual=True,
     )
 
 

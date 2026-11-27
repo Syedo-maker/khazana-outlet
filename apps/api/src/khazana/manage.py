@@ -6,6 +6,7 @@ operator can reach: the server itself.
 
     python -m khazana.manage create-admin --phone 03001234567 --name "Your name"
     python -m khazana.manage login-link --phone 03001234567
+    python -m khazana.manage load-categories
 
 In production, run them inside the API container:
 
@@ -48,6 +49,22 @@ def _create_admin(db: Session, phone: str, name: str) -> User:
     return user
 
 
+def _load_categories(engine: Engine) -> int:
+    """The category tree from the seed, without any of its sample data."""
+    from .models import Category
+    from .seed import _seed_categories
+
+    with Session(engine) as db:
+        existing = db.scalars(select(Category.id).limit(1)).first()
+        if existing is not None:
+            print("Categories are already loaded; nothing was changed.")
+            return 0
+        created = _seed_categories(db)
+        db.commit()
+    print(f"Loaded {len(created)} categories.")
+    return 0
+
+
 def main(argv: list[str] | None = None, *, engine: Engine | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m khazana.manage", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -56,7 +73,13 @@ def main(argv: list[str] | None = None, *, engine: Engine | None = None) -> int:
     create.add_argument("--name", required=True)
     link = commands.add_parser("login-link", help="print a sign in link for an existing admin")
     link.add_argument("--phone", required=True)
+    commands.add_parser(
+        "load-categories", help="load the product category list, once, with no sample data"
+    )
     args = parser.parse_args(argv)
+
+    if args.command == "load-categories":
+        return _load_categories(engine or build_engine())
 
     with Session(engine or build_engine()) as db:
         if args.command == "create-admin":

@@ -25,7 +25,7 @@ from fastapi import APIRouter, File, Form, Query, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from ...ai import embeddings
+from ...ai import availability, embeddings
 from ...ai.features import (
     assistant,
     listing_from_photos,
@@ -40,11 +40,11 @@ from ...ai.schemas import (
     PriceSuggestion,
     RiskScore,
 )
-from ...core.errors import AppError
+from ...core.errors import AiUnavailable, AppError
 from ...core.tenancy import assert_owns
 from ...models import Lot, User
 from ...models.enums import ConditionGrade, PhotoKind
-from ...services import approval_service
+from ...services import approval_service, chat_service
 from ...storage import ALLOWED_IMAGE_TYPES, StorageError, validate_upload
 from ..deps import CurrentBrand, CurrentPrincipal, Db
 from ..uploads import read_upload
@@ -70,12 +70,17 @@ class CostOut(BaseModel):
 
 
 class ListingDraftOut(BaseModel):
-    draft: ListingDraft
+    # None on the manual path: the brand writes the listing itself.
+    draft: ListingDraft | None
     needs_review: bool = Field(description="True when a person should check before submitting")
     review_reasons: list[str]
     photos_sent: int
     bytes_saved: int = Field(description="Bytes saved by compressing before the call")
     cost: CostOut
+    # True when no model was called (daily cap reached, AI switched off, or the
+    # provider failing): the response is the manual path, never an error.
+    manual: bool = False
+    manual_reason: str | None = None
 
 
 class ManifestExtractOut(BaseModel):
@@ -89,6 +94,10 @@ class ManifestExtractOut(BaseModel):
     notes: list[str]
     summary: str
     cost: CostOut
+    # True when no model was called (daily cap reached, AI switched off, or the
+    # provider failing): the response is the manual path, never an error.
+    manual: bool = False
+    manual_reason: str | None = None
 
 
 class PriceSuggestionOut(BaseModel):
@@ -98,6 +107,10 @@ class PriceSuggestionOut(BaseModel):
     clamp_note: str | None
     lot_price_range_pkr: list[int]
     cost: CostOut
+    # True when no model was called (daily cap reached, AI switched off, or the
+    # provider failing): the response is the manual path, never an error.
+    manual: bool = False
+    manual_reason: str | None = None
 
 
 class SearchHitOut(BaseModel):
@@ -118,6 +131,10 @@ class AssistantOut(BaseModel):
     tools_used: list[str]
     grounded: bool = Field(description="False when the reply made a claim with no lookup behind it")
     cost: CostOut
+    # True when no model was called (daily cap reached, AI switched off, or the
+    # provider failing): the response is the manual path, never an error.
+    manual: bool = False
+    manual_reason: str | None = None
 
 
 class RiskScoreOut(BaseModel):
@@ -126,6 +143,10 @@ class RiskScoreOut(BaseModel):
     computed_score: int
     needs_human_review: bool
     cost: CostOut
+    # True when no model was called (daily cap reached, AI switched off, or the
+    # provider failing): the response is the manual path, never an error.
+    manual: bool = False
+    manual_reason: str | None = None
 
 
 class AssistantIn(BaseModel):
@@ -135,6 +156,9 @@ class AssistantIn(BaseModel):
 
 def _cost(result: Any) -> CostOut:
     return CostOut(usd=str(result.cost_usd), model=result.model, from_fixture=result.from_fixture)
+
+
+NO_COST = CostOut(usd="0", model=availability.MANUAL_MODEL, from_fixture=False)
 
 
 @router.post(
@@ -192,6 +216,18 @@ async def draft_listing(
             season=season,
             claimed_grade=claimed_grade,
         )
+    except AiUnavailable as exc:
+        why = availability.reason(exc)
+        return ListingDraftOut(
+            draft=None,
+            needs_review=True,
+            review_reasons=[f"{why} Write the title and description yourself."],
+            photos_sent=0,
+            bytes_saved=0,
+            cost=NO_COST,
+            manual=True,
+            manual_reason=why,
+        )
     except AppError as exc:
         raise exc.as_http() from exc
 
@@ -239,6 +275,25 @@ async def extract_manifest(
             brand_id=brand_id,
             user_id=principal.user_id,
             lot_id=lot_id,
+        )
+    except AiUnavailable as exc:
+        why = availability.reason(exc)
+        return ManifestExtractOut(
+            lines=[],
+            declared_total=None,
+            line_total=0,
+            balanced=False,
+            difference=None,
+            needs_review=True,
+            corrections=[],
+            notes=[why],
+            summary=(
+                f"{why} Type the sizes and colours into the manifest, or use the "
+                "spreadsheet import on the lot page, which reads the columns without AI."
+            ),
+            cost=NO_COST,
+            manual=True,
+            manual_reason=why,
         )
     except AppError as exc:
         raise exc.as_http() from exc
@@ -296,6 +351,8 @@ def suggest_price(lot_id: str, principal: CurrentBrand, db: Db) -> PriceSuggesti
         clamp_note=outcome.clamp_note,
         lot_price_range_pkr=[low, high],
         cost=_cost(outcome.result),
+        manual=outcome.manual,
+        manual_reason=outcome.manual_reason,
     )
 
 
@@ -380,6 +437,15 @@ def ask_assistant(payload: AssistantIn, principal: CurrentPrincipal, db: Db) -> 
             buyer_user_id=principal.user_id,
             buyer_city=payload.city,
         )
+    except AiUnavailable as exc:
+        return AssistantOut(
+            answer=AssistantAnswer(answer=chat_service.RESTING_REPLY, language="en", declined=True),
+            tools_used=[],
+            grounded=True,
+            cost=NO_COST,
+            manual=True,
+            manual_reason=availability.reason(exc),
+        )
     except AppError as exc:
         raise exc.as_http() from exc
 
@@ -431,4 +497,9 @@ def score_listing(lot_id: str, principal: CurrentPrincipal, db: Db) -> RiskScore
         computed_score=outcome.computed_score,
         needs_human_review=outcome.needs_human_review,
         cost=_cost(outcome.result),
+        manual=outcome.manual,
+        manual_reason=next(
+            (f.detail for f in outcome.score.findings if f.kind == "judged_checks_not_run"),
+            None,
+        ),
     )

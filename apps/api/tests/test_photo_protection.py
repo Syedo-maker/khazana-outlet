@@ -171,9 +171,27 @@ class TestScan:
         assert front.blurred_file_key != front.file_key
         assert get_backend().exists(front.blurred_file_key)
 
+        # No reply for these two: the model could not answer, so they go to the
+        # brand to mark by hand, and stay withheld from buyers meanwhile.
         others = [photo for photo in photos if photo.kind != PhotoKind.FRONT]
-        assert {photo.protection_status for photo in others} == {PhotoProtectionStatus.FAILED}
+        assert {photo.protection_status for photo in others} == {PhotoProtectionStatus.NEEDS_REVIEW}
+        assert {photo.protection_detail["source"] for photo in others} == {"manual"}
         assert photo_protection_service.buyer_photos(unbranded_lot) == []
+
+    def test_with_ai_switched_off_every_photo_waits_for_the_brand(
+        self, db: Session, unbranded_lot: Lot, owner_one, monkeypatch: pytest.MonkeyPatch
+    ) -> None:  # type: ignore[no-untyped-def]
+        from khazana.config import get_settings
+
+        _, owner = owner_one
+        monkeypatch.setenv("AI_ENABLED", "false")
+        get_settings.cache_clear()
+        try:
+            photos = photo_protection_service.scan_lot(db, lot=unbranded_lot, actor=owner)
+        finally:
+            get_settings.cache_clear()
+        assert {photo.protection_status for photo in photos} == {PhotoProtectionStatus.NEEDS_REVIEW}
+        assert "switched off" in photos[0].protection_detail["message"]
 
     def test_a_reviewed_photo_is_not_paid_for_twice(
         self, db: Session, unbranded_lot: Lot, owner_one, monkeypatch: pytest.MonkeyPatch

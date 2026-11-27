@@ -24,7 +24,7 @@ import { Badge, Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Ca
 import { Field, TextArea } from "@/components/ui/Field";
 import { Skeleton } from "@/components/ui/States";
 import { dateTime } from "@/lib/format";
-import { useAction, useResource } from "@/lib/hooks";
+import { useAction, useFeatures, useResource } from "@/lib/hooks";
 import { t, type Locale } from "@/lib/i18n";
 import {
   type ChatExchange,
@@ -144,11 +144,14 @@ export function AssistantChat({
   chatApi,
   copy,
   showCatalogLink = false,
+  showWhatsAppNote = false,
 }: {
   session: Session;
   chatApi: ChatApi;
   copy: ChatCopy;
   showCatalogLink?: boolean;
+  /** For buyers, who may expect the assistant on WhatsApp too. */
+  showWhatsAppNote?: boolean;
 }) {
   const { token, locale } = session;
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -212,10 +215,25 @@ export function AssistantChat({
   };
 
   const outOfMessages = remaining !== null && remaining.count === 0;
+  const features = useFeatures();
+  // The assistant still answers when no model can be called, with a fixed
+  // reply saying what works by hand; this says so before anyone asks.
+  const aiNotice =
+    features === null || features.ai.available_today
+      ? null
+      : t(locale, features.ai.enabled ? "feature.aiResting" : "feature.aiOff");
 
   return (
     <>
       <PageHeader title={copy.title} subtitle={copy.subtitle} />
+      {aiNotice ? (
+        <p role="status" className="mb-4 rounded border border-line bg-surface p-3 text-sm">
+          {aiNotice}
+        </p>
+      ) : null}
+      {features && !features.whatsapp && showWhatsAppNote ? (
+        <p className="mb-4 text-sm text-ink-soft">{t(locale, "feature.whatsappOff")}</p>
+      ) : null}
       <div className="grid gap-6 lg:grid-cols-[18rem_1fr]">
         <div className="order-2 lg:order-1">
           <ConversationList

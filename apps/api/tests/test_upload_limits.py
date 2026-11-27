@@ -27,6 +27,10 @@ from khazana.services import whatsapp_providers, whatsapp_service
 from khazana.services.whatsapp_providers import VoiceNote
 from khazana.storage import MAX_UPLOAD_BYTES
 
+# WhatsApp and voice notes are off by default for the pilot; these tests
+# exercise the sandbox providers behind those switches.
+pytestmark = pytest.mark.usefixtures("paid_providers_on")
+
 
 def test_an_oversized_upload_is_refused_with_413(
     client: TestClient, db: Session, two_brands, category

@@ -173,6 +173,11 @@ def _answer(db: Session, provider: WhatsAppProvider, inbound: InboundMessage) ->
         return InboundResult(status=record.status, reply=reply)
 
     text = inbound.text
+    if inbound.voice is not None and not settings.speech_to_text_enabled:
+        # No speech service on this server: ask for text, and never call it.
+        record.status = "voice_off"
+        _send(db, provider, phone=phone, text=VOICE_OFF_REPLY, user_id=user.id)
+        return InboundResult(status=record.status, reply=VOICE_OFF_REPLY)
     if inbound.voice is not None:
         # Transcription is paid for too, so a buyer at the daily limit is told
         # so before the voice note is sent to the speech service.
@@ -219,7 +224,7 @@ def _answer(db: Session, provider: WhatsAppProvider, inbound: InboundMessage) ->
         _send(db, provider, phone=phone, text=UNAVAILABLE_REPLY, user_id=user.id)
         return InboundResult(status=record.status, reply=UNAVAILABLE_REPLY)
 
-    record.status = "answered"
+    record.status = "assistant_resting" if exchange.manual else "answered"
     record.conversation_id = exchange.conversation.id
     _send(
         db,
@@ -230,6 +235,13 @@ def _answer(db: Session, provider: WhatsAppProvider, inbound: InboundMessage) ->
         conversation_id=exchange.conversation.id,
     )
     return InboundResult(status=record.status, reply=exchange.reply.body)
+
+
+VOICE_OFF_REPLY = (
+    "Voice notes are switched off during the beta. Please type your question.\n"
+    "Beta ke dauran voice notes band hain. Apna sawal likh kar bhejein.\n"
+    "بیٹا کے دوران وائس نوٹس بند ہیں۔ اپنا سوال لکھ کر بھیجیں۔"  # noqa: RUF001
+)
 
 
 def _voice_problem(voice: whatsapp_providers.VoiceNote) -> str | None:

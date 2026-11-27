@@ -24,7 +24,7 @@ from typing import Any
 from fastapi import status
 
 from ...config import get_settings
-from ...core.errors import AppError
+from ...core.errors import AiUnavailable
 from .cost import Usage
 from .models import CATALOGUE, REFUSAL_FALLBACK, spec_for
 
@@ -48,7 +48,7 @@ class ModelReply:
     raw_text: str | None = None
 
 
-class AiClientError(AppError):
+class AiClientError(AiUnavailable):
     """The AI layer could not produce a usable reply.
 
     An AppError rather than a bare RuntimeError, because every one of these

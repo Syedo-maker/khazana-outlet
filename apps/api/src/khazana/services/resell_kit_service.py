@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 
 from ..ai.gateway import run_feature
 from ..ai.schemas import ResellKitCopy
-from ..core.errors import Conflict, NotFound, ValidationFailed
+from ..core.errors import AiUnavailable, Conflict, NotFound, ValidationFailed
 from ..models import Category, Lot, Order, ResellKit, User
 from ..models.enums import SOLD_ORDER_STATUSES, AiFeature, ConditionGrade, OrderStatus, Visibility
 from ..storage import read_object
@@ -110,6 +110,37 @@ def whatsapp_catalogue(copy: dict[str, Any], order: Order, price: int, shop: str
     return "\n".join(lines)
 
 
+def template_copy(facts: dict[str, Any], price: int, shop: str, city: str) -> ResellKitCopy:
+    """A resell kit written without a model, for when none can be called.
+
+    Built only from the facts the model would have been given, so it can say
+    nothing the model could not.
+    """
+    title = str(facts["title"])
+    sizes = ", ".join(facts["sizes"])
+    colours = ", ".join(facts["colours"])
+    where = city or "Pakistan"
+    return ResellKitCopy(
+        caption_en=(
+            f"{title}. Sizes {sizes}, colours {colours}. Rs {price:,} per piece at {shop}, {where}."
+        ),
+        caption_ur_roman=(
+            f"{title}. Sizes {sizes}, rang {colours}. {shop}, {where} par Rs {price:,} fi piece."
+        ),
+        caption_ur=(
+            f"{title}۔ سائز {sizes}، رنگ {colours}۔ "  # noqa: RUF001
+            f"{shop}، {where} پر {price:,} روپے فی پیس۔"  # noqa: RUF001
+        ),
+        social_post=(
+            f"New stock at {shop}: {title}. Sizes {sizes}. Rs {price:,} per piece. "
+            f"Naya maal aa gaya: {title}. Rs {price:,} fi piece. Message karein."
+        ),
+        whatsapp_status=f"{title}, Rs {price:,} per piece. Sizes {sizes}.",
+        hashtags=[],
+        selling_points=[],
+    )
+
+
 def _shop(user: User) -> tuple[str, str]:
     profile = user.reseller_profile
     if profile is None:
@@ -127,23 +158,31 @@ def generate(db: Session, *, user: User, order_id: str, selling_price_pkr: int) 
     lot = _lot(db, order)
     shop, city = _shop(user)
 
-    result = run_feature(
-        db,
-        AiFeature.RESELL_KIT,
-        prompt_name="resell_kit",
-        prompt_values={
-            "facts": json.dumps(facts_for(db, order, lot), indent=2, ensure_ascii=False),
-            "selling_price_pkr": selling_price_pkr,
-            "shop_name": shop,
-            "shop_city": city or "Pakistan",
-        },
-        output_schema=ResellKitCopy,
-        user_id=user.id,
-        entity_type="order",
-        entity_id=order.id,
-    )
-    copy = result.output
-    assert isinstance(copy, ResellKitCopy)
+    try:
+        result = run_feature(
+            db,
+            AiFeature.RESELL_KIT,
+            prompt_name="resell_kit",
+            prompt_values={
+                "facts": json.dumps(facts_for(db, order, lot), indent=2, ensure_ascii=False),
+                "selling_price_pkr": selling_price_pkr,
+                "shop_name": shop,
+                "shop_city": city or "Pakistan",
+            },
+            output_schema=ResellKitCopy,
+            user_id=user.id,
+            entity_type="order",
+            entity_id=order.id,
+        )
+    except AiUnavailable:
+        result = None
+    if result is None:
+        # No model today: plain wording from the same facts, every word true.
+        copy = template_copy(facts_for(db, order, lot), selling_price_pkr, shop, city)
+    else:
+        output = result.output
+        assert isinstance(output, ResellKitCopy)
+        copy = output
 
     record = db.scalar(select(ResellKit).where(ResellKit.order_id == order.id))
     if record is None:

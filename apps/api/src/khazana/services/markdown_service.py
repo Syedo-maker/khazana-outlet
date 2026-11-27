@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 
 from ..ai.gateway import batch, run_feature
 from ..ai.schemas import MarkdownDecision
+from ..core.errors import AiUnavailable
 from ..models import BrandPolicy, Category, Lot, Order, utcnow
 from ..models.base import as_utc
 from ..models.enums import SOLD_ORDER_STATUSES, AiFeature, LotStatus
@@ -115,7 +116,12 @@ def run(db: Session, *, now: datetime | None = None) -> list[MarkdownResult]:
     moment = now or utcnow()
     results = []
     for lot, policy in _eligible(db, moment):
-        result = mark_down(db, lot=lot, policy=policy, now=moment)
+        try:
+            result = mark_down(db, lot=lot, policy=policy, now=moment)
+        except AiUnavailable:
+            # No model today: prices stay as they are, which is the safe
+            # direction, and the brand can still change them by hand.
+            break
         if result is not None:
             results.append(result)
     return results

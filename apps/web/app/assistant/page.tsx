@@ -24,6 +24,7 @@ function BuyerAssistant({ session }: { session: Session }) {
       session={session}
       chatApi={chatApi}
       showCatalogLink
+      showWhatsAppNote
       copy={{
         title: t(locale, "assistant.title"),
         subtitle: t(locale, "assistant.subtitle"),

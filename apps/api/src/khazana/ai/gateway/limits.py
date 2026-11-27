@@ -14,7 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ...config import get_settings
-from ...core.errors import FeatureDisabled, SpendLimitReached
+from ...core.errors import AiSwitchedOff, FeatureDisabled, SpendLimitReached
 from ...models import AiSpend, BrandPolicy
 from ...models.base import utcnow
 from ...models.enums import AiFeature
@@ -78,9 +78,11 @@ def assert_within_budget(
     upload consuming the budget for everyone else, and it reads the brand's own
     policy row rather than a global constant.
     """
+    settings = get_settings()
+    if not settings.ai_enabled:
+        raise AiSwitchedOff("AI is switched off on this server.")
     assert_feature_enabled(feature)
 
-    settings = get_settings()
     projected = projected_cost_usd or Decimal("0")
 
     # At the cap means stop, not one more call. Using greater than would let

@@ -106,6 +106,21 @@ def local_storage(tmp_path, monkeypatch):  # type: ignore[no-untyped-def]
 
 
 @pytest.fixture
+def paid_providers_on(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Switch on the features that need a paid provider in production.
+
+    They are off by default for the zero budget pilot. Tests that exercise
+    the sandbox WhatsApp provider, the sandbox transcriber or photo search
+    turn them on with ``pytestmark = pytest.mark.usefixtures(...)``.
+    """
+    for name in ("WHATSAPP_ENABLED", "SPEECH_TO_TEXT_ENABLED", "VISUAL_SEARCH_ENABLED"):
+        monkeypatch.setenv(name, "true")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+@pytest.fixture
 def category(db: Session) -> Category:
     row = Category(name="Womenswear stitched", slug="womenswear-stitched")
     db.add(row)

@@ -17,10 +17,10 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from ..ai import images
+from ..ai import availability, images
 from ..ai.features import logo_detection
 from ..ai.logo_regions import Box, clip, pad
-from ..core.errors import Conflict, NotFound, ValidationFailed
+from ..core.errors import AiUnavailable, Conflict, NotFound, ValidationFailed
 from ..models import Brand, Lot, LotPhoto, User
 from ..models.base import utcnow
 from ..models.enums import LotStatus, PhotoKind, PhotoProtectionStatus, Visibility
@@ -207,6 +207,13 @@ def _inspect(db: Session, *, lot: Lot, photo: LotPhoto, brand: Brand, actor: Use
             user_id=actor.id,
             photo_id=photo.id,
         )
+    except AiUnavailable as exc:
+        # No model today. The photograph stays withheld from buyers and goes
+        # to the brand to mark its logos by hand, the same review it gets when
+        # the model is unsure.
+        photo.protection_status = PhotoProtectionStatus.NEEDS_REVIEW
+        photo.protection_detail = {"source": "manual", "message": availability.reason(exc)}
+        return
     # Deliberately broad. Whatever went wrong, the safe result is the same: the
     # photograph stays withheld and the rest of the lot still gets checked.
     except Exception as exc:

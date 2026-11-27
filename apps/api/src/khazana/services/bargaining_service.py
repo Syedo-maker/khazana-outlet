@@ -33,7 +33,7 @@ from sqlalchemy.orm import Session
 from ..ai.gateway import run_feature
 from ..ai.schemas import BargainReply
 from ..config import get_settings
-from ..core.errors import Conflict, NotFound, RateLimited, ValidationFailed
+from ..core.errors import AiUnavailable, Conflict, NotFound, RateLimited, ValidationFailed
 from ..models import BrandPolicy, Lot, Negotiation, NegotiationMessage, Order, User, utcnow
 from ..models.enums import AiFeature, ChatRole, ConditionGrade, NegotiationStatus, PaymentMethod
 from . import audit_service, chat_service, order_service
@@ -270,30 +270,33 @@ def respond(
         return negotiation
 
     grade = ConditionGrade(lot.condition_grade)
-    result = run_feature(
-        db,
-        AiFeature.BARGAINING,
-        prompt_name="bargaining",
-        prompt_values={
-            "lot_title": lot.title,
-            "condition": f"{grade.value}",
-            "pieces": negotiation.pieces,
-            "list_price_pkr": negotiation.list_price_pkr,
-            "current_asking_pkr": negotiation.asking_price_pkr,
-            "buyer_offer_pkr": "none given" if offer is None else offer,
-            "allowed_low_pkr": band.low,
-            "allowed_high_pkr": band.high,
-            "round_number": negotiation.rounds,
-            "max_rounds": MAX_ROUNDS,
-            "message": text or f"I offer Rs {offer} per piece.",
-            "history": "\n".join(history) or "No earlier messages.",
-        },
-        output_schema=BargainReply,
-        brand_id=negotiation.brand_id,
-        user_id=buyer.id,
-        entity_type="negotiation",
-        entity_id=negotiation.id,
-    )
+    try:
+        result = run_feature(
+            db,
+            AiFeature.BARGAINING,
+            prompt_name="bargaining",
+            prompt_values={
+                "lot_title": lot.title,
+                "condition": f"{grade.value}",
+                "pieces": negotiation.pieces,
+                "list_price_pkr": negotiation.list_price_pkr,
+                "current_asking_pkr": negotiation.asking_price_pkr,
+                "buyer_offer_pkr": "none given" if offer is None else offer,
+                "allowed_low_pkr": band.low,
+                "allowed_high_pkr": band.high,
+                "round_number": negotiation.rounds,
+                "max_rounds": MAX_ROUNDS,
+                "message": text or f"I offer Rs {offer} per piece.",
+                "history": "\n".join(history) or "No earlier messages.",
+            },
+            output_schema=BargainReply,
+            brand_id=negotiation.brand_id,
+            user_id=buyer.id,
+            entity_type="negotiation",
+            entity_id=negotiation.id,
+        )
+    except AiUnavailable:
+        return _step_without_model(db, negotiation, band, before)
     reply = result.output
     assert isinstance(reply, BargainReply)
 
@@ -314,6 +317,30 @@ def respond(
         clamped=was_clamped,
     )
     _audit(db, negotiation, "negotiation.counter", before, counter, audit_service.ACTOR_AI)
+    db.flush()
+    return negotiation
+
+
+def _step_without_model(
+    db: Session, negotiation: Negotiation, band: Band, before: int
+) -> Negotiation:
+    """No model today: come down by the brand's smallest step this round.
+
+    The price is the top of the range the clamp already allows, so it is the
+    brand's own step from its own floor, chosen by code (ADR 0001).
+    """
+    counter = clamp(band.high, band)
+    negotiation.asking_price_pkr = counter
+    _say(
+        db,
+        negotiation,
+        ChatRole.ASSISTANT,
+        f"Rs {counter} per piece is my price for this round.\n"
+        f"Is round mein Rs {counter} fi piece meri qeemat hai.",
+        proposed=counter,
+        clamped=False,
+    )
+    _audit(db, negotiation, "negotiation.counter", before, counter, audit_service.ACTOR_SYSTEM)
     db.flush()
     return negotiation
 

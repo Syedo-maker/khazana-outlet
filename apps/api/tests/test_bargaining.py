@@ -428,3 +428,29 @@ class TestEndpoints:
         )
         assert response.status_code == 200, response.text
         assert response.json()["status"] == "ordered"
+
+
+class TestWithoutAModel:
+    def test_the_daily_cap_gives_the_brands_own_step_not_an_error(
+        self, db: Session, lot: Lot, buyer, monkeypatch: pytest.MonkeyPatch
+    ) -> None:  # type: ignore[no-untyped-def]
+        """No model today: code comes down by the brand's step, inside the
+        band the clamp already allows, and the move is audited as the system's."""
+        from khazana.core.errors import SpendLimitReached
+
+        def capped(*args: Any, **kwargs: Any) -> Any:
+            raise SpendLimitReached("cap")
+
+        monkeypatch.setattr(bargaining_service, "run_feature", capped)
+        negotiation = _start(db, buyer, lot)
+        band = bargaining_service.round_range(negotiation, None)
+        assert negotiation.status == NegotiationStatus.OPEN
+        assert (
+            negotiation.floor_price_pkr
+            <= negotiation.asking_price_pkr
+            <= negotiation.list_price_pkr
+        )
+        assert negotiation.asking_price_pkr >= band.low
+        assert "per piece" in negotiation.messages[-1].body
+        entry = db.scalar(select(AuditLog).where(AuditLog.action == "negotiation.counter"))
+        assert entry is not None and entry.actor_kind == "system"

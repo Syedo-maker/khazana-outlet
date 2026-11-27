@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 from ..ai.features import assistant, brand_assistant
 from ..ai.features.assistant import AssistantTurn
 from ..config import get_settings
-from ..core.errors import NotFound, RateLimited, ValidationFailed
+from ..core.errors import AiUnavailable, NotFound, RateLimited, ValidationFailed
 from ..models import AssistantConversation, AssistantMessage, utcnow
 from ..models.enums import ChatChannel, ChatRole
 
@@ -45,7 +45,30 @@ class ChatExchange:
     conversation: AssistantConversation
     buyer_message: AssistantMessage
     reply: AssistantMessage
-    turn: AssistantTurn
+    # None when no model could be called and the fixed reply was given.
+    turn: AssistantTurn | None
+    manual: bool = False
+
+
+# When no model can be called: the cap is reached, AI is switched off, or the
+# provider is failing. The buyer is told what still works by hand.
+RESTING_REPLY = (
+    "The assistant has paused for today. You can still search the catalogue, "
+    "filter by city and size, and see your orders from the menu.\n"
+    "Assistant aaj ke liye ruk gaya hai. Aap ab bhi catalogue mein search kar "
+    "saktay hain, shehar aur size se filter kar saktay hain, aur menu se apne "
+    "orders dekh saktay hain.\n"
+    "اسسٹنٹ آج کے لیے رک گیا ہے۔ آپ اب بھی کیٹلاگ میں تلاش کر سکتے ہیں، شہر اور "  # noqa: RUF001
+    "سائز سے فلٹر کر سکتے ہیں، اور مینو سے اپنے آرڈرز دیکھ سکتے ہیں۔"  # noqa: RUF001
+)
+BRAND_RESTING_REPLY = (
+    "The assistant has paused for today. Your dashboard, reports and orders "
+    "pages show the same figures.\n"
+    "Assistant aaj ke liye ruk gaya hai. Dashboard, reports aur orders ke pages "
+    "par yehi figures maujood hain.\n"
+    "اسسٹنٹ آج کے لیے رک گیا ہے۔ ڈیش بورڈ، رپورٹس اور آرڈرز کے صفحات پر یہی "  # noqa: RUF001
+    "اعداد موجود ہیں۔"  # noqa: RUF001
+)
 
 
 def start_of_pakistan_day(now: datetime) -> datetime:
@@ -202,14 +225,19 @@ def send(
     if conversation is not None:
         keep = get_settings().assistant_history_messages
         history = render_history(recent_messages(db, conversation.id, keep))
-    if brand_id is None:
-        turn = assistant.ask(
-            db, message=text, buyer_user_id=user_id, buyer_city=city, history=history
-        )
-    else:
-        turn = brand_assistant.ask(
-            db, message=text, brand_id=brand_id, user_id=user_id, history=history
-        )
+    turn: AssistantTurn | None
+    try:
+        if brand_id is None:
+            turn = assistant.ask(
+                db, message=text, buyer_user_id=user_id, buyer_city=city, history=history
+            )
+        else:
+            turn = brand_assistant.ask(
+                db, message=text, brand_id=brand_id, user_id=user_id, history=history
+            )
+    except AiUnavailable:
+        # Never an error to the buyer: a fixed reply, and nothing spent.
+        turn = None
 
     if conversation is None:
         conversation = AssistantConversation(
@@ -227,31 +255,50 @@ def send(
         user_id=user_id,
         role=ChatRole.BUYER,
         body=text.strip(),
-        language=turn.plan.language,
+        language=turn.plan.language if turn else "en",
         tools_used={},
         cost_usd=Decimal(0),
         created_at=sent_at,
         updated_at=sent_at,
     )
-    reply = AssistantMessage(
-        conversation_id=conversation.id,
-        user_id=user_id,
-        role=ChatRole.ASSISTANT,
-        body=turn.answer.answer,
-        language=turn.answer.language,
-        tools_used={
-            "tools": list(turn.answer.tool_calls_made),
-            "lots": list(turn.answer.lot_ids_referenced),
-        },
-        grounded=turn.is_grounded,
-        declined=turn.answer.declined,
-        cost_usd=Decimal(str(turn.total_cost_usd)),
-        created_at=replied_at,
-        updated_at=replied_at,
-    )
+    if turn is None:
+        reply = AssistantMessage(
+            conversation_id=conversation.id,
+            user_id=user_id,
+            role=ChatRole.ASSISTANT,
+            body=RESTING_REPLY if brand_id is None else BRAND_RESTING_REPLY,
+            language="en",
+            tools_used={"tools": [], "lots": []},
+            grounded=True,
+            declined=True,
+            cost_usd=Decimal(0),
+            created_at=replied_at,
+            updated_at=replied_at,
+        )
+    else:
+        reply = AssistantMessage(
+            conversation_id=conversation.id,
+            user_id=user_id,
+            role=ChatRole.ASSISTANT,
+            body=turn.answer.answer,
+            language=turn.answer.language,
+            tools_used={
+                "tools": list(turn.answer.tool_calls_made),
+                "lots": list(turn.answer.lot_ids_referenced),
+            },
+            grounded=turn.is_grounded,
+            declined=turn.answer.declined,
+            cost_usd=Decimal(str(turn.total_cost_usd)),
+            created_at=replied_at,
+            updated_at=replied_at,
+        )
     db.add_all([buyer_message, reply])
     conversation.last_message_at = replied_at
     db.flush()
     return ChatExchange(
-        conversation=conversation, buyer_message=buyer_message, reply=reply, turn=turn
+        conversation=conversation,
+        buyer_message=buyer_message,
+        reply=reply,
+        turn=turn,
+        manual=turn is None,
     )

@@ -168,3 +168,19 @@ class TestEndpoints:
         assert history[0]["action"] == "lot.marked_down"
         assert history[0]["by"] == "ai"
         assert history[0]["after"]["lot_price_pkr"] == 25_000
+
+
+class TestWithoutAModel:
+    def test_the_daily_cap_leaves_prices_alone(
+        self, db: Session, lot: Lot, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from khazana.core.errors import SpendLimitReached
+        from khazana.services import markdown_service
+
+        def capped(*args: Any, **kwargs: Any) -> Any:
+            raise SpendLimitReached("cap")
+
+        monkeypatch.setattr(markdown_service, "run_feature", capped)
+        before = lot.lot_price_pkr
+        assert markdown_service.run(db) == []
+        assert lot.lot_price_pkr == before

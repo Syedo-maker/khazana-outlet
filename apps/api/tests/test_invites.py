@@ -225,3 +225,20 @@ class TestFirstAdmin:
         invite, _ = invite_service.create(db, admin=admin_user, phone=PHONE, role=UserRole.RESELLER)
         hours = (as_utc(invite.expires_at) - as_utc(invite.created_at)).total_seconds() / 3600
         assert round(hours) == get_settings().invite_ttl_hours
+
+
+def test_a_fresh_server_loads_the_category_list_once(
+    db: Session, capsys: pytest.CaptureFixture[str], engine
+) -> None:  # type: ignore[no-untyped-def]
+    """Production starts empty and the demo seed is not for it: the category
+    list, which listings must choose from, is loaded on its own."""
+    from khazana import manage
+    from khazana.models import Category
+    from khazana.seed import CATEGORIES
+
+    assert manage.main(["load-categories"], engine=engine) == 0
+    expected = len(CATEGORIES) + sum(len(children) for _, _, children, _ in CATEGORIES)
+    assert len(db.scalars(select(Category)).all()) == expected
+    assert manage.main(["load-categories"], engine=engine) == 0, "running it again adds nothing"
+    assert len(db.scalars(select(Category)).all()) == expected
+    assert "already" in capsys.readouterr().out
