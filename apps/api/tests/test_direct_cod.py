@@ -335,3 +335,28 @@ class TestCommissionInvoices:
         job = next(job for job in JOBS if job.name == "commission-invoices")
         due = job.next_after(datetime(2026, 11, 20, 12, 0, tzinfo=PKT)).astimezone(PKT)
         assert (due.day, due.month, due.hour) == (1, 12, 6)
+
+
+class TestWhatTheBuyerIsTold:
+    def test_the_lot_page_says_the_brand_is_paid_on_delivery(
+        self, client: TestClient, buyer, lot: Lot
+    ) -> None:  # type: ignore[no-untyped-def]
+        detail = client.get(f"/catalog/{lot.id}", headers=auth(buyer)).json()
+        assert detail["pays_brand_directly"] is True
+        assert detail["allows_cod"] is True
+
+    def test_the_cart_offers_cash_on_delivery_only(
+        self, client: TestClient, buyer, lot: Lot
+    ) -> None:  # type: ignore[no-untyped-def]
+        client.put(f"/cart/items/{lot.id}", json={"whole_lot": True}, headers=auth(buyer))
+        cart = client.get("/cart", headers=auth(buyer)).json()
+        assert cart["cash_on_delivery_only"] is True
+        assert cart["items"][0]["pays_brand_directly"] is True
+
+    def test_there_is_nothing_to_pay_online(
+        self, client: TestClient, db: Session, buyer, lot: Lot
+    ) -> None:  # type: ignore[no-untyped-def]
+        order = _order(db, buyer, lot)
+        response = client.post(f"/orders/{order.id}/payment", headers=auth(buyer))
+        assert response.status_code == 409
+        assert "courier" in response.text

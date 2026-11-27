@@ -20,3 +20,11 @@ export function dateTime(value: string | null | undefined): string {
     }),
   );
 }
+
+/** A calendar date in Pakistan time, for invoices and periods. */
+export function day(value: string | Date | null | undefined): string {
+  if (!value) return "";
+  return ltr(
+    new Date(value).toLocaleDateString("en-PK", { dateStyle: "medium", timeZone: "Asia/Karachi" }),
+  );
+}

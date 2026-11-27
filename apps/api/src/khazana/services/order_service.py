@@ -795,6 +795,12 @@ def _record_event(
     db.flush()
 
 
+def brand_is_paid_directly(db: Session, brand_id: str) -> bool:
+    """Whether this brand's buyers pay its own courier in cash on delivery."""
+    policy = db.scalars(select(BrandPolicy).where(BrandPolicy.brand_id == brand_id)).first()
+    return policy is not None and _is_direct(policy)
+
+
 def _is_direct(row: BrandPolicy | Order) -> bool:
     return SettlementMode(row.settlement_mode) == SettlementMode.DIRECT
 

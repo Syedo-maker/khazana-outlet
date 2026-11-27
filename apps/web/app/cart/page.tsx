@@ -38,7 +38,7 @@ function CartContent({ session }: { session: Session }) {
         delivery_city: city,
         delivery_address: address,
         delivery_phone: phone,
-        payment_method: method,
+        payment_method: cart.data?.cash_on_delivery_only ? "cod" : method,
       });
       const [only] = orders;
       router.push(only && orders.length === 1 ? `/orders/${only.id}` : "/orders");
@@ -146,17 +146,25 @@ function CartContent({ session }: { session: Session }) {
                         onChange={(event) => setPhone(event.target.value)}
                       />
                     </Field>
-                    <Field label={t(locale, "cart.payWith")} htmlFor="method">
+                    <Field
+                      label={t(locale, "cart.payWith")}
+                      htmlFor="method"
+                      hint={data.cash_on_delivery_only ? t(locale, "direct.cartNote") : undefined}
+                    >
                       <SelectInput
                         id="method"
-                        value={method}
+                        aria-describedby={data.cash_on_delivery_only ? "method-hint" : undefined}
+                        value={data.cash_on_delivery_only ? "cod" : method}
+                        disabled={data.cash_on_delivery_only}
                         onChange={(event) => setMethod(event.target.value as PaymentMethod)}
                       >
-                        {METHODS.map((option) => (
-                          <option key={option} value={option}>
-                            {t(locale, `payment.method.${option}`)}
-                          </option>
-                        ))}
+                        {(data.cash_on_delivery_only ? (["cod"] as PaymentMethod[]) : METHODS).map(
+                          (option) => (
+                            <option key={option} value={option}>
+                              {t(locale, `payment.method.${option}`)}
+                            </option>
+                          ),
+                        )}
                       </SelectInput>
                     </Field>
                     <p className="mb-3 text-lg font-semibold">

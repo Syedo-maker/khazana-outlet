@@ -215,12 +215,17 @@ class CartItemOut(BaseModel):
     total_pkr: int | None = None
     # Why this item cannot currently be bought, when that is the case.
     problem: str | None = None
+    # The buyer pays this brand's own courier in cash on delivery.
+    pays_brand_directly: bool = False
 
 
 class CartOut(BaseModel):
     items: list[CartItemOut]
     delivery_city: str | None
     total_pkr: int
+    # Some item is paid to the brand on delivery, so checkout offers cash on
+    # delivery only.
+    cash_on_delivery_only: bool = False
 
 
 def _user(db: Session, principal: Principal) -> User:
@@ -412,6 +417,7 @@ def view_cart(
             item.lot_code = lot.lot_code
             item.title = lot.title
             item.seller_name = shown.brand_name
+            item.pays_brand_directly = order_service.brand_is_paid_directly(db, lot.brand_id)
             pricing = order_service.price_purchase(
                 db, lot=lot, purchase=purchase, destination_city=city
             )
@@ -423,7 +429,12 @@ def view_cart(
         except AppError as exc:
             item.problem = exc.message
         items.append(item)
-    return CartOut(items=items, delivery_city=city, total_pkr=total)
+    return CartOut(
+        items=items,
+        delivery_city=city,
+        total_pkr=total,
+        cash_on_delivery_only=any(item.pays_brand_directly for item in items),
+    )
 
 
 @router.put(

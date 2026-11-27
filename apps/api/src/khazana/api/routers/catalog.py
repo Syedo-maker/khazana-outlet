@@ -38,6 +38,7 @@ from ...models.enums import (
     LotStatus,
     PhotoKind,
     PhotoProtectionStatus,
+    SettlementMode,
     VerificationStatus,
     Visibility,
 )
@@ -431,6 +432,8 @@ class CatalogDetailOut(BrowseItemOut):
     available_lines: list[CatalogAvailableLineOut]
     allows_part_lot: bool
     allows_cod: bool
+    # Cash on delivery to the brand's own courier is the only way to pay.
+    pays_brand_directly: bool = False
     allows_pooling: bool = False
     allows_bargaining: bool = False
     size_guide: list[SizeGuideOut] = Field(default_factory=list)
@@ -1206,6 +1209,7 @@ def catalog_detail(
     photos = photo_protection_service.buyer_photos(lot)
     shown_ids = {photo.id for photo in photos}
     policy = db.scalars(select(BrandPolicy).where(BrandPolicy.brand_id == lot.brand_id)).first()
+    direct = policy is not None and SettlementMode(policy.settlement_mode) == SettlementMode.DIRECT
     return CatalogDetailOut(
         **item.model_dump(),
         photos=[CatalogPhotoOut.model_validate(photo) for photo in photos],
@@ -1215,7 +1219,8 @@ def catalog_detail(
             for line in order_service.available_lines(db, lot)
         ],
         allows_part_lot=bool(policy and policy.allow_part_lot_orders),
-        allows_cod=bool(policy and policy.allow_cod),
+        allows_cod=bool(policy and (policy.allow_cod or direct)),
+        pays_brand_directly=direct,
         allows_pooling=bool(policy and policy.allow_pooled_orders),
         allows_bargaining=bargaining_service.bargaining_allowed(lot, policy),
         size_guide=[SizeGuideOut(**asdict(g)) for g in size_service.guide_for(db, lot)],

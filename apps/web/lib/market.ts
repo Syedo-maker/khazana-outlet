@@ -286,6 +286,8 @@ export type CatalogDetail = CatalogItem & {
   available_lines: LineChoice[];
   allows_part_lot: boolean;
   allows_cod: boolean;
+  /** The buyer pays the brand's own courier in cash on delivery. */
+  pays_brand_directly: boolean;
   allows_pooling: boolean;
   allows_bargaining: boolean;
   size_guide: SizeGuide[];
@@ -338,9 +340,46 @@ export type CartItem = {
   shipping_pkr: number | null;
   total_pkr: number | null;
   problem: string | null;
+  pays_brand_directly: boolean;
 };
 
-export type Cart = { items: CartItem[]; delivery_city: string | null; total_pkr: number };
+export type Cart = {
+  items: CartItem[];
+  delivery_city: string | null;
+  total_pkr: number;
+  cash_on_delivery_only: boolean;
+};
+
+export type SettlementMode = "platform" | "direct";
+
+export type CommissionInvoice = {
+  id: string;
+  number: string;
+  brand_id: string;
+  brand_name: string;
+  period_start: string;
+  period_end: string;
+  order_count: number;
+  sales_pkr: number;
+  commission_pkr: number;
+  status: "issued" | "paid" | "void";
+  issued_at: string;
+  due_at: string;
+  paid_at: string | null;
+  paid_reference: string | null;
+};
+
+export type CommissionInvoiceDetail = CommissionInvoice & {
+  lines: {
+    order_id: string;
+    order_code: string;
+    confirmed_at: string | null;
+    subtotal_pkr: number;
+    refunded_pkr: number;
+    commission_percent: number;
+    commission_pkr: number;
+  }[];
+};
 
 export type DeliveryDetails = {
   delivery_city: string;
@@ -358,6 +397,7 @@ export type Order = {
   seller_name: string;
   status: OrderStatus;
   payment_method: PaymentMethod;
+  settlement_mode: SettlementMode;
   pieces: number;
   unit_price_pkr: number;
   subtotal_pkr: number;
@@ -376,6 +416,8 @@ export type Order = {
   commission_pkr: number | null;
   brand_payout_pkr: number | null;
   buyer_business_name: string | null;
+  commission_due_pkr: number | null;
+  commission_invoice_id: string | null;
 };
 
 export type OrderDispute = {
@@ -753,6 +795,31 @@ export const market = {
     }),
   advanceShipment: (token: string, shipmentId: string) =>
     request<Shipment>(`/shipments/${shipmentId}/sandbox-advance`, { method: "POST", token }),
+  enterShipment: (token: string, id: string, courier: string, trackingNumber: string) =>
+    request<Shipment>(`/orders/${id}/shipments/manual`, {
+      method: "POST",
+      token,
+      body: { courier, tracking_number: trackingNumber },
+    }),
+  enterOutcome: (
+    token: string,
+    shipmentId: string,
+    status: "delivered" | "returned",
+    note?: string,
+  ) =>
+    request<Shipment>(`/shipments/${shipmentId}/manual-status`, {
+      method: "POST",
+      token,
+      body: { status, note: note || null },
+    }),
+  commissionInvoices: (token: string, brandId: string) =>
+    request<CommissionInvoice[]>(`/brands/${brandId}/commission-invoices`, { token }),
+  commissionSummary: (token: string, brandId: string) =>
+    request<{ unbilled_commission_pkr: number }>(`/brands/${brandId}/commission-summary`, {
+      token,
+    }),
+  commissionInvoice: (token: string, id: string) =>
+    request<CommissionInvoiceDetail>(`/commission-invoices/${id}`, { token }),
 
   resellerProfile: (token: string) =>
     request<ResellerProfile | null>("/resellers/me", { token }),
@@ -1058,6 +1125,23 @@ export const adminApi = {
     request<PayoutRun>("/admin/payout-runs", { method: "POST", token, body: {} }),
   markRunPaid: (token: string, id: string, reference: string) =>
     request<PayoutRun>(`/admin/payout-runs/${id}/paid`, {
+      method: "POST",
+      token,
+      body: { reference },
+    }),
+  commissionInvoices: (token: string, status?: CommissionInvoice["status"]) =>
+    request<CommissionInvoice[]>(
+      `/admin/commission-invoices${status ? `?status=${status}` : ""}`,
+      { token },
+    ),
+  issueCommissionInvoices: (token: string, year: number, month: number) =>
+    request<CommissionInvoice[]>("/admin/commission-invoices/issue", {
+      method: "POST",
+      token,
+      body: { year, month },
+    }),
+  markCommissionPaid: (token: string, id: string, reference: string) =>
+    request<CommissionInvoice>(`/admin/commission-invoices/${id}/paid`, {
       method: "POST",
       token,
       body: { reference },

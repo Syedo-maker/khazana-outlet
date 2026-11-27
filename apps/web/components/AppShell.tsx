@@ -87,7 +87,7 @@ export function AppShell({
           {t(locale, "demo.banner")}
         </p>
       ) : null}
-      <header className="border-b border-line bg-surface">
+      <header className="border-b border-line bg-surface print:hidden">
         <div className="mx-auto flex max-w-shell items-center justify-between gap-4 px-4 py-3">
           <Link href="/" className="flex items-center gap-2 font-bold tracking-tight">
             <span
@@ -179,6 +179,7 @@ export const BRAND_NAV: NavItem[] = [
   { href: "/sizes", labelKey: "nav.sizes" },
   { href: "/orders", labelKey: "nav.orders" },
   { href: "/payouts", labelKey: "nav.payouts" },
+  { href: "/invoices", labelKey: "nav.commission" },
 ];
 
 export const RESELLER_NAV: NavItem[] = [
@@ -199,6 +200,7 @@ export const ADMIN_NAV: NavItem[] = [
   { href: "/admin/payments", labelKey: "nav.payments" },
   { href: "/admin/disputes", labelKey: "nav.disputes" },
   { href: "/admin/payouts", labelKey: "nav.payouts" },
+  { href: "/admin/commissions", labelKey: "nav.commission" },
   { href: "/admin/settings", labelKey: "nav.settings" },
   { href: "/admin/review", labelKey: "nav.review" },
   { href: "/admin/ai-costs", labelKey: "nav.aiCosts" },

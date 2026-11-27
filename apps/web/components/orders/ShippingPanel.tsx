@@ -86,6 +86,108 @@ function BrandControls({
   );
 }
 
+/** Direct orders: the brand's own courier, entered by hand. */
+function DirectShipForm({
+  order,
+  session,
+  refresh,
+}: {
+  order: OrderDetail;
+  session: Session;
+  refresh: () => Promise<void>;
+}) {
+  const { token, locale } = session;
+  const action = useAction();
+  const [courier, setCourier] = useState("");
+  const [tracking, setTracking] = useState("");
+  return (
+    <form
+      className="mt-3 max-w-md"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void action.run(async () => {
+          await market.enterShipment(token, order.id, courier, tracking);
+          await refresh();
+        });
+      }}
+    >
+      <p className="mb-3 text-sm">
+        {t(locale, "direct.shipBody", { amount: pkr(order.total_pkr) })}
+      </p>
+      <Field
+        label={t(locale, "direct.courier")}
+        htmlFor="direct-courier"
+        hint={t(locale, "direct.courierHint")}
+      >
+        <TextInput
+          id="direct-courier"
+          hasHint
+          required
+          minLength={2}
+          maxLength={40}
+          autoComplete="off"
+          value={courier}
+          onChange={(event) => setCourier(event.target.value)}
+        />
+      </Field>
+      <Field label={t(locale, "direct.tracking")} htmlFor="direct-tracking">
+        <TextInput
+          id="direct-tracking"
+          required
+          minLength={4}
+          maxLength={80}
+          autoComplete="off"
+          value={tracking}
+          onChange={(event) => setTracking(event.target.value)}
+        />
+      </Field>
+      <Button type="submit" loading={action.busy}>
+        {t(locale, "direct.save")}
+      </Button>
+      <ActionError message={action.error} />
+    </form>
+  );
+}
+
+function DirectOutcome({
+  shipment,
+  session,
+  refresh,
+}: {
+  shipment: Shipment;
+  session: Session;
+  refresh: () => Promise<void>;
+}) {
+  const { token, locale } = session;
+  const action = useAction();
+  if (["delivered", "returned", "lost"].includes(shipment.status)) return null;
+  const record = (status: "delivered" | "returned") =>
+    void action.run(async () => {
+      await market.enterOutcome(token, shipment.id, status);
+      await refresh();
+    });
+  return (
+    <div className="mt-3">
+      <p className="mb-2 text-sm text-ink-soft">{t(locale, "direct.outcomeHint")}</p>
+      <div className="flex flex-wrap gap-2">
+        <Button disabled={action.busy} onClick={() => record("delivered")}>
+          {t(locale, "direct.delivered")}
+        </Button>
+        <Button
+          variant="secondary"
+          disabled={action.busy}
+          onClick={() => {
+            if (window.confirm(t(locale, "direct.refusedConfirm"))) record("returned");
+          }}
+        >
+          {t(locale, "direct.refused")}
+        </Button>
+      </div>
+      <ActionError message={action.error} />
+    </div>
+  );
+}
+
 export function ShippingPanel({
   order,
   session,
@@ -107,6 +209,7 @@ export function ShippingPanel({
     await tracking.reload();
     await onChanged();
   };
+  const direct = order.settlement_mode === "direct";
 
   return (
     <Card className="mb-6">
@@ -119,7 +222,10 @@ export function ShippingPanel({
             shipments.length === 0 ? (
               <>
                 <p className="text-sm text-ink-soft">{t(locale, "shipping.none")}</p>
-                {selling && ["paid", "preparing"].includes(order.status) ? (
+                {direct && selling && order.status === "preparing" ? (
+                  <DirectShipForm order={order} session={session} refresh={refresh} />
+                ) : null}
+                {!direct && selling && ["paid", "preparing"].includes(order.status) ? (
                   <Button
                     className="mt-3"
                     loading={action.busy}
@@ -140,6 +246,7 @@ export function ShippingPanel({
                 <div key={shipment.id}>
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <Badge tone="accent">{t(locale, `shipment.status.${shipment.status}`)}</Badge>
+                    {direct ? <span className="font-semibold">{shipment.courier}</span> : null}
                     <span className="font-mono">{shipment.tracking_number}</span>
                     {shipment.cost_pkr !== null ? <span>{pkr(shipment.cost_pkr)}</span> : null}
                   </div>
@@ -161,7 +268,10 @@ export function ShippingPanel({
                       </li>
                     ))}
                   </ol>
-                  {selling ? (
+                  {selling && direct ? (
+                    <DirectOutcome shipment={shipment} session={session} refresh={refresh} />
+                  ) : null}
+                  {selling && !direct ? (
                     <BrandControls shipment={shipment} session={session} refresh={refresh} />
                   ) : null}
                 </div>
