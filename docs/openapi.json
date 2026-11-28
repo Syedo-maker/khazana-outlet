@@ -1932,6 +1932,16 @@
        }
       ],
       "title": "Payout Terms Days"
+     },
+     "settlement_mode": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SettlementMode"
+       },
+       {
+        "type": "null"
+       }
+      ]
      }
     },
     "title": "CommercialTermsIn",
@@ -6892,6 +6902,10 @@
      "require_brand_approval": {
       "title": "Require Brand Approval",
       "type": "boolean"
+     },
+     "settlement_mode": {
+      "$ref": "#/components/schemas/SettlementMode",
+      "default": "platform"
      }
     },
     "required": [

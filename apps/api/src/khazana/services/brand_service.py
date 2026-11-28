@@ -84,7 +84,7 @@ BRAND_AUDIT_FIELDS = (
     "contact_phone",
     "contact_email",
 )
-ADMIN_ONLY_POLICY_FIELDS = frozenset({"commission_percent", "payout_terms_days"})
+ADMIN_ONLY_POLICY_FIELDS = frozenset({"commission_percent", "payout_terms_days", "settlement_mode"})
 POLICY_AUDIT_FIELDS = (
     "commission_percent",
     "payout_terms_days",
@@ -106,6 +106,7 @@ POLICY_AUDIT_FIELDS = (
     "markdown_floor_percent",
     "auto_apply_ai_draft",
     "ai_monthly_budget_usd",
+    "settlement_mode",
 )
 
 
@@ -493,6 +494,7 @@ def update_policy(
         "markdown_floor_percent",
         "auto_apply_ai_draft",
         "ai_monthly_budget_usd",
+        "settlement_mode",
     }
 
     # The platform's own commercial terms are agreed with the brand and entered

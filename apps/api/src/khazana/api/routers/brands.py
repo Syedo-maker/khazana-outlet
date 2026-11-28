@@ -21,7 +21,13 @@ from sqlalchemy import select
 from ...core.errors import AppError, NotFound
 from ...core.tenancy import assert_owns
 from ...models import Brand, SizeChartRow, StandardSize, User
-from ...models.enums import DocumentType, UserRole, VerificationStatus, Visibility
+from ...models.enums import (
+    DocumentType,
+    SettlementMode,
+    UserRole,
+    VerificationStatus,
+    Visibility,
+)
 from ...services import brand_service, size_service
 from ..deps import AdminOnly, CurrentBrand, CurrentPrincipal, Db, client_ip
 from ..uploads import read_upload
@@ -59,6 +65,9 @@ class PolicyOut(BaseModel):
 
     commission_percent: float
     payout_terms_days: int
+    # How the brand is paid: direct (cash on delivery to the brand, commission
+    # invoiced) or platform (held by the platform, paid out).
+    settlement_mode: SettlementMode = SettlementMode.PLATFORM
     dispute_window_days: int
     min_lot_value_pkr: int
     min_discount_percent: float

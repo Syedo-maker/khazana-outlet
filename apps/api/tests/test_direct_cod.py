@@ -360,3 +360,22 @@ class TestWhatTheBuyerIsTold:
         response = client.post(f"/orders/{order.id}/payment", headers=auth(buyer))
         assert response.status_code == 409
         assert "courier" in response.text
+
+
+class TestSwitchingABrand:
+    def test_only_an_admin_changes_how_a_brand_is_paid(
+        self, client: TestClient, db: Session, seller, admin_user
+    ) -> None:  # type: ignore[no-untyped-def]
+        brand, owner = seller
+        refused = client.patch(
+            f"/brands/{brand.id}/policy", json={"settlement_mode": "platform"}, headers=auth(owner)
+        )
+        assert refused.status_code in (403, 422)
+        changed = client.patch(
+            f"/admin/brands/{brand.id}/terms",
+            json={"settlement_mode": "platform"},
+            headers=auth(admin_user),
+        )
+        assert changed.status_code == 200, changed.text
+        db.refresh(policy_for(db, brand))
+        assert SettlementMode(policy_for(db, brand).settlement_mode) == SettlementMode.PLATFORM

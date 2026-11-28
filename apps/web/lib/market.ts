@@ -513,6 +513,7 @@ export type BrandSummary = {
 export type BrandPolicy = {
   commission_percent: number;
   payout_terms_days: number;
+  settlement_mode: SettlementMode;
   dispute_window_days: number;
   min_lot_value_pkr: number;
   default_visibility: Visibility;
@@ -1106,7 +1107,11 @@ export const adminApi = {
   updateTerms: (
     token: string,
     id: string,
-    body: { commission_percent?: number; payout_terms_days?: number },
+    body: {
+      commission_percent?: number;
+      payout_terms_days?: number;
+      settlement_mode?: SettlementMode;
+    },
   ) => request<AdminBrand>(`/admin/brands/${id}/terms`, { method: "PATCH", token, body }),
   listings: (token: string, status?: LotStatus, search?: string) =>
     request<AdminListing[]>(`/admin/listings${queryString({ status, search })}`, { token }),
