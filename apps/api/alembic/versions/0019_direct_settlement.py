@@ -131,9 +131,9 @@ def downgrade() -> None:
         )
     with op.batch_alter_table("orders") as batch:
         batch.drop_index("ix_orders_commission_invoice")
-        batch.drop_constraint("ck_orders_order_commission_due_non_negative", type_="check")
+        batch.drop_constraint(op.f("ck_orders_order_commission_due_non_negative"), type_="check")
         batch.drop_constraint(
-            "fk_orders_commission_invoice_id_commission_invoices", type_="foreignkey"
+            op.f("fk_orders_commission_invoice_id_commission_invoices"), type_="foreignkey"
         )
         batch.drop_column("commission_invoice_id")
         batch.drop_column("commission_due_pkr")

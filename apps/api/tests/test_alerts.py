@@ -90,7 +90,7 @@ def test_an_alert_is_recorded_then_sent_by_email(db: Session, smtp: type[FakeSmt
     db.commit()
     [mail] = smtp.sent
     assert mail["to"] == "ops@example.com"
-    assert mail["subject"] == "[Khazana test] Job risk failed"
+    assert mail["subject"] == f"[Khazana {get_settings().environment}] Job risk failed"
     assert "Traceback in the log." in mail["body"]
     assert mail["tls"] is True
     assert mail["login"] == ("alerts@example.com", "app-password-not-real")
