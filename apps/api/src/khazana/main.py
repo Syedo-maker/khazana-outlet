@@ -110,7 +110,11 @@ def create_app() -> FastAPI:
         headers.setdefault("X-Content-Type-Options", "nosniff")
         headers.setdefault("X-Frame-Options", "DENY")
         headers.setdefault("Referrer-Policy", "no-referrer")
-        headers.setdefault("Cross-Origin-Resource-Policy", "same-site")
+        # same-origin, not same-site: in production the API is on the web
+        # app's own origin, and the web app reads it only through fetch,
+        # which this header does not restrict. Tightened after the OWASP ZAP
+        # baseline scan.
+        headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
         headers.setdefault("Cache-Control", "no-store")
         if not request.url.path.startswith(("/docs", "/redoc", "/openapi.json")):
             headers.setdefault(

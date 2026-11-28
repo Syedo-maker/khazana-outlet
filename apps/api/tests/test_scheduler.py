@@ -60,3 +60,11 @@ def test_running_every_job_once_works_on_an_empty_database(db, monkeypatch) -> N
     monkeypatch.setattr(scheduler, "get_session_factory", lambda: lambda: db)
     for job in JOBS:
         assert scheduler.run_job(job), job.name
+
+
+def test_the_loop_leaves_a_heartbeat_for_the_health_check(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    from khazana.scheduler import beat
+
+    heartbeat = tmp_path / "beat"
+    beat(heartbeat)
+    assert heartbeat.exists()

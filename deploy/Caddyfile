@@ -34,6 +34,14 @@
 	}
 
 	handle {
+		# Pages are revalidated on every visit. Next.js marks prerendered
+		# pages cacheable by shared caches for a year, so a CDN in front, the
+		# Cloudflare tunnel included, could keep serving a page that points
+		# at scripts a later release deleted. The scripts themselves carry
+		# their own hash and stay cached for a year. Found by the OWASP ZAP
+		# baseline scan.
+		@pages not path /_next/static/*
+		header @pages >Cache-Control "no-cache"
 		reverse_proxy web:3000
 	}
 

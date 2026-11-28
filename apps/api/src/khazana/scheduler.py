@@ -21,6 +21,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta, timezone
+from pathlib import Path
 
 from sqlalchemy.orm import Session
 
@@ -200,6 +201,18 @@ def run_job(job: Job) -> bool:
     return True
 
 
+# Touched on every pass of the loop. The container's health check reads its
+# age: the scheduler serves no HTTP, so a stuck loop is the thing to detect.
+HEARTBEAT = Path("/tmp/scheduler-heartbeat")  # noqa: S108
+
+
+def beat(path: Path = HEARTBEAT) -> None:
+    try:
+        path.touch()
+    except OSError:
+        logger.warning("could not write the heartbeat at %s", path)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run Khazana's scheduled jobs")
     parser.add_argument("--once", action="store_true", help="run every job once and exit")
@@ -224,6 +237,7 @@ def main(argv: list[str] | None = None) -> int:
     for job in JOBS:
         logger.info("scheduled %s, next at %s", job.name, due[job.name].astimezone(PKT))
     while not stopping:
+        beat()
         now = datetime.now(UTC)
         for job in JOBS:
             if due[job.name] <= now:

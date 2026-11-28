@@ -64,9 +64,16 @@ ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000
 
+# Upgraded at build time, because the base image is a snapshot. npm is not
+# needed to run the standalone server, and every Node.js advisory the
+# 2026-11-28 Trivy scan found was in npm's own bundled packages, so it is
+# removed from the runtime image.
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+    && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 
 # The standalone output: a server.js plus only the modules it imports. The
 # static assets and the public folder are copied beside it, as Next.js

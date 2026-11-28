@@ -1,0 +1,4 @@
+# OWASP ZAP API scan rules for scripts/zap-scan.sh. See baseline-rules.tsv.
+10049	IGNORE	(Storable and Cacheable Content) The scan also reaches the static scripts on the same origin.
+10055	IGNORE	(CSP script-src unsafe-inline) The scan also reaches the web pages on the same origin. A known gap in docs/security.md.
+100001	IGNORE	(Unexpected Content-Type) The API shares its origin with the web app, so paths outside /api are HTML pages by design.

@@ -1,0 +1,3 @@
+# Reviewed false positives, one fingerprint per line (commit:file:rule:line).
+# The test suite's placeholder SECRET_KEY, set only for pytest; never a real key.
+483d4db92abd6d38c2f3b7f816cb83ec6a11e9bc:apps/api/tests/conftest.py:generic-api-key:16

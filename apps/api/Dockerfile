@@ -9,7 +9,7 @@
 # does not invalidate the dependency layer. That is what makes the image build
 # once and then start instantly, instead of downloading 70 MB on every run.
 
-ARG PYTHON_VERSION=3.11.11
+ARG PYTHON_VERSION=3.11.15
 
 # ----------------------------------------------------------------- base
 FROM python:${PYTHON_VERSION}-slim AS base
@@ -28,12 +28,20 @@ WORKDIR /app
 # The base image's own packaging tools carry published advisories, found by
 # pip-audit in week 51. They are upgraded before anything is installed with
 # them, and the runtime image inherits the fixed versions.
-RUN pip install --upgrade "pip>=26.2" "setuptools>=84.1" "wheel>=0.46.2"
+RUN pip install --upgrade "pip>=26.2" "setuptools>=84.1" "wheel>=0.46.2" \
+    # The copies Python keeps for ensurepip are old and never used once pip is
+    # installed. Trivy reported the bundled setuptools in the 2026-11-28 scan.
+    && rm -rf /usr/local/lib/python3.11/ensurepip/_bundled
 
 # libpq is what psycopg needs to talk to PostgreSQL. curl is for the health
 # check. Both are tiny and both are removed from the runtime image's build
 # layer by the multi stage split.
+#
+# Upgraded at build time as well: the slim image is a snapshot, and the
+# 2026-11-28 Trivy scan found 56 high or critical advisories, all with fixes,
+# in packages such as OpenSSL, GnuTLS and Kerberos that the snapshot predated.
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends libpq5 curl \
     && rm -rf /var/lib/apt/lists/*
 

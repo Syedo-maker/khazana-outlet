@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
 from ...config import get_settings
+from ...core.errors import FeatureOff, NotFound
 from ...core.tenancy import assert_owns
 from ...models import AssistantConversation, AssistantMessage, WhatsAppMessage
 from ...models.enums import ChatChannel, ChatRole, MessageDirection
@@ -236,11 +237,12 @@ def brand_send_message(
 # ---------- WhatsApp ----------
 
 
-def _require_whatsapp(message: str) -> None:
-    from ...config import get_settings
-    from ...core.errors import FeatureOff
+def _whatsapp_on() -> bool:
+    return get_settings().whatsapp_enabled
 
-    if not get_settings().whatsapp_enabled:
+
+def _require_whatsapp(message: str) -> None:
+    if not _whatsapp_on():
         raise FeatureOff(message)
 
 
@@ -265,7 +267,9 @@ async def whatsapp_inbound(
 
     A repeated delivery is accepted and not answered twice.
     """
-    _require_whatsapp("WhatsApp is switched off on this server.")
+    if not _whatsapp_on():
+        # Not a fault, so not a 5xx: this server takes no WhatsApp traffic.
+        raise NotFound("WhatsApp is switched off on this server.")
     body = await request.body()
 
     def handle() -> whatsapp_service.InboundResult:

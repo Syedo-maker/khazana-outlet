@@ -139,11 +139,31 @@ def _metrics() -> tuple[Any, Any]:
 
 _REQUESTS: Any = None
 _LATENCY: Any = None
+_METRICS_BROKEN_WARNED = False
+
+
+def _record(route: str, method: str, status: int, elapsed: float) -> None:
+    """Count one request. Never raises.
+
+    A metrics store that cannot be written, as happened on staging when the
+    multiprocess directory came back unwritable after a Docker restart, must
+    not turn every request into a 500. It is reported once and skipped.
+    """
+    global _METRICS_BROKEN_WARNED
+    try:
+        _REQUESTS.labels(route, method, f"{status // 100}xx").inc()
+        _LATENCY.labels(route).observe(elapsed)
+    except Exception as exc:
+        if not _METRICS_BROKEN_WARNED:
+            _METRICS_BROKEN_WARNED = True
+            logging.getLogger("khazana.metrics").warning(
+                "metrics could not be recorded, requests continue without them: %s", exc
+            )
 
 
 def install(app: FastAPI) -> None:
     """Add the request id and metrics middleware, and the /metrics route."""
-    requests_total, latency = _metrics()
+    _metrics()
     logger = logging.getLogger("khazana.request")
 
     @app.middleware("http")
@@ -165,8 +185,7 @@ def install(app: FastAPI) -> None:
             # series, where raw paths would be one per order.
             route = getattr(request.scope.get("route"), "path", "unmatched")
             if route != "/metrics":
-                requests_total.labels(route, request.method, f"{status // 100}xx").inc()
-                latency.labels(route).observe(elapsed)
+                _record(route, request.method, status, elapsed)
                 logger.info("%s %s %s %.0fms", request.method, route, status, elapsed * 1000)
             request_id.reset(token)
 

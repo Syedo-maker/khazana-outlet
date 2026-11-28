@@ -36,7 +36,7 @@ def test_photo_search_answers_with_an_explanation_not_an_error(
 
 def test_the_whatsapp_webhook_is_closed(client: TestClient) -> None:
     response = client.post("/whatsapp/webhooks/sandbox", content=b"{}")
-    assert response.status_code == 503
+    assert response.status_code == 404, "switched off is not a server fault"
     assert "WhatsApp" in response.json()["message"]
 
 

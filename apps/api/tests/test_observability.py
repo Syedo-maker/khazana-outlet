@@ -57,3 +57,24 @@ def test_error_reports_carry_no_personal_data() -> None:
 
 def test_error_reporting_is_off_without_a_dsn() -> None:
     assert observability.configure_errors(None, environment="test", release="0") is False
+
+
+def test_a_broken_metrics_store_never_fails_a_request(
+    client: TestClient, monkeypatch, caplog
+) -> None:  # type: ignore[no-untyped-def]
+    """Found on staging: after a Docker restart the metrics directory came back
+    unwritable, and every request, the health check included, returned 500.
+    Metrics are worth losing; the request is not."""
+
+    class Broken:
+        def labels(self, *args: object) -> Broken:
+            raise PermissionError("[Errno 13] Permission denied: '/tmp/prometheus/counter_9.db'")
+
+    monkeypatch.setattr(observability, "_METRICS_BROKEN_WARNED", False)
+    monkeypatch.setattr(observability, "_REQUESTS", Broken())
+    monkeypatch.setattr(observability, "_LATENCY", Broken())
+    with caplog.at_level("WARNING"):
+        first = client.get("/health")
+        second = client.get("/health")
+    assert first.status_code == 200 and second.status_code == 200
+    assert caplog.text.count("metrics could not be recorded") == 1, "warned once, not per request"

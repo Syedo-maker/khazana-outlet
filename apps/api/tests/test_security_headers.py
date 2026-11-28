@@ -14,6 +14,7 @@ def test_an_ordinary_response_is_private_and_unframeable(client: TestClient) -> 
     assert headers["X-Frame-Options"] == "DENY"
     assert headers["Referrer-Policy"] == "no-referrer"
     assert headers["Cache-Control"] == "no-store"
+    assert headers["Cross-Origin-Resource-Policy"] == "same-origin"
     assert "default-src 'none'" in headers["Content-Security-Policy"]
     assert "Strict-Transport-Security" not in headers, "HSTS only in production"
 
