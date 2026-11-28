@@ -1,22 +1,31 @@
 import { expect, test, type APIRequestContext, type Browser, type Page } from "@playwright/test";
 
 /**
- * The money path, the way the three people involved actually do it.
+ * The money path, the way the three people involved actually do it, in both
+ * ways a brand can be paid.
  *
- * A reseller buys a whole lot and pays in the sandbox. The brand books the
- * courier and the courier reports each step. The reseller confirms the goods
- * arrived. Every step goes through the real web app on a phone sized screen,
- * against the real API and database, with no shortcut through the API except
- * to choose which lot to buy.
+ * Direct, the pilot's default: the reseller orders cash on delivery, the
+ * brand sends with its own courier and types the tracking number in, records
+ * the delivery, and the reseller confirms. No money passes through the
+ * platform; the brand sees the commission it owes.
  *
- * Seeded accounts: the reseller is 03020000000 and the brand owner is
- * 03010000000. Each run buys one lot, so reseed between runs if the brand runs
- * out of live lots.
+ * Platform settled: the reseller pays in the sandbox, the brand books the
+ * integrated courier and it reports each step, and confirmation releases the
+ * held money.
+ *
+ * Every step goes through the real web app on a phone sized screen, against
+ * the real API and database, with no shortcut through the API except to
+ * choose which lot to buy.
+ *
+ * Seeded accounts: the reseller is 03020000000. The brand owner 03010000000
+ * is paid directly, 03010000001 through the platform. Each run buys one lot
+ * from each, so reseed between runs if a brand runs out of live lots.
  */
 
 const API_URL = process.env.API_URL ?? "http://localhost:8000";
 const RESELLER = "03020000000";
-const BRAND = "03010000000";
+const DIRECT_BRAND = "03010000000";
+const PLATFORM_BRAND = "03010000001";
 
 // One code per phone per run: the API allows five an hour per number.
 const tokens = new Map<string, string>();
@@ -35,9 +44,12 @@ async function apiToken(request: APIRequestContext, phone: string): Promise<stri
   return token;
 }
 
-/** A live lot of the seeded brand that the seeded reseller may buy whole. */
-async function lotToBuy(request: APIRequestContext): Promise<{ id: string; code: string }> {
-  const brandToken = await apiToken(request, BRAND);
+/** A live lot of a seeded brand that the seeded reseller may buy whole. */
+async function lotToBuy(
+  request: APIRequestContext,
+  brandPhone: string,
+): Promise<{ id: string; code: string }> {
+  const brandToken = await apiToken(request, brandPhone);
   const mine = await request.get(`${API_URL}/lots?status=live`, {
     headers: { Authorization: `Bearer ${brandToken}` },
   });
@@ -68,6 +80,9 @@ async function signIn(page: Page, phone: string): Promise<void> {
   await page.getByLabel("Six digit code").fill(code as string);
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).not.toHaveURL(/\/login/);
+  // The home page sends each role on to its own start page. Going anywhere
+  // before that redirect lands aborts one navigation with the other.
+  await page.waitForLoadState("networkidle");
 }
 
 async function asPerson(browser: Browser, phone: string, device: object): Promise<Page> {
@@ -77,13 +92,56 @@ async function asPerson(browser: Browser, phone: string, device: object): Promis
   return page;
 }
 
-test("a lot travels from checkout to confirmed delivery", async ({
+test("cash on delivery to the brand, from checkout to commission owed", async ({
   browser,
   request,
   playwright,
 }) => {
   const phone = playwright.devices["Pixel 7"];
-  const lot = await lotToBuy(request);
+  const lot = await lotToBuy(request, DIRECT_BRAND);
+
+  // The reseller orders; cash on delivery is the only way to pay this brand.
+  const reseller = await asPerson(browser, RESELLER, phone);
+  await reseller.goto(`/catalog/${lot.id}`);
+  await reseller.getByRole("button", { name: "Add to cart" }).click();
+  await expect(reseller).toHaveURL(/\/cart/);
+  await reseller.getByLabel("Delivery city").fill("Lahore");
+  await reseller.getByLabel("Full delivery address").fill("Shop 4, Azam Cloth Market");
+  await expect(reseller.getByLabel("Pay with")).toHaveValue("cod");
+  await reseller.getByRole("button", { name: "Place order" }).click();
+  await expect(reseller).toHaveURL(/\/orders\/[0-9a-f-]{36}/);
+  const orderUrl = new URL(reseller.url()).pathname;
+  await expect(reseller.getByText("Cash on delivery to the brand")).toBeVisible();
+
+  // The brand sends it with its own courier and enters the tracking number.
+  const brand = await asPerson(browser, DIRECT_BRAND, phone);
+  await brand.goto(orderUrl);
+  await brand.getByLabel("Courier company").fill("TCS");
+  await brand.getByLabel("Tracking number").fill(`E2E-${Date.now()}`);
+  await brand.getByRole("button", { name: "Mark as sent" }).click();
+  const delivered = brand.getByRole("button", { name: "Delivered, cash collected" });
+  await expect(delivered).toBeEnabled();
+  await delivered.click();
+  await expect(delivered).toHaveCount(0);
+
+  // The reseller confirms; the brand now owes the commission.
+  await reseller.reload();
+  await reseller.getByRole("button", { name: "Goods received correctly" }).click();
+  await expect(reseller.getByText("Completed").first()).toBeVisible();
+  await brand.reload();
+  await expect(brand.getByText("Commission you owe")).toBeVisible();
+
+  await reseller.context().close();
+  await brand.context().close();
+});
+
+test("a platform settled lot travels from checkout to confirmed delivery", async ({
+  browser,
+  request,
+  playwright,
+}) => {
+  const phone = playwright.devices["Pixel 7"];
+  const lot = await lotToBuy(request, PLATFORM_BRAND);
 
   // The reseller adds the whole lot to the cart and places the order.
   const reseller = await asPerson(browser, RESELLER, phone);
@@ -102,7 +160,7 @@ test("a lot travels from checkout to confirmed delivery", async ({
   await expect(reseller.getByText("Paid, held safely")).toBeVisible();
 
   // The brand books the courier and moves it through each sandbox step.
-  const brand = await asPerson(browser, BRAND, phone);
+  const brand = await asPerson(browser, PLATFORM_BRAND, phone);
   await brand.goto(orderUrl);
   await brand.getByRole("button", { name: "Book the courier" }).click();
   const advance = brand.getByRole("button", { name: "Move to next sandbox step" });
