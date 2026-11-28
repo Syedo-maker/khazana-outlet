@@ -6,10 +6,12 @@ data is only ever visible to your own staff and the Khazana team.
 
 ## Getting started
 
-Sign in with your mobile number and the code sent to it. The Khazana team
-sets up your brand and verifies it from your registration documents, which
-you upload under your brand's settings. Until the brand is verified, lots
-cannot go live.
+During the beta, Khazana is invite only: the team sends you a sign in link
+on WhatsApp. Open it, accept the beta terms, and you are in. Each link works
+once; ask the team for a new one when you need to sign in again. Then register
+your brand from the dashboard. The Khazana team verifies it from your
+registration documents, which you upload under your brand's settings. Until
+the brand is verified, lots cannot go live.
 
 Your **policy** is set with the Khazana team and can be changed at any time:
 commission, discount band, minimum lot value, whether part lots and cash on
@@ -37,7 +39,37 @@ whether bargaining and automatic markdowns are allowed at all.
    policy requires it the Khazana team, approve it. A risk score helps the
    reviewer; it never approves or rejects anything itself.
 
-## Selling
+## Selling during the beta: cash on delivery, paid to you
+
+In the beta your buyers pay **you**, in cash, through your own courier.
+Khazana never holds the money. The order page says "Paid to the brand on
+delivery".
+
+1. **An order arrives.** Pack it. The order shows the total to collect: the
+   goods plus delivery.
+2. **Send it with your usual courier** (TCS, Leopards, M&P, Trax or any other),
+   booked to collect that amount on delivery.
+3. **On the order page, enter the courier's name and the tracking number** from
+   the slip, then **Mark as sent**.
+4. **When the courier reports back,** press **Delivered, cash collected**, or
+   **Refused at the door**. A refused order is cancelled and its pieces go back
+   on sale.
+5. The buyer has a few days to confirm the goods or report a problem. On
+   confirmation, the order shows the **commission you owe**: your agreed rate
+   on the goods the buyer kept.
+6. **On the 1st of each month**, **Commission** lists an invoice for the month
+   before, which you can print or save as a PDF. Pay it by bank transfer as
+   agreed with the Khazana team, quoting the invoice number, and send them the
+   reference. The page shows when it is marked paid.
+
+If a buyer reports a problem, the Khazana team looks at both sides and records
+any refund you agree to give the buyer directly. Commission is then owed only
+on what the buyer kept, and nothing on a full refund.
+
+## Selling through the platform
+
+When payments through Khazana are switched on for your brand, it works like
+this instead:
 
 - **Orders** shows every order on your lots. The buyer's address appears once
   the order is paid. Book the courier from the order when the goods are
@@ -46,6 +78,11 @@ whether bargaining and automatic markdowns are allowed at all.
   goods arrived, or their dispute window ends.
 - **Payouts** shows what you are owed, when it is scheduled under your payout
   terms, and what has been paid, with the bank reference.
+
+When the day's AI budget has been used, the drafts, suggestions and logo
+checks pause until tomorrow and each page says so. Everything still works by
+hand: you write the listing, type the manifest or import the spreadsheet,
+price inside your own band, and mark logos yourself.
 
 ## Agents that work inside your limits
 

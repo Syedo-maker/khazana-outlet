@@ -6,10 +6,17 @@ works on any phone browser, in English, Roman Urdu or Urdu: choose under
 
 ## Signing in
 
-Open the site and enter your mobile number, 11 digits starting with 03. You
-receive a six digit code by SMS; enter it to sign in. There is no password.
-The code lasts five minutes. If you sign out, you are signed out on every
-device.
+During the beta, Khazana is invite only. The Khazana team sends you a link
+on WhatsApp. Open it, check it shows your name and number, enter your shop's
+name and city, accept the beta terms, and you are signed in. There is no
+password. Each link works once and expires after a few days; ask the team for
+a new one if yours has. If you sign out, you are signed out on every device.
+
+The team checks your business before you can order; until then you can
+browse.
+
+Once SMS codes are switched on, the login page asks for your mobile number,
+11 digits starting with 03, and sends a six digit code instead.
 
 ## Before you buy: your business profile
 
@@ -42,15 +49,18 @@ assumption listed.
 
 1. On a lot, choose the whole lot or, where the brand allows it, the sizes
    and colours you want, then **Add to cart**.
-2. In the **Cart**, enter the delivery city and full address and choose how
-   to pay: JazzCash, Easypaisa, card, bank transfer, or cash on delivery where
-   the brand allows it.
+2. In the **Cart**, enter the delivery city and full address. During the
+   beta, brands are paid **cash on delivery**: you pay the brand's courier
+   when the goods arrive, and nothing is paid online. The cart says so.
 3. **Place order.** The stock is reserved for you from this moment.
-4. Pay. For bank transfer, send the money and enter the bank's transaction
-   reference on the order page.
+4. The brand sends it with its courier and the order page shows the courier
+   and tracking number. Pay the courier the total shown when it arrives. You
+   may refuse a delivery at the door; the order is then cancelled and you owe
+   nothing.
 
-Your money is held safely by Khazana, not paid to the brand, until you
-confirm the goods arrived.
+Where a brand is paid through Khazana instead, you choose JazzCash,
+Easypaisa, bank transfer or cash on delivery at checkout, and your money is
+held by Khazana until you confirm the goods arrived.
 
 ## Bargaining
 
@@ -76,8 +86,7 @@ budget and piece count, priced exactly as checkout would price it.
 The order page shows every step: paid, being prepared, shipped with tracking,
 delivered. When the goods arrive, check them:
 
-- If everything is right, press **Goods received correctly**. That releases
-  the money to the brand.
+- If everything is right, press **Goods received correctly**.
 - If something is wrong, report a problem before the date the page shows,
   with what is wrong. The Khazana team decides disputes, and may refund in
   full or in part.

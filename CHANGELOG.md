@@ -6,6 +6,66 @@ the first release is grouped by the roadmap weeks in `ROADMAP.md`.
 
 Dates are when the work landed, not when the week nominally fell.
 
+## [Unreleased]
+
+### Phase 6, re-planned: a pilot that costs close to nothing
+
+**Orders and money**
+
+- **Added** Cash on delivery paid directly to the brand, the pilot default
+  (`DEFAULT_SETTLEMENT_MODE=direct`, ADR 0007). The platform holds no money:
+  the brand ships with its own courier, enters the tracking number and records
+  the delivery or a refusal at the door, which cancels the order and returns
+  the stock. Migration 0019.
+- **Added** Monthly commission invoices: commission fixed on confirmation, less
+  any refund the brand made after a dispute; one invoice per brand on the 1st,
+  issued by the scheduler and idempotent; printable for the brand; marked paid
+  by an admin with the bank reference.
+- **Changed** Admins can switch a brand between direct and platform
+  settlement. The payment and courier integrations are unchanged.
+
+**Signing in**
+
+- **Added** Single use invite links in place of SMS codes
+  (`SMS_LOGIN_ENABLED=false`): created by an admin with a WhatsApp click to
+  chat button, stored as a hash, expiring after 72 hours, revocable. The join
+  page records acceptance of the beta terms. Migration 0020.
+- **Added** `python -m khazana.manage` for the first admin's sign in link and
+  to load the category list on an empty server.
+
+**Paid providers off, and the AI budget**
+
+- **Added** Switches for WhatsApp, speech to text and photo search, all off,
+  each explained in English, Roman Urdu and Urdu instead of failing.
+- **Changed** The AI daily cap defaults to USD 1, and `AI_ENABLED=false` runs
+  with no key. Every AI feature has a manual path when no model can be called:
+  assistants, listing drafts, manifests, pricing, risk, logo checks, resell
+  kits, bargaining and markdowns.
+- **Added** `GET /features`, which the web app reads to say what is on.
+
+**Operations**
+
+- **Added** Operator alerts by plain email through any SMTP server: failed
+  jobs, the AI cap, stale backups, the API down, a full disk, server errors.
+  Migration 0021.
+- **Changed** `docker-compose.prod.yml` sized for Oracle Cloud Always Free ARM:
+  memory limits on every service, two API workers, PostgreSQL tuned; measured
+  at 650 MB peak under load.
+- **Added** Release images for amd64 and arm64, and a CI job that builds and
+  starts both images on arm64.
+- **Added** `docker-compose.tunnel.yml` and `scripts/tunnel.ps1`: the stack from
+  a laptop through a free Cloudflare quick tunnel, for demos.
+- **Fixed** A Docker restart left the metrics directory unwritable and every
+  API request failed; metrics can no longer fail a request.
+- **Fixed** The scheduler always reported unhealthy.
+
+**Security and legal**
+
+- **Added** Beta privacy notice and terms pages, linked from every page.
+- **Added** OWASP ZAP baseline and API scans in CI (`scripts/zap-scan.sh`).
+- **Fixed** 63 high or critical OS and npm advisories in the production
+  images; pages no longer cacheable by shared caches; COEP and CORP headers.
+
 ## [1.0.0], 2026-11-24
 
 The first release: Phases 1 to 5 of the roadmap. The platform is built,

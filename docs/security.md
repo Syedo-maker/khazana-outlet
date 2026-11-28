@@ -21,6 +21,10 @@ repository rather than a public issue.
 | Signing out, reuse and suspension end access tokens at once, not at expiry | `users.tokens_valid_after`, `api/deps.py` | `tests/test_session_hardening.py` |
 | Brand memberships re read from the database on every request | `api/deps.py` | `tests/test_tenancy.py` |
 | `X-Forwarded-For` ignored unless `TRUSTED_PROXY_COUNT` says how many proxies to trust | `client_ip` | `tests/test_session_hardening.py` |
+| With SMS off, sign in is by an invite link: 32 random bytes, only a hash stored, single use under a row lock, expires after 72 hours, revocable | `services/invite_service.py` | `tests/test_invites.py` |
+| Links are made only by admins, never for an admin role; the first admin's link is printed on the server by `khazana.manage` | `invite_service.create`, `manage.py` | `tests/test_invites.py` |
+| A link never changes an existing account's role, and a new reseller stays unverified until an admin checks the business | `invite_service.accept` | `tests/test_invites.py` |
+| Login codes are refused, with the reason, when they could only be sent by SMS and SMS is off | `auth_service.sms_codes_available` | `tests/test_invites.py` |
 
 Tokens live in `sessionStorage` in the browser, so they do not survive the tab
 and are not sent automatically with cross site requests. Moving the refresh
@@ -46,6 +50,14 @@ checkout to brand payout over HTTP and checks every amount and every
 permission on the way. The value band rules of ADR 0001, the bargaining floor
 and the markdown floor, are checked against thousands of random cases in
 `tests/test_money_properties.py`.
+
+In the pilot brands are settled directly ([ADR 0007](decisions/0007-direct-settlement-for-the-pilot.md)):
+the platform holds no money, so there is no balance to steal. A direct order
+takes cash on delivery only and creates no payment record; only the brand's
+own staff or an admin can enter its tracking number or delivery outcome; a
+tracking number is used once; commission is fixed on confirmation and billed
+once per order; only admins issue invoices or mark them paid, and a brand sees
+only its own (`tests/test_direct_cod.py`).
 
 ## Uploads
 
@@ -84,16 +96,24 @@ suites, which run offline in CI.
 ## Headers
 
 The API sends `nosniff`, `X-Frame-Options: DENY`, `no-referrer`, a
-`Content-Security-Policy` of `default-src 'none'`, and `Cache-Control:
-no-store` unless a route sets its own; HSTS in production. The web app sends a
-Content Security Policy that allows connections only to itself and the API.
-Tests: `tests/test_security_headers.py`.
+`Content-Security-Policy` of `default-src 'none'`,
+`Cross-Origin-Resource-Policy: same-origin`, and `Cache-Control: no-store`
+unless a route sets its own; HSTS in production. The web app sends a Content
+Security Policy that allows connections only to itself and the API, plus
+`Cross-Origin-Opener-Policy`, `Cross-Origin-Embedder-Policy: require-corp` and
+`Cross-Origin-Resource-Policy: same-origin`. Caddy makes every page revalidate
+(`no-cache`) while the hashed scripts stay cached for a year. Tests:
+`tests/test_security_headers.py`, and the ZAP scan below.
+
+An unhandled error returns a plain sentence, never a traceback, and emails the
+operator the path, request id and error type only.
 
 ## Secrets and configuration
 
 Production refuses to start with the example secret key, a printed login
-code, offline AI, no API key, SQLite, the development database password, a
-Redis without a password, plain HTTP URLs, the sandbox bank account, or no
+code, offline AI or no API key while AI is on, SQLite, the development
+database password, a Redis without a password, plain HTTP URLs, the sandbox
+bank account while brands are settled through the platform, demo mode, or no
 trusted proxy (`config.assert_production_ready`, `tests/test_production_guard.py`).
 `.env` is git ignored and the pre-commit hooks refuse private keys. The CI
 dependency scan also scans for committed secrets.
@@ -116,6 +136,50 @@ restores one. `scripts/verify-restore.sh` takes a backup, restores it into a
 scratch database and compares every table's row count, and CI runs it on
 every push against a seeded database. Scheduling and off machine copies are
 in `docs/deployment.md`.
+
+## The zero budget pilot pass, 2026-11-28
+
+Every scanner here is free and ran locally against the production images and
+the staging stack, nothing signed up for:
+
+| Scan | Result |
+| --- | --- |
+| OWASP ZAP baseline, passive, the web app through Caddy | 0 failures, 65 passes; 3 accepted findings below |
+| OWASP ZAP API scan, active, every operation from the OpenAPI description, 1,553 requests | 0 failures, 0 warnings, 119 passes, no server errors |
+| Trivy, both production images | 0 fixable high or critical after the fixes below; 1 accepted false positive |
+| `pip-audit`, the 48 packages in the production API image | No known vulnerabilities |
+| `npm audit`, the web app and the browser tests | No vulnerabilities |
+| gitleaks, all 161 commits | 1 false positive, recorded in `.gitleaksignore` |
+
+Run them again with `bash scripts/zap-scan.sh` against a running staging
+stack; CI runs the same ZAP scans on every push.
+
+| Finding | Source | Severity | Fix |
+| --- | --- | --- | --- |
+| After a Docker restart the metrics directory came back root owned, and every API request, the health check included, returned 500 | Found while scanning | High | An explicit tmpfs mode, and a metrics failure can no longer fail a request (`tests/test_observability.py`) |
+| 56 high or critical OS advisories with fixes in the API image (OpenSSL, GnuTLS, Kerberos, PAM, Perl), on an old Debian snapshot | Trivy | High | Python 3.11.15, `apt-get upgrade` at build, and the unused ensurepip wheels removed |
+| 7 OS advisories in the web image, and 10 in npm's bundled packages | Trivy | High | `apt-get upgrade` at build; npm removed from the runtime image, which does not use it |
+| Pages marked cacheable by shared caches for a year: a CDN, the Cloudflare tunnel included, could serve a page pointing at deleted scripts | ZAP 10015 | Low | Caddy sends `no-cache` for pages |
+| `Cross-Origin-Embedder-Policy` and `Cross-Origin-Resource-Policy` missing from pages; the API's CORP was `same-site` | ZAP 90004 | Low | Added; the API is now `same-origin` |
+| The switched off WhatsApp webhook answered 503, which reads as a server fault | ZAP 100000 | Low | 404 while WhatsApp is off |
+| The scheduler always showed unhealthy: it inherited the API's HTTP health check | Found while measuring | Low | A heartbeat file the scheduler's own check reads |
+
+Accepted, each recorded with its reason in `deploy/zap/*.tsv`:
+
+- **ZAP 10015, pages without `no-store`.** Pages are public shells with no
+  personal data; data comes from the API, which is `no-store`. `no-store`
+  would also turn off the back and forward cache on phones.
+- **ZAP 10049, cacheable scripts.** Deliberate: they carry a content hash.
+- **ZAP 10055, inline scripts in the CSP.** Listed under "Still open".
+- **ZAP 100001 in the API scan.** Paths outside `/api` are web pages on the
+  same origin.
+- **Trivy, setuptools 70.3.0 (CVE-2025-47273).** Trivy reads pip's own
+  `vendor.txt`, which names the setuptools release pip copied `pkg_resources`
+  from. The advisory is in setuptools' package download code, which pip does
+  not include, and the image has the newest pip. The installed setuptools is
+  84.2.1.
+- **gitleaks, `tests/conftest.py`.** The test suite's placeholder
+  `SECRET_KEY`, used only by pytest.
 
 ## What the week 51 pass found and fixed
 
@@ -147,4 +211,10 @@ in `docs/deployment.md`.
   revision for the bargaining and buyer assistant prompts.
 - No web application firewall or bot protection in front of the login page
   beyond the rate limits. Worth adding with the real SMS gateway in Phase 6.
+- Invite links travel over WhatsApp. Anyone who can read the recipient's
+  messages before they open it could use it; it works once, expires in 72
+  hours and can be revoked, and the person's own sign in then fails, which
+  they would report.
+- The beta privacy notice and terms were written for the pilot, not reviewed
+  by a lawyer. Have them reviewed before inviting real people.
 - A penetration test by someone other than the people who built it.

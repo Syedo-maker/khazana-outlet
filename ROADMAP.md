@@ -292,16 +292,44 @@ approval gate and a real audit trail, and ask for one lot. That is a far
 stronger conversation than the one in the original plan, and it is the main
 benefit of this build first order.
 
+### Re-planned 2026-11-28: a pilot that costs close to nothing
+
+Phase 6 has no budget, so the pilot runs without anything that has to be
+paid for or registered first. What was built for it:
+
+- **Cash on delivery, paid to the brand.** The buyer pays the brand's own
+  courier; the brand enters the tracking number; the platform records the
+  commission owed and invoices each brand monthly. The platform never holds
+  money ([ADR 0007](docs/decisions/0007-direct-settlement-for-the-pilot.md)).
+  The payment and courier integrations stay, unchanged, for later.
+- **Invite links instead of SMS.** An admin makes a single use link and sends
+  it from WhatsApp by hand; every reseller is still verified.
+- **Paid providers switched off** with an explanation in three languages:
+  WhatsApp Business, speech to text, photo search.
+- **AI capped at USD 1 a day**, with a manual path for every feature when the
+  cap is reached or AI is switched off.
+- **Alerts by plain email** through a free SMTP account.
+- **Hosting on Oracle Cloud Always Free ARM**, measured at 650 MB peak on a
+  12 GB machine, with images for amd64 and arm64, or from a laptop through a
+  free Cloudflare tunnel for demos ([docs/oracle-free-tier.md](docs/oracle-free-tier.md)).
+- **Beta privacy notice and terms**, invite only access, and the free
+  scanners (OWASP ZAP, Trivy, pip-audit, npm audit, gitleaks) run and fixed.
+
+The steps only a person can take, in order and with their cost, are in
+[docs/pilot-manual-steps.md](docs/pilot-manual-steps.md).
+
 | Weeks | Work |
 | --- | --- |
-| 58 to 59 | Register the company, NTN, bank account, merchant account applications, publish the landing page |
-| 60 to 61 | Brand outreach, demonstrate the live platform, target 10 brands committed in writing |
-| 62 to 63 | Reseller recruitment, target 100 on the waiting list, verification of the first 20 |
-| 64 to 65 | Pilot: the first real lots listed by real brands, the first real orders, swap the payment and courier sandbox implementations for live credentials |
-| 66 to 69 | Fix what the pilot breaks, then public launch |
+| 58 | Free server up, categories loaded, first admin; privacy notice and terms read and, ideally, reviewed |
+| 59 to 61 | Brand outreach with the live platform, target 10 brands agreeing pilot terms in writing; invite them |
+| 62 to 63 | Reseller recruitment by invite, verification of the first 20 |
+| 64 to 65 | Pilot: real lots, real cash on delivery orders, the first commission invoices |
+| 66 to 69 | Fix what the pilot breaks. Then decide on the company, NTN, merchant accounts and an SMS gateway, each a switch the code already has |
 
-Phase 6 exit: real brands, real buyers, real money, and the pricing and demand
-models finally training on your own data instead of on rules.
+Phase 6 exit: real brands, real buyers, real orders paid on delivery, the
+first commission collected, and the pricing and demand models training on
+your own data instead of on rules. Holding money through the platform comes
+after the pilot proves the demand.
 
 ---
 

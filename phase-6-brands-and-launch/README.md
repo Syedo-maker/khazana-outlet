@@ -21,6 +21,16 @@ assumption about commission rates, discount bands and buyer behaviour is
 still an assumption. That is why the platform keeps all of it as
 configuration rather than code.
 
+## Re-planned for no budget, 2026-11-28
+
+The pilot now runs without registering a company or signing up for any paid
+service first: brands are paid cash on delivery by their own couriers and
+invoiced for commission, people sign in with invite links, and the platform
+runs on a free Oracle Cloud machine. Week 6's company registration and the
+merchant applications move to after the pilot; everything else in this folder
+still applies. The ordered list of manual steps, each with its cost, is
+[../docs/pilot-manual-steps.md](../docs/pilot-manual-steps.md).
+
 ## What is in this folder
 
 Every week has a folder with the documents, scripts and templates needed to

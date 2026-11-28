@@ -108,9 +108,21 @@ troubleshooting list.
 
 ### Signing in locally
 
-There is no SMS gateway until Phase 6, so `OTP_DEV_ECHO=true` returns the
-code in the API response and prints it in the log. The login page shows it.
-Production refuses to start with that setting on.
+There is no SMS gateway, so `OTP_DEV_ECHO=true` returns the code in the API
+response and prints it in the log. The login page shows it. Production
+refuses to start with that setting on, and there people sign in with invite
+links an admin sends by hand.
+
+## The zero budget pilot
+
+The production defaults run a pilot that needs no paid service: buyers pay
+the brand's own courier in cash on delivery and the platform invoices its
+commission monthly, people sign in with single use invite links, WhatsApp,
+voice notes and photo search are off, AI is capped at one dollar a day with a
+manual path for every feature, alerts go by plain email, and the whole stack
+fits a free Oracle Cloud ARM machine. See
+[docs/oracle-free-tier.md](docs/oracle-free-tier.md) and the ordered list of
+manual steps, with costs, in [docs/pilot-manual-steps.md](docs/pilot-manual-steps.md).
 
 ## Everyday commands
 
@@ -186,7 +198,9 @@ every migration, rolls it back and applies it again.
 | --- | --- |
 | [docs/setup-guide.md](docs/setup-guide.md) | From a fresh clone to running locally |
 | [docs/development.md](docs/development.md) | Every command, the stack, CI, troubleshooting |
-| [docs/deployment.md](docs/deployment.md) | Production and staging, backups, monitoring, the launch checklist |
+| [docs/deployment.md](docs/deployment.md) | Production and staging, backups, alerts by email, the launch checklist |
+| [docs/oracle-free-tier.md](docs/oracle-free-tier.md) | The pilot on a free Oracle Cloud ARM machine, step by step, with measured memory, and the laptop tunnel for demos |
+| [docs/pilot-manual-steps.md](docs/pilot-manual-steps.md) | What only a person can do for the pilot, in order, each marked free or with its cost |
 | [docs/architecture.md](docs/architecture.md) | How the platform is put together |
 | [docs/api-reference.md](docs/api-reference.md) | Every endpoint, generated from the code, with [openapi.json](docs/openapi.json) |
 | [docs/database-schema.md](docs/database-schema.md) | Generated ERD and the design decisions behind it |
