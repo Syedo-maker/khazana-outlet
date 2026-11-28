@@ -1,0 +1,6 @@
+# OWASP ZAP baseline rules for scripts/zap-scan.sh. Tab separated: rule id,
+# action, reason. Anything not listed keeps ZAP's default and fails the scan
+# when it warns. Each IGNORE is a decision recorded in docs/security.md.
+10015	IGNORE	(Re-examine Cache-control) Pages are public shells revalidated on every visit with no-cache; no-store would also turn off the back and forward cache on phones. Private data comes from the API, which is no-store.
+10049	IGNORE	(Storable and Cacheable Content) The static scripts carry a content hash and are cached for a year on purpose.
+10055	IGNORE	(CSP script-src unsafe-inline) Next.js emits inline scripts; a nonce based policy would need every page rendered per request. A known gap in docs/security.md.

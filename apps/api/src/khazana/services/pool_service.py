@@ -231,7 +231,7 @@ def open_pool(
     order_service.require_buyer(db, organiser)
     city = _city(organiser)
     lot = order_service.buyable_lot(db, lot_id=lot_id, city=city)
-    _policy(db, lot)
+    order_service.check_method(_policy(db, lot), method, lot.lot_code)
     chosen = _lines(lines)
     _validate_request(db, lot, chosen)
     delivery = _delivery(city, address, phone)
@@ -280,6 +280,7 @@ def join(
     if len(pool.members) >= get_settings().pool_max_members:
         raise Conflict("This pool is full.")
     lot = order_service.buyable_lot(db, lot_id=pool.lot_id, city=pool.city)
+    order_service.check_method(_policy(db, lot), method, lot.lot_code)
     chosen = _lines(lines)
     _validate_request(db, lot, chosen)
     delivery = _delivery(pool.city, address, phone)
@@ -349,8 +350,7 @@ def place(db: Session, *, actor: User, pool_id: str, ip: str | None = None) -> l
             continue
         order_service.require_buyer(db, buyer)
         method = PaymentMethod(member.payment_method)
-        if method == PaymentMethod.COD and not policy.allow_cod:
-            raise ValidationFailed(f"Cash on delivery is not available for {lot.lot_code}.")
+        order_service.check_method(policy, method, lot.lot_code)
         pricing = order_service.price_purchase(
             db,
             lot=lot,

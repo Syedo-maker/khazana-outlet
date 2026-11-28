@@ -73,3 +73,4 @@ e2e/perf-results.json
 
 # The recorded walkthrough, attached to releases rather than committed
 e2e/walkthrough/
+zap-report/

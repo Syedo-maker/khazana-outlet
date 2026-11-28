@@ -32,6 +32,7 @@ from ...models.enums import (
     PaymentMethod,
     PaymentStatus,
     PayoutStatus,
+    SettlementMode,
     VerificationStatus,
 )
 from ...services import (
@@ -93,6 +94,9 @@ class CommercialTermsIn(BaseModel):
 
     commission_percent: float | None = Field(default=None, ge=0, le=50)
     payout_terms_days: int | None = Field(default=None, ge=0, le=90)
+    # direct: cash on delivery to the brand, commission invoiced monthly.
+    # platform: paid to the platform and paid out. Existing orders keep theirs.
+    settlement_mode: SettlementMode | None = None
 
 
 class ModerationItemOut(BaseModel):

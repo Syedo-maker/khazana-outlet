@@ -152,6 +152,32 @@ class PaymentMethod(StrEnum):
     COD = "cod"
 
 
+class InvitePurpose(StrEnum):
+    # A new account: the link creates it.
+    SIGNUP = "signup"
+    # An existing account signing in again.
+    LOGIN = "login"
+
+
+class SettlementMode(StrEnum):
+    """Who collects the buyer's money.
+
+    ``platform``: the platform holds the payment until the buyer confirms, then
+    pays the brand out. ``direct``: the buyer pays the brand's own courier on
+    delivery, the platform never touches the money, and the brand is invoiced
+    monthly for the commission it owes.
+    """
+
+    PLATFORM = "platform"
+    DIRECT = "direct"
+
+
+class CommissionInvoiceStatus(StrEnum):
+    ISSUED = "issued"
+    PAID = "paid"
+    VOID = "void"
+
+
 class PaymentStatus(StrEnum):
     PENDING = "pending"
     HELD = "held"

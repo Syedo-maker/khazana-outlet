@@ -25,9 +25,10 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ...core.errors import NotFound, ValidationFailed
+from ...core.errors import AiUnavailable, NotFound, ValidationFailed
 from ...models import BrandPolicy, Category, Lot, ManifestLine, Order
 from ...models.enums import AiFeature, LotStatus, OrderStatus
+from .. import availability
 from ..gateway import AiResult, run_feature
 from ..schemas import PriceSuggestion
 
@@ -48,6 +49,10 @@ class PricingOutcome:
     comparables_used: int
     clamped: bool
     clamp_note: str | None = None
+    # No model was called: the band is the brand's own, for a person to price
+    # inside by hand.
+    manual: bool = False
+    manual_reason: str | None = None
 
     @property
     def honest_about_evidence(self) -> bool:
@@ -156,32 +161,35 @@ def suggest(
     category = db.get(Category, lot.category_id)
     comparables = find_comparables(db, lot)
 
-    result = run_feature(
-        db,
-        AiFeature.PRICING,
-        prompt_name=PROMPT,
-        prompt_values={
-            "category": category.name if category else "unknown",
-            "season": lot.season or "not stated",
-            "condition_grade": lot.condition_grade.value,
-            "total_pieces": lot.total_pieces,
-            "size_spread": _size_spread(db, lot),
-            "retail_price": lot.retail_price_per_piece_pkr,
-            "lot_price": lot.lot_price_pkr,
-            "current_discount": round(lot.discount_percent),
-            "age_days": _age_days(lot),
-            "title": (lot.title or "")[:200],
-            "min_discount": float(policy.min_discount_percent),
-            "max_discount": float(policy.max_discount_percent),
-            "min_lot_value": policy.min_lot_value_pkr,
-            "comparables": render_comparables(db, comparables),
-        },
-        brand_id=lot.brand_id,
-        user_id=user_id,
-        entity_type="lot",
-        entity_id=lot.id,
-        record_fixture=record_fixture,
-    )
+    try:
+        result = run_feature(
+            db,
+            AiFeature.PRICING,
+            prompt_name=PROMPT,
+            prompt_values={
+                "category": category.name if category else "unknown",
+                "season": lot.season or "not stated",
+                "condition_grade": lot.condition_grade.value,
+                "total_pieces": lot.total_pieces,
+                "size_spread": _size_spread(db, lot),
+                "retail_price": lot.retail_price_per_piece_pkr,
+                "lot_price": lot.lot_price_pkr,
+                "current_discount": round(lot.discount_percent),
+                "age_days": _age_days(lot),
+                "title": (lot.title or "")[:200],
+                "min_discount": float(policy.min_discount_percent),
+                "max_discount": float(policy.max_discount_percent),
+                "min_lot_value": policy.min_lot_value_pkr,
+                "comparables": render_comparables(db, comparables),
+            },
+            brand_id=lot.brand_id,
+            user_id=user_id,
+            entity_type="lot",
+            entity_id=lot.id,
+            record_fixture=record_fixture,
+        )
+    except AiUnavailable as exc:
+        return _manual(policy, len(comparables), availability.reason(exc))
 
     suggestion = result.output
     assert isinstance(suggestion, PriceSuggestion)
@@ -205,6 +213,33 @@ def suggest(
         comparables_used=len(comparables),
         clamped=clamped,
         clamp_note=note,
+    )
+
+
+def _manual(policy: BrandPolicy, comparables: int, why: str) -> PricingOutcome:
+    """The brand's own band, with nothing invented: price inside it by hand."""
+    low = float(policy.min_discount_percent)
+    high = float(policy.max_discount_percent)
+    suggestion = PriceSuggestion(
+        suggested_discount_percent_low=low,
+        suggested_discount_percent_high=high,
+        expected_days_to_sell_low=0,
+        expected_days_to_sell_high=0,
+        reasoning=(
+            f"{why} This is your own discount band of {low:.0f} to {high:.0f} percent; "
+            "choose a price inside it."
+        ),
+        comparable_lot_ids=[],
+        confidence=0,
+        based_on_rules_only=True,
+    )
+    return PricingOutcome(
+        suggestion=suggestion,
+        result=availability.manual_result(suggestion),
+        comparables_used=comparables,
+        clamped=False,
+        manual=True,
+        manual_reason=why,
     )
 
 

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Field, SelectInput, TextInput } from "@/components/ui/Field";
 import { EmptyState } from "@/components/ui/States";
 import type { ConditionGrade } from "@/lib/api";
-import { errorMessage, useAction, useResource } from "@/lib/hooks";
+import { errorMessage, useAction, useFeatures, useResource } from "@/lib/hooks";
 import { t } from "@/lib/i18n";
 import { market, type SearchFilters, type SearchResult } from "@/lib/market";
 
@@ -49,6 +49,7 @@ function toFilters(draft: Draft): SearchFilters {
 
 function CatalogContent({ session }: { session: Session }) {
   const { token, locale, me } = session;
+  const features = useFeatures();
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [filters, setFilters] = useState<SearchFilters>({ sort: "newest" });
   const [offset, setOffset] = useState(0);
@@ -195,6 +196,9 @@ function CatalogContent({ session }: { session: Session }) {
 
           <section>
             <h2 className="text-sm font-semibold">{t(locale, "catalog.photoSearch")}</h2>
+            {features && !features.visual_search ? (
+              <p className="mt-2 text-sm text-ink-soft">{t(locale, "feature.photoSearchOff")}</p>
+            ) : (
             <label className="mt-2 inline-flex min-h-touch cursor-pointer items-center text-sm font-semibold text-accent underline">
               {t(locale, "catalog.choosePhoto")}
               <input
@@ -208,6 +212,7 @@ function CatalogContent({ session }: { session: Session }) {
                 }}
               />
             </label>
+            )}
             {photoResult ? (
               <Button variant="ghost" size="sm" onClick={() => setPhotoResult(null)}>
                 {t(locale, "catalog.clearPhoto")}

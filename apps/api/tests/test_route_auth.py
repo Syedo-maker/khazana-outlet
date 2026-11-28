@@ -20,7 +20,12 @@ PUBLIC = {
     ("GET", "/ai/status"),
     # Whether this is a public demo. Empty unless DEMO_MODE is on.
     ("GET", "/demo"),
-    # Signing in has to work before there is a session.
+    # Which optional features are on, so the login page can say how to sign in.
+    ("GET", "/features"),
+    # Signing in has to work before there is a session. An invite link is
+    # its own credential: a 32 byte token, single use, short lived.
+    ("GET", "/auth/invites/{token}"),
+    ("POST", "/auth/invites/{token}/accept"),
     ("POST", "/auth/otp/request"),
     ("POST", "/auth/otp/verify"),
     ("POST", "/auth/refresh"),

@@ -5,14 +5,14 @@ from __future__ import annotations
 from datetime import datetime
 
 from fastapi import APIRouter, Header, Request, Response, status
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from ...core.errors import NotFound
 from ...core.tenancy import assert_owns
 from ...models import Order, Shipment, ShipmentEvent, User
 from ...models.enums import ShipmentStatus
-from ...services import logistics_service, order_service
+from ...services import direct_service, logistics_service, order_service
 from ...storage import read_object
 from ..deps import CurrentBrand, CurrentPrincipal, Db, Principal, client_ip
 
@@ -40,6 +40,24 @@ class ShipmentOut(BaseModel):
     picked_up_at: datetime | None
     delivered_at: datetime | None
     events: list[ShipmentEventOut]
+
+
+class ManualShipmentIn(BaseModel):
+    """A direct order sent with the brand's own courier."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    courier: str = Field(min_length=2, max_length=40)
+    tracking_number: str = Field(min_length=4, max_length=80)
+    note: str | None = Field(default=None, max_length=300)
+
+
+class ManualStatusIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # delivered: the buyer paid the courier. returned: refused at the door.
+    status: ShipmentStatus
+    note: str | None = Field(default=None, max_length=300)
 
 
 class PickupIn(BaseModel):
@@ -97,6 +115,55 @@ def book_shipment(order_id: str, principal: CurrentBrand, db: Db, request: Reque
     )
     db.commit()
     return _shipment_out(shipment, selling=True)
+
+
+@router.post(
+    "/orders/{order_id}/shipments/manual",
+    response_model=ShipmentOut,
+    status_code=status.HTTP_201_CREATED,
+    operation_id="orders_enter_shipment",
+)
+def enter_shipment(
+    order_id: str, body: ManualShipmentIn, principal: CurrentBrand, db: Db, request: Request
+) -> ShipmentOut:
+    """Cash on delivery to the brand: record the brand's own courier and
+    tracking number. The order becomes shipped."""
+    order = _brand_order(db, principal, order_id)
+    shipment = direct_service.record_shipment(
+        db,
+        order=order,
+        actor=_actor(db, principal),
+        courier=body.courier,
+        tracking_number=body.tracking_number,
+        note=body.note,
+        ip=client_ip(request),
+    )
+    db.commit()
+    return _shipment_out(logistics_service.get_shipment(db, shipment.id), selling=True)
+
+
+@router.post(
+    "/shipments/{shipment_id}/manual-status",
+    response_model=ShipmentOut,
+    operation_id="shipments_enter_outcome",
+)
+def enter_outcome(
+    shipment_id: str, body: ManualStatusIn, principal: CurrentBrand, db: Db, request: Request
+) -> ShipmentOut:
+    """Cash on delivery to the brand: what the courier reported. Delivered
+    starts the buyer's window to report a problem; returned cancels the order
+    and puts the pieces back on sale."""
+    shipment = _brand_shipment(db, principal, shipment_id)
+    direct_service.record_outcome(
+        db,
+        shipment=shipment,
+        actor=_actor(db, principal),
+        status=body.status,
+        note=body.note,
+        ip=client_ip(request),
+    )
+    db.commit()
+    return _shipment_out(logistics_service.get_shipment(db, shipment_id), selling=True)
 
 
 @router.get(

@@ -1,4 +1,4 @@
-"""Users, phone OTP challenges, sessions and reseller profiles."""
+"""Users, phone OTP challenges, invite links, sessions and reseller profiles."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base, SoftDeleteMixin, TimestampMixin, UUIDPrimaryKey
-from .enums import OtpPurpose, UserRole, VerificationStatus
+from .enums import InvitePurpose, OtpPurpose, UserRole, VerificationStatus
 
 if TYPE_CHECKING:
     from .brand import BrandMember
@@ -55,6 +55,11 @@ class User(UUIDPrimaryKey, TimestampMixin, SoftDeleteMixin, Base):
     # Checked on every request against the user row already loaded, so it
     # costs no extra query.
     tokens_valid_after: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
+    # The beta terms and privacy notice this person accepted, and when.
+    terms_version: Mapped[str | None] = mapped_column(String(32), default=None)
+    terms_accepted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=None
     )
 
@@ -110,6 +115,48 @@ class OtpChallenge(UUIDPrimaryKey, TimestampMixin, Base):
         # The per address limit on code requests counts by this.
         Index("ix_otp_ip_created", "request_ip", "created_at"),
         CheckConstraint("attempts >= 0", name="attempts_non_negative"),
+    )
+
+
+class Invite(UUIDPrimaryKey, TimestampMixin, Base):
+    """A single use sign in link an admin made for one person.
+
+    Replaces SMS codes while there is no paid SMS gateway: the admin sends the
+    link by hand. Only a hash of the token is stored, like a refresh token, so
+    a database dump cannot be used to sign in. A link works once, until it
+    expires, unless an admin revokes it first.
+    """
+
+    __tablename__ = "invites"
+
+    token_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    purpose: Mapped[InvitePurpose] = mapped_column(nullable=False)
+    phone: Mapped[str] = mapped_column(String(11), nullable=False)
+    full_name: Mapped[str | None] = mapped_column(String(120), default=None)
+    role: Mapped[UserRole] = mapped_column(nullable=False)
+    # Brand staff join this brand when they accept.
+    brand_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("brands.id", ondelete="CASCADE"), default=None
+    )
+    note: Mapped[str | None] = mapped_column(String(300), default=None)
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), default=None
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    used_by_user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), default=None
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+
+    __table_args__ = (
+        # An admin link only ever signs in an admin who already exists, and
+        # is made on the server, never through the API.
+        CheckConstraint(
+            "role in ('brand', 'reseller') or (role = 'admin' and purpose = 'login')",
+            name="invite_role_valid",
+        ),
+        Index("ix_invites_phone_created", "phone", "created_at"),
     )
 
 

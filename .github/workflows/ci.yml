@@ -270,7 +270,7 @@ jobs:
     # Pinned for the same reason as the browser job: Playwright 1.58 cannot
     # install browsers on ubuntu-latest's 26.04.
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
 
@@ -330,9 +330,48 @@ jobs:
           npx playwright install --with-deps chromium
           npx playwright test
 
+      - name: OWASP ZAP, passive on the web app and active on every API operation
+        # Fails on any finding not accepted, with its reason, in deploy/zap.
+        run: bash scripts/zap-scan.sh
+
+      - name: Upload the ZAP reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-report
+          path: zap-report/
+          if-no-files-found: ignore
+
       - name: Logs when something failed
         if: failure()
         run: docker compose -f docker-compose.prod.yml --env-file .env.staging logs --tail 100
+
+  arm64:
+    name: Images build and start on arm64
+    # The pilot runs on an Oracle Cloud Always Free ARM machine, so every
+    # change proves the production images still build there and start. A
+    # native arm64 runner, free for public repositories: no emulation.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the API and web runtime images for arm64
+        run: |
+          docker build --target runtime -t khazana-api:arm64 apps/api
+          docker build --target runtime --build-arg NEXT_PUBLIC_API_BASE_URL=/api \
+            -t khazana-web:arm64 apps/web
+      - name: They are arm64 and they start
+        run: |
+          test "$(docker image inspect khazana-api:arm64 --format '{{.Architecture}}')" = arm64
+          test "$(docker image inspect khazana-web:arm64 --format '{{.Architecture}}')" = arm64
+          docker run --rm khazana-api:arm64 python -c "import khazana.main; print('api imports')"
+          docker run -d --name web -p 3000:3000 khazana-web:arm64
+          for i in $(seq 1 30); do
+            curl -fs http://localhost:3000/login > /dev/null && echo "web answers" && exit 0
+            sleep 2
+          done
+          docker logs web
+          exit 1
 
   scan:
     name: Dependency vulnerability scan

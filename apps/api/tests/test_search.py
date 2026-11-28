@@ -272,6 +272,7 @@ class TestVectorPaths:
         assert seen["exclude_unbranded"] is True
         assert [lot.id for lot in result.lots] == [lots["lawn"].id]
 
+    @pytest.mark.usefixtures("paid_providers_on")
     def test_photo_search_says_when_the_database_cannot_do_it(
         self, client: TestClient, reseller: User
     ) -> None:

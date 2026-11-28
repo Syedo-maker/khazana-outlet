@@ -25,7 +25,13 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base, SoftDeleteMixin, TimestampMixin, UUIDPrimaryKey
-from .enums import BrandMemberRole, DocumentType, VerificationStatus, Visibility
+from .enums import (
+    BrandMemberRole,
+    DocumentType,
+    SettlementMode,
+    VerificationStatus,
+    Visibility,
+)
 
 if TYPE_CHECKING:
     from .catalog import Lot
@@ -103,6 +109,11 @@ class BrandPolicy(UUIDPrimaryKey, TimestampMixin, Base):
     # A brand may not switch off its own approval gate.
     require_brand_approval: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     allow_cod: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Who collects the buyer's money; see SettlementMode. New brands take the
+    # deployment's default (direct for the pilot); see brand_service.
+    settlement_mode: Mapped[SettlementMode] = mapped_column(
+        nullable=False, default=SettlementMode.PLATFORM, server_default="platform"
+    )
     allow_part_lot_orders: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # Whether several resellers may buy a lot together, each below the minimum
     # order, as long as together they meet it. Off until the brand turns it on.

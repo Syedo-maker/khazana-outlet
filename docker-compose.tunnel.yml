@@ -1,0 +1,53 @@
+# Run the production stack on a laptop and show it to a brand through a free
+# Cloudflare quick tunnel. No account, no domain and no open ports: the
+# cloudflared container makes an outbound connection and Cloudflare gives it
+# a random https://<words>.trycloudflare.com address, which changes each run.
+#
+#   .\scripts\tunnel.ps1            starts everything and prints the address
+#   .\scripts\tunnel.ps1 -Down      stops it
+#
+# or by hand, if the address is already known:
+#
+#   docker compose -f docker-compose.prod.yml -f docker-compose.tunnel.yml \
+#       --env-file .env.staging up -d
+#
+# Use it with .env.staging: a demo with sample accounts only, reset nightly.
+# Cloudflare ends the TLS connection, so Caddy serves plain HTTP inside the
+# compose network and publishes nothing to the internet. A quick tunnel is for
+# demos, not for running the pilot: it has no uptime guarantee and the address
+# is not stable. See docs/oracle-free-tier.md for the real deployment.
+
+x-tunnel-urls: &tunnel-urls
+  # Invite links, alert emails and the API's own links use this address.
+  WEB_BASE_URL: ${PUBLIC_URL:?run scripts/tunnel.ps1, or set PUBLIC_URL to the tunnel address}
+  API_BASE_URL: ${PUBLIC_URL}/api
+
+services:
+  caddy:
+    # A site address of :80 is plain HTTP for any host name, with no
+    # certificate to obtain. HTTPS is Cloudflare's end of the tunnel.
+    environment:
+      DOMAIN: ":80"
+    ports: !override
+      # For looking at it on the laptop itself: http://localhost:8080
+      - "127.0.0.1:8080:80"
+
+  api:
+    environment: *tunnel-urls
+
+  migrate:
+    environment: *tunnel-urls
+
+  scheduler:
+    environment: *tunnel-urls
+
+  cloudflared:
+    image: cloudflare/cloudflared:2025.11.1
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "--url", "http://caddy:80"]
+    mem_limit: 128m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

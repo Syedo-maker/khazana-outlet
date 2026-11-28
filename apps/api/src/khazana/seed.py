@@ -92,11 +92,15 @@ from .models.enums import (
     PaymentStatus,
     PayoutStatus,
     PhotoKind,
+    SettlementMode,
+    ShipmentStatus,
     UserRole,
     VerificationStatus,
     Visibility,
 )
 from .services import (
+    commission_service,
+    direct_service,
     logistics_service,
     order_service,
     payment_service,
@@ -198,7 +202,7 @@ def seed(db: Session, *, scale: int = 1, reset: bool = False) -> dict[str, int]:
     resellers = _seed_resellers(db, rng, count=12 * scale)
     counts["resellers"] = len(resellers)
 
-    lots = _seed_lots(db, rng, brands=brands, categories=categories, per_brand=6 * scale)
+    lots = _seed_lots(db, rng, brands=brands, categories=categories, per_brand=10 * scale)
     counts["lots"] = len(lots)
     counts["manifest_lines"] = len(db.scalars(select(ManifestLine.id)).all())
 
@@ -210,7 +214,9 @@ def seed(db: Session, *, scale: int = 1, reset: bool = False) -> dict[str, int]:
 
     history = _seed_sold_history(db, rng, lots=lots, resellers=resellers)
     activity = _seed_activity(db, rng, lots=lots, resellers=resellers, count=8 * scale)
-    counts["orders"] = len(history) + len(activity)
+    direct = _seed_direct_activity(db, rng, lots=lots, resellers=resellers, count=7 * scale)
+    counts["orders"] = len(history) + len(activity) + len(direct)
+    counts["commission_invoices"] = _seed_commission_invoices(db, direct)
 
     db.commit()
     return counts
@@ -447,6 +453,13 @@ def _seed_brands(db: Session, rng: random.Random, *, admin_id: str) -> list[Bran
                     [Visibility.PRIVATE, Visibility.UNBRANDED, Visibility.PUBLIC]
                 ),
                 allow_cod=rng.random() < 0.3,
+                # Both ways of settling are shown. The first brand, which the
+                # demo signs in as, is paid directly like every pilot brand.
+                settlement_mode=(
+                    SettlementMode.PLATFORM
+                    if index % 2
+                    else SettlementMode(get_settings().default_settlement_mode)
+                ),
                 allow_part_lot_orders=rng.random() < 0.5,
                 auto_apply_ai_draft=rng.random() < 0.2,
             )
@@ -869,6 +882,119 @@ def _seed_activity(
             created.append(order)
             break
     return created
+
+
+DIRECT_STAGES = (
+    "preparing",
+    "shipped",
+    "delivered",
+    "confirmed",
+    "confirmed",
+    "disputed",
+    "refused",
+)
+
+
+def _seed_direct_activity(
+    db: Session,
+    rng: random.Random,
+    *,
+    lots: list[Lot],
+    resellers: list[ResellerProfile],
+    count: int,
+) -> list[Order]:
+    """Cash on delivery orders paid to the brand's own courier, at each stage."""
+    owners = _owners_by_brand(db)
+    buyers = [
+        profile.user for profile in resellers if profile.status == VerificationStatus.VERIFIED
+    ]
+    direct_brands = set(
+        db.scalars(
+            select(BrandPolicy.brand_id).where(BrandPolicy.settlement_mode == SettlementMode.DIRECT)
+        ).all()
+    )
+    candidates = [
+        lot
+        for lot in lots
+        if lot.status == LotStatus.LIVE
+        and lot.brand_id in direct_brands
+        and lot.reserved_pieces == 0
+    ]
+    rng.shuffle(candidates)
+
+    created: list[Order] = []
+    for lot in candidates:
+        if len(created) >= count:
+            break
+        stage = DIRECT_STAGES[len(created) % len(DIRECT_STAGES)]
+        rng.shuffle(buyers)
+        for buyer in buyers:
+            profile = buyer.reseller_profile
+            if profile is None:
+                continue
+            try:
+                with db.begin_nested():
+                    order = order_service.place_orders(
+                        db,
+                        buyer=buyer,
+                        purchases=[order_service.Purchase(lot_id=lot.id)],
+                        delivery=order_service.Delivery(
+                            city=profile.city,
+                            address=f"Shop {rng.randint(1, 300)}, Main Bazaar",
+                            phone=f"0302{rng.randint(0, 9_999_999):07d}",
+                        ),
+                        method=PaymentMethod.COD,
+                    )[0]
+                    _advance_direct(db, rng, order, stage, buyer, owners[lot.brand_id])
+            except AppError:
+                continue
+            created.append(order)
+            break
+    return created
+
+
+def _advance_direct(
+    db: Session, rng: random.Random, order: Order, stage: str, buyer: User, owner: User
+) -> None:
+    if stage == "preparing":
+        return
+    courier = rng.choice(["TCS", "Leopards", "M&P", "Trax"])
+    shipment = direct_service.record_shipment(
+        db,
+        order=order,
+        actor=owner,
+        courier=courier,
+        tracking_number=f"SAMPLE-{rng.randint(10_000_000, 99_999_999)}",
+    )
+    if stage == "shipped":
+        return
+    outcome = ShipmentStatus.RETURNED if stage == "refused" else ShipmentStatus.DELIVERED
+    direct_service.record_outcome(db, shipment=shipment, actor=owner, status=outcome)
+    if stage == "disputed":
+        order_service.open_dispute(
+            db,
+            order,
+            actor=buyer,
+            reason="Fewer pieces than the manifest",
+            detail="Two cartons were short by a dozen pieces each.",
+        )
+    elif stage == "confirmed":
+        order_service.confirm_delivery(db, order, actor=buyer)
+    db.flush()
+
+
+def _seed_commission_invoices(db: Session, orders: list[Order]) -> int:
+    """Last month's invoice for the confirmed direct orders, so the brand and
+    admin pages have something to show. One confirmed order is moved into last
+    month and the other stays this month's, unbilled."""
+    confirmed = [row for row in orders if OrderStatus(row.status) == OrderStatus.CONFIRMED]
+    if not confirmed:
+        return 0
+    year, month = commission_service.previous_month()
+    start, _ = commission_service.month_bounds(year, month)
+    confirmed[0].confirmed_at = start + timedelta(days=9, hours=7)
+    db.flush()
+    return len(commission_service.issue_month(db, year=year, month=month))
 
 
 def _advance_order(db: Session, order: Order, stage: str, buyer: User, owner: User) -> None:

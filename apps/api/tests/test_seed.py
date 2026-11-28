@@ -43,3 +43,21 @@ def test_every_live_unbranded_photo_is_ready_for_buyers(db: Session) -> None:
             key = photo_protection_service.buyer_file_key(lot, photo)
             assert key is not None
             assert get_backend().exists(key)
+
+
+def test_the_seed_shows_cash_on_delivery_paid_to_the_brand(db: Session) -> None:
+    from khazana.models import CommissionInvoice, Payment
+    from khazana.models.enums import SettlementMode
+
+    seed(db)
+    direct = db.scalars(select(Order).where(Order.settlement_mode == SettlementMode.DIRECT)).all()
+    assert {OrderStatus(order.status) for order in direct} >= {
+        OrderStatus.PREPARING,
+        OrderStatus.SHIPPED,
+        OrderStatus.DELIVERED,
+        OrderStatus.CONFIRMED,
+        OrderStatus.CANCELLED,
+    }
+    ids = [order.id for order in direct]
+    assert not db.scalars(select(Payment).where(Payment.order_id.in_(ids))).all()
+    assert db.scalar(select(func.count()).select_from(CommissionInvoice)) == 1

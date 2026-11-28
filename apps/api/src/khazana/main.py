@@ -26,8 +26,10 @@ from .api.routers import (
     auth,
     brands,
     catalog,
+    commissions,
     forecasts,
     health,
+    invites,
     logistics,
     negotiations,
     orders,
@@ -108,7 +110,11 @@ def create_app() -> FastAPI:
         headers.setdefault("X-Content-Type-Options", "nosniff")
         headers.setdefault("X-Frame-Options", "DENY")
         headers.setdefault("Referrer-Policy", "no-referrer")
-        headers.setdefault("Cross-Origin-Resource-Policy", "same-site")
+        # same-origin, not same-site: in production the API is on the web
+        # app's own origin, and the web app reads it only through fetch,
+        # which this header does not restrict. Tightened after the OWASP ZAP
+        # baseline scan.
+        headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
         headers.setdefault("Cache-Control", "no-store")
         if not request.url.path.startswith(("/docs", "/redoc", "/openapi.json")):
             headers.setdefault(
@@ -132,8 +138,40 @@ def create_app() -> FastAPI:
             content={"code": exc.code, "message": exc.message},
         )
 
+    @app.exception_handler(Exception)
+    async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
+        """A bug reached the top. The person gets a plain sentence, the
+        operator gets an email, and the details stay in the log."""
+        from starlette.concurrency import run_in_threadpool
+
+        from .services import alert_service
+
+        request_id = observability.request_id.get()
+        logger.error(
+            "unhandled error path=%s request_id=%s",
+            request.url.path,
+            request_id,
+            exc_info=exc,
+        )
+        await run_in_threadpool(
+            alert_service.raise_alert_now,
+            "server-error",
+            "The API returned a server error",
+            f"{request.method} {request.url.path}\nRequest id: {request_id}\n"
+            f"Error type: {type(exc).__name__}\nThe traceback is in the api log.",
+            cooldown_minutes=60,
+        )
+        return JSONResponse(
+            status_code=500,
+            content={
+                "code": "internal_error",
+                "message": "Something went wrong on our side. It has been reported.",
+            },
+        )
+
     app.include_router(health.router)
     app.include_router(auth.router)
+    app.include_router(invites.router)
     app.include_router(ai.router)
     app.include_router(assistant.router)
     app.include_router(brands.router)
@@ -142,6 +180,7 @@ def create_app() -> FastAPI:
     app.include_router(catalog.router)
     app.include_router(orders.router)
     app.include_router(payments.router)
+    app.include_router(commissions.router)
     app.include_router(resell_kits.router)
     app.include_router(pools.router)
     app.include_router(negotiations.router)

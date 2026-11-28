@@ -18,8 +18,14 @@ from sqlalchemy.orm import Session, selectinload
 
 from ...core.errors import AppError, NotFound, ValidationFailed
 from ...models import Dispute, Lot, Order, OrderEvent, OrderReturn, ResellerProfile, User
-from ...models.enums import DisputeStatus, OrderStatus, PaymentMethod, UserRole
-from ...services import approval_service, order_service, payment_service
+from ...models.enums import (
+    DisputeStatus,
+    OrderStatus,
+    PaymentMethod,
+    SettlementMode,
+    UserRole,
+)
+from ...services import approval_service, direct_service, order_service, payment_service
 from ...services.order_service import Delivery, LineChoice, Purchase
 from ..deps import CurrentPrincipal, Db, Principal, client_ip
 
@@ -159,6 +165,9 @@ class OrderOut(BaseModel):
     seller_name: str
     status: OrderStatus
     payment_method: PaymentMethod
+    # "direct": the buyer pays the brand's own courier in cash on delivery,
+    # and the platform holds nothing. "platform": paid to the platform first.
+    settlement_mode: SettlementMode
     pieces: int
     unit_price_pkr: int
     rounding_adjustment_pkr: int
@@ -181,6 +190,10 @@ class OrderOut(BaseModel):
     commission_pkr: int | None = None
     brand_payout_pkr: int | None = None
     buyer_business_name: str | None = None
+    # Direct orders, the brand and admins only: what the brand owes once the
+    # order is confirmed, and the monthly invoice that bills it.
+    commission_due_pkr: int | None = None
+    commission_invoice_id: str | None = None
 
 
 class OrderDetailOut(OrderOut):
@@ -202,12 +215,17 @@ class CartItemOut(BaseModel):
     total_pkr: int | None = None
     # Why this item cannot currently be bought, when that is the case.
     problem: str | None = None
+    # The buyer pays this brand's own courier in cash on delivery.
+    pays_brand_directly: bool = False
 
 
 class CartOut(BaseModel):
     items: list[CartItemOut]
     delivery_city: str | None
     total_pkr: int
+    # Some item is paid to the brand on delivery, so checkout offers cash on
+    # delivery only.
+    cash_on_delivery_only: bool = False
 
 
 def _user(db: Session, principal: Principal) -> User:
@@ -236,6 +254,12 @@ def _accessible(db: Session, principal: Principal, order_id: str) -> Order:
     ):
         return order
     raise NotFound("That order does not exist.")
+
+
+def _open_payment(db: Session, order: Order) -> None:
+    """Start the platform payment, unless the brand's courier collects it."""
+    if not direct_service.is_direct(order):
+        payment_service.ensure_payment(db, order)
 
 
 def _selling_side(principal: Principal, order: Order) -> bool:
@@ -292,6 +316,7 @@ def order_payload(
         "seller_name": shown.brand_name,
         "status": order.status,
         "payment_method": order.payment_method,
+        "settlement_mode": order.settlement_mode,
         "pieces": order.pieces,
         "unit_price_pkr": order.unit_price_pkr,
         "rounding_adjustment_pkr": order.rounding_adjustment_pkr,
@@ -328,6 +353,8 @@ def order_payload(
             commission_pkr=order.commission_pkr,
             brand_payout_pkr=order.brand_payout_pkr,
             buyer_business_name=profile.business_name if profile else None,
+            commission_due_pkr=order.commission_due_pkr,
+            commission_invoice_id=order.commission_invoice_id,
         )
     return payload
 
@@ -390,6 +417,7 @@ def view_cart(
             item.lot_code = lot.lot_code
             item.title = lot.title
             item.seller_name = shown.brand_name
+            item.pays_brand_directly = order_service.brand_is_paid_directly(db, lot.brand_id)
             pricing = order_service.price_purchase(
                 db, lot=lot, purchase=purchase, destination_city=city
             )
@@ -401,7 +429,12 @@ def view_cart(
         except AppError as exc:
             item.problem = exc.message
         items.append(item)
-    return CartOut(items=items, delivery_city=city, total_pkr=total)
+    return CartOut(
+        items=items,
+        delivery_city=city,
+        total_pkr=total,
+        cash_on_delivery_only=any(item.pays_brand_directly for item in items),
+    )
 
 
 @router.put(
@@ -456,7 +489,7 @@ def checkout(
         ip=client_ip(request),
     )
     for order in orders:
-        payment_service.ensure_payment(db, order)
+        _open_payment(db, order)
     db.commit()
     return [OrderOut.model_validate(order_payload(db, principal, order)) for order in orders]
 
@@ -502,7 +535,7 @@ def create_order(
         method=body.payment_method,
         ip=client_ip(request),
     )
-    payment_service.ensure_payment(db, orders[0])
+    _open_payment(db, orders[0])
     db.commit()
     return _detail(db, principal, order_service.get_order(db, orders[0].id))
 

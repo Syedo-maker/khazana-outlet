@@ -228,10 +228,36 @@ rather than discovered in Phase 4:
 
 - Per brand monthly spend cap, enforced before the call, not after
 - Per feature kill switch
-- An alert when daily spend exceeds a threshold
+- An email alert when the daily cap is reached, once a day
 - Every call logged with feature, brand, model, tokens in, tokens out, cache
   hit, cost and latency
 - A cost dashboard in Phase 4 week 40
+
+### When AI is not available
+
+Added for the zero budget pilot, 2026-11-28. The daily cap there is USD 1
+(`AI_DAILY_SPEND_LIMIT_USD`), and a server with no Anthropic key runs with
+`AI_ENABLED=false`. Either way, and when a kill switch is off or the provider
+fails, the gateway raises one error class, `AiUnavailable`, before any money is
+spent. Every feature catches it and offers its manual path. Nothing a person
+does fails because of it.
+
+| Feature | Manual path |
+| --- | --- |
+| Buyer and brand assistants, web and WhatsApp | A fixed reply, in three languages, saying what still works: search, filters, orders, the dashboard |
+| Listing from photos | `manual: true` and no draft: the brand writes the title and description |
+| Manifest extraction | `manual: true` and no lines: the brand types the manifest or uses the spreadsheet import, which reads columns without AI |
+| Pricing | The brand's own discount band, to price inside by hand |
+| Risk scoring | The measured checks only, and the listing goes to a person |
+| Logo detection | Each photograph goes to the brand to mark by hand, still withheld from buyers |
+| Resell kit | Captions and posts written from the same facts by templates |
+| Bargaining | Code comes down by the brand's own step, inside the clamp, audited as the system's move. ADR 0001 still holds: the band and the step are the brand's |
+| Markdowns | Prices stay as they are |
+
+Responses on the manual path cost nothing and report the model as `manual`.
+`GET /features` says whether AI is available today, so the web app can say so
+before anyone asks, and reaching the cap emails the operator once a day
+(docs/deployment.md, "Alerts by email").
 
 ## 6. The six capabilities, and the technique each one uses
 

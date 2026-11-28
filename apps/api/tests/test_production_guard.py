@@ -54,7 +54,13 @@ def test_development_is_never_checked() -> None:
         ({"redis_url": "redis://redis:6379/0"}, "REDIS_URL has no password"),
         ({"api_base_url": "http://api.example.pk"}, "API_BASE_URL is not https"),
         ({"web_base_url": "http://example.pk"}, "WEB_BASE_URL is not https"),
-        ({"bank_account_iban": "PK00SANDBOX0000000000000"}, "sandbox"),
+        (
+            {
+                "bank_account_iban": "PK00SANDBOX0000000000000",
+                "default_settlement_mode": "platform",
+            },
+            "sandbox",
+        ),
         ({"trusted_proxy_count": 0}, "TRUSTED_PROXY_COUNT"),
         ({"demo_mode": True}, "DEMO_MODE"),
     ],
@@ -62,3 +68,20 @@ def test_development_is_never_checked() -> None:
 def test_each_unsafe_setting_stops_startup(override: dict[str, object], message: str) -> None:
     with pytest.raises(RuntimeError, match=message):
         _settings(**override).assert_production_ready()
+
+
+def test_the_zero_budget_pilot_starts_with_ai_off_and_no_bank_account() -> None:
+    """Direct settlement holds no money, so the platform needs no account, and
+    with AI switched off there is no key to require."""
+    _settings(
+        ai_enabled=False,
+        anthropic_api_key=None,
+        ai_offline=True,
+        default_settlement_mode="direct",
+        bank_account_iban="PK00SANDBOX0000000000000",
+    ).assert_production_ready()
+
+
+def test_ai_switched_on_still_needs_a_key() -> None:
+    with pytest.raises(RuntimeError, match="AI_ENABLED=false"):
+        _settings(ai_enabled=True, anthropic_api_key=None).assert_production_ready()

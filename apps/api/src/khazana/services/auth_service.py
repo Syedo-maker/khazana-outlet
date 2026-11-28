@@ -37,6 +37,22 @@ from ..models.enums import OtpPurpose, UserRole
 
 PHONE_LENGTH = 11
 
+SMS_OFF_MESSAGE = (
+    "Khazana Outlet is invite only during the beta. Sign in with the invite link "
+    "the Khazana team sent you; if it has expired, ask them for a new one."
+)
+
+
+def sms_codes_available() -> bool:
+    """Whether a login code can be issued.
+
+    With SMS login switched off, codes are still issued where they are shown
+    on screen instead of sent, which costs nothing: development, and a demo
+    whose sample accounts sign in that way.
+    """
+    settings = get_settings()
+    return settings.sms_login_enabled or settings.otp_dev_echo
+
 
 def normalise_phone(raw: str) -> str:
     """Accept the shapes Pakistani users actually type, store one shape.
@@ -76,6 +92,8 @@ def request_otp(
     in production.
     """
     settings = get_settings()
+    if not sms_codes_available():
+        raise Forbidden(SMS_OFF_MESSAGE)
     phone = normalise_phone(raw_phone)
     now = utcnow()
 

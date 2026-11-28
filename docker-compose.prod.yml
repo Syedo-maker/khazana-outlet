@@ -7,6 +7,12 @@
 #
 #   docker compose -f docker-compose.prod.yml --env-file .env.staging up -d --build
 #
+# It is sized for the zero budget pilot: one Oracle Cloud Always Free ARM
+# machine (2 OCPU, 12 GB), with every service given a memory limit so one of
+# them cannot starve the rest. The images are published for amd64 and arm64.
+# docs/oracle-free-tier.md is the step by step guide, and
+# docker-compose.tunnel.yml runs the same stack from a laptop for a demo.
+#
 # What runs: Caddy terminates HTTPS and is the only service with public ports;
 # the web app and the API sit behind it on one origin. A migrate step runs
 # before the API starts. The scheduler runs the timed jobs, and the backup
@@ -38,10 +44,29 @@ x-api-env: &api-env
   OTP_RESEND_COOLDOWN_SECONDS: ${OTP_RESEND_COOLDOWN_SECONDS:-60}
   AI_OFFLINE: ${AI_OFFLINE:-false}
   ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-  AI_DAILY_SPEND_LIMIT_USD: ${AI_DAILY_SPEND_LIMIT_USD:-25}
+  # The pilot's budget: one dollar a day, then every AI feature works by hand.
+  AI_ENABLED: ${AI_ENABLED:-true}
+  AI_DAILY_SPEND_LIMIT_USD: ${AI_DAILY_SPEND_LIMIT_USD:-1}
   AI_BRAND_MONTHLY_SPEND_LIMIT_USD: ${AI_BRAND_MONTHLY_SPEND_LIMIT_USD:-50}
   BANK_ACCOUNT_TITLE: ${BANK_ACCOUNT_TITLE:-}
   BANK_ACCOUNT_IBAN: ${BANK_ACCOUNT_IBAN:-PK00SANDBOX0000000000000}
+  # Zero budget pilot switches. Buyers pay the brand's courier in cash on
+  # delivery and the platform invoices its commission; people sign in with
+  # invite links; nothing that needs a paid provider is on.
+  DEFAULT_SETTLEMENT_MODE: ${DEFAULT_SETTLEMENT_MODE:-direct}
+  SMS_LOGIN_ENABLED: ${SMS_LOGIN_ENABLED:-false}
+  INVITE_TTL_HOURS: ${INVITE_TTL_HOURS:-72}
+  WHATSAPP_ENABLED: ${WHATSAPP_ENABLED:-false}
+  SPEECH_TO_TEXT_ENABLED: ${SPEECH_TO_TEXT_ENABLED:-false}
+  VISUAL_SEARCH_ENABLED: ${VISUAL_SEARCH_ENABLED:-false}
+  # Alerts by plain email. Unset: written to the log only.
+  ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+  ALERT_EMAIL_FROM: ${ALERT_EMAIL_FROM:-}
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USERNAME: ${SMTP_USERNAME:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
   STORAGE_LOCAL_PATH: /app/uploads
   LOG_FORMAT: json
   SENTRY_DSN: ${SENTRY_DSN:-}
@@ -65,6 +90,7 @@ services:
     depends_on:
       - web
       - api
+    mem_limit: 128m
     logging: *logging
 
   web:
@@ -76,6 +102,11 @@ services:
         NEXT_PUBLIC_API_BASE_URL: /api
     image: ${IMAGE_PREFIX:-khazana}-web:${VERSION:-local}
     restart: unless-stopped
+    environment:
+      # Node sizes its heap from the machine, not the container; this keeps it
+      # well inside the limit below.
+      NODE_OPTIONS: --max-old-space-size=256
+    mem_limit: 384m
     logging: *logging
 
   migrate:
@@ -89,6 +120,7 @@ services:
       db:
         condition: service_healthy
     restart: "no"
+    mem_limit: 384m
     logging: *logging
 
   api:
@@ -99,7 +131,8 @@ services:
       - khazana.main:app
       - --host=0.0.0.0
       - --port=8000
-      - --workers=${API_WORKERS:-3}
+      # One worker per OCPU on the free ARM machine.
+      - --workers=${API_WORKERS:-2}
       - --root-path=/api
       # The API reads X-Forwarded-For itself, trusting exactly one proxy.
       - --no-proxy-headers
@@ -109,7 +142,10 @@ services:
       <<: *api-env
       PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus
     tmpfs:
-      - /tmp/prometheus
+      # Explicit mode: after a Docker daemon restart the mount came back root
+      # owned and 755, and the API, which runs as a non root user, could not
+      # write its metrics.
+      - /tmp/prometheus:mode=1777,size=16m
     volumes:
       - uploads:/app/uploads
     depends_on:
@@ -117,18 +153,33 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+    mem_limit: 1g
     logging: *logging
 
   scheduler:
     image: ${IMAGE_PREFIX:-khazana}-api:${VERSION:-local}
     restart: unless-stopped
     command: ["python", "-m", "khazana.scheduler"]
-    environment: *api-env
+    # The image's own check calls the API port, which the scheduler does not
+    # serve. Healthy means its loop touched the heartbeat in the last minute.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, sys, time; sys.exit(time.time() - os.path.getmtime('/tmp/scheduler-heartbeat') > 60)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    environment:
+      <<: *api-env
+      # The scheduler watches the API and the backups, and emails alerts.
+      HEALTH_CHECK_URL: http://api:8000/ready
+      BACKUP_DIR: /backups
     volumes:
       - uploads:/app/uploads
+      - ./backups:/backups:ro
     depends_on:
       migrate:
         condition: service_completed_successfully
+    mem_limit: 384m
     logging: *logging
 
   backup:
@@ -151,11 +202,29 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    mem_limit: 256m
     logging: *logging
 
   db:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
+    # Tuned for a 2 GB share of the 12 GB machine and a pilot's traffic:
+    # a quarter of it for shared buffers, few connections (two API workers,
+    # the scheduler and a backup each hold a small pool).
+    command:
+      - postgres
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - effective_cache_size=1536MB
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=128MB
+      - -c
+      - max_connections=60
+    shm_size: 256m
+    mem_limit: 2g
     environment:
       POSTGRES_USER: khazana
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -172,7 +241,18 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD}
+      # Reserved for caching and queues; nothing is stored in it yet, so it
+      # is kept small and may evict.
+      - --maxmemory
+      - 128mb
+      - --maxmemory-policy
+      - volatile-lru
     volumes:
       - redis_data:/data
     healthcheck:
@@ -182,6 +262,7 @@ services:
       retries: 20
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+    mem_limit: 192m
     logging: *logging
 
   prometheus:
@@ -194,6 +275,7 @@ services:
     ports:
       # Localhost only: reach it through an SSH tunnel, never the internet.
       - "127.0.0.1:9090:9090"
+    mem_limit: 512m
     logging: *logging
 
 volumes:

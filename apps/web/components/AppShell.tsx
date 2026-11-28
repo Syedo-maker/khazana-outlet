@@ -87,7 +87,7 @@ export function AppShell({
           {t(locale, "demo.banner")}
         </p>
       ) : null}
-      <header className="border-b border-line bg-surface">
+      <header className="border-b border-line bg-surface print:hidden">
         <div className="mx-auto flex max-w-shell items-center justify-between gap-4 px-4 py-3">
           <Link href="/" className="flex items-center gap-2 font-bold tracking-tight">
             <span
@@ -156,10 +156,26 @@ export function AppShell({
         {children}
       </main>
 
-      <footer className="border-t border-line bg-surface-alt px-4 py-6 text-sm text-ink-soft">
-        <div className="mx-auto max-w-shell">
-          <p className="font-semibold">{t(locale, "app.name")}</p>
-          <p>{t(locale, "app.tagline")}</p>
+      <footer className="border-t border-line bg-surface-alt px-4 py-6 text-sm text-ink-soft print:hidden">
+        <div className="mx-auto flex max-w-shell flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="font-semibold">
+              {t(locale, "app.name")}{" "}
+              <span className="ms-1 rounded border border-line px-1.5 text-xs font-semibold">
+                {t(locale, "beta.label")}
+              </span>
+            </p>
+            <p>{t(locale, "app.tagline")}</p>
+            <p>{t(locale, "beta.footer")}</p>
+          </div>
+          <nav aria-label="Legal" className="flex gap-4">
+            <Link href="/terms" prefetch={false} className="underline">
+              {t(locale, "legal.terms")}
+            </Link>
+            <Link href="/privacy" prefetch={false} className="underline">
+              {t(locale, "legal.privacy")}
+            </Link>
+          </nav>
         </div>
       </footer>
     </div>
@@ -179,6 +195,7 @@ export const BRAND_NAV: NavItem[] = [
   { href: "/sizes", labelKey: "nav.sizes" },
   { href: "/orders", labelKey: "nav.orders" },
   { href: "/payouts", labelKey: "nav.payouts" },
+  { href: "/invoices", labelKey: "nav.commission" },
 ];
 
 export const RESELLER_NAV: NavItem[] = [
@@ -193,12 +210,14 @@ export const RESELLER_NAV: NavItem[] = [
 
 export const ADMIN_NAV: NavItem[] = [
   { href: "/admin", labelKey: "nav.overview" },
+  { href: "/admin/invites", labelKey: "nav.invites" },
   { href: "/admin/verification", labelKey: "nav.verification" },
   { href: "/admin/listings", labelKey: "nav.listings" },
   { href: "/orders", labelKey: "nav.orders" },
   { href: "/admin/payments", labelKey: "nav.payments" },
   { href: "/admin/disputes", labelKey: "nav.disputes" },
   { href: "/admin/payouts", labelKey: "nav.payouts" },
+  { href: "/admin/commissions", labelKey: "nav.commission" },
   { href: "/admin/settings", labelKey: "nav.settings" },
   { href: "/admin/review", labelKey: "nav.review" },
   { href: "/admin/ai-costs", labelKey: "nav.aiCosts" },

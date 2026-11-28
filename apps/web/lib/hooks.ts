@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-import { ApiError } from "./api";
+import { ApiError, api, type Features } from "./api";
 import { DEFAULT_LOCALE, directionFor, isLocale, type Locale } from "./i18n";
 
 const LOCALE_KEY = "khazana.locale";
@@ -95,4 +95,26 @@ export function useAction() {
   }, []);
 
   return { busy, error, run, setError };
+}
+
+let featuresRequest: Promise<Features | null> | null = null;
+
+/**
+ * What this deployment has switched on, fetched once per page load. Null
+ * while loading or if the API cannot be reached; callers treat null as "do
+ * not offer the optional feature", which is the safe reading.
+ */
+export function useFeatures(): Features | null {
+  const [features, setFeatures] = useState<Features | null>(null);
+  useEffect(() => {
+    featuresRequest ??= api.features().catch(() => null);
+    let live = true;
+    void featuresRequest.then((value) => {
+      if (live) setFeatures(value);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  return features;
 }

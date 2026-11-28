@@ -7,6 +7,7 @@ registered on the metadata before Alembic or ``create_all`` runs.
 from __future__ import annotations
 
 from .ai import AiJob, AiOutput, AiResponseCache, AiSpend, Embedding
+from .alert import Alert
 from .assistant import AssistantConversation, AssistantMessage, WhatsAppMessage
 from .audit import AuditLog
 from .base import Base, Vector, as_utc, new_id, utcnow
@@ -29,6 +30,7 @@ from .catalog import (
 )
 from .commerce import (
     CartItem,
+    CommissionInvoice,
     Courier,
     Dispute,
     Order,
@@ -44,7 +46,7 @@ from .commerce import (
     ShippingRate,
 )
 from .forecast import DemandForecast, LotForecast, ProductionWarning, SeasonEvent
-from .identity import OtpChallenge, ResellerProfile, Session, User
+from .identity import Invite, OtpChallenge, ResellerProfile, Session, User
 from .indexes import QUERY_INDEXES
 from .insight import ResaleBenchmark, ResellKit
 from .negotiation import Negotiation, NegotiationMessage
@@ -81,6 +83,7 @@ BRAND_SCOPED_TABLES: tuple[str, ...] = (
     "production_warnings",
     "size_chart_rows",
     "redirections",
+    "commission_invoices",
 )
 
 __all__ = [
@@ -90,6 +93,7 @@ __all__ = [
     "AiOutput",
     "AiResponseCache",
     "AiSpend",
+    "Alert",
     "AssistantConversation",
     "AssistantMessage",
     "AuditLog",
@@ -100,11 +104,13 @@ __all__ = [
     "BrandPolicy",
     "CartItem",
     "Category",
+    "CommissionInvoice",
     "Courier",
     "DemandForecast",
     "Dispute",
     "Embedding",
     "ImpactFactor",
+    "Invite",
     "ListingApproval",
     "Lot",
     "LotDefect",

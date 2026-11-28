@@ -7,10 +7,10 @@ import { ActionError, Loaded } from "@/components/Feedback";
 import type { Session } from "@/components/RoleShell";
 import { Button } from "@/components/ui/Button";
 import { Badge, Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Field, TextInput } from "@/components/ui/Field";
+import { Field, SelectInput, TextInput } from "@/components/ui/Field";
 import { pkr } from "@/lib/format";
 import { useAction, useResource } from "@/lib/hooks";
-import { adminApi, type AdminBrand, type Courier } from "@/lib/market";
+import { adminApi, type AdminBrand, type Courier, type SettlementMode } from "@/lib/market";
 
 function BrandTerms({
   row,
@@ -24,16 +24,18 @@ function BrandTerms({
   const action = useAction();
   const [commission, setCommission] = useState(String(row.policy.commission_percent));
   const [days, setDays] = useState(String(row.policy.payout_terms_days));
+  const [mode, setMode] = useState<SettlementMode>(row.policy.settlement_mode);
 
   return (
     <form
-      className="grid items-end gap-3 border-t border-line py-3 sm:grid-cols-[1fr_8rem_8rem_auto]"
+      className="grid items-end gap-3 border-t border-line py-3 sm:grid-cols-[1fr_8rem_8rem_12rem_auto]"
       onSubmit={(event) => {
         event.preventDefault();
         void action.run(async () => {
           await adminApi.updateTerms(token, row.brand.id, {
             commission_percent: Number(commission),
             payout_terms_days: Number(days),
+            settlement_mode: mode,
           });
           await reload();
         });
@@ -64,6 +66,16 @@ function BrandTerms({
           value={days}
           onChange={(event) => setDays(event.target.value)}
         />
+      </Field>
+      <Field label="Buyers pay" htmlFor={`mode-${row.brand.id}`}>
+        <SelectInput
+          id={`mode-${row.brand.id}`}
+          value={mode}
+          onChange={(event) => setMode(event.target.value as SettlementMode)}
+        >
+          <option value="direct">The brand, cash on delivery</option>
+          <option value="platform">The platform, held until confirmed</option>
+        </SelectInput>
       </Field>
       <Button type="submit" variant="secondary" className="mb-4" disabled={action.busy}>
         Save

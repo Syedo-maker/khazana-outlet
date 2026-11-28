@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
 from ...config import get_settings
+from ...core.errors import FeatureOff, NotFound
 from ...core.tenancy import assert_owns
 from ...models import AssistantConversation, AssistantMessage, WhatsAppMessage
 from ...models.enums import ChatChannel, ChatRole, MessageDirection
@@ -236,6 +237,15 @@ def brand_send_message(
 # ---------- WhatsApp ----------
 
 
+def _whatsapp_on() -> bool:
+    return get_settings().whatsapp_enabled
+
+
+def _require_whatsapp(message: str) -> None:
+    if not _whatsapp_on():
+        raise FeatureOff(message)
+
+
 class InboundOut(BaseModel):
     status: str
     duplicate: bool
@@ -257,6 +267,9 @@ async def whatsapp_inbound(
 
     A repeated delivery is accepted and not answered twice.
     """
+    if not _whatsapp_on():
+        # Not a fault, so not a 5xx: this server takes no WhatsApp traffic.
+        raise NotFound("WhatsApp is switched off on this server.")
     body = await request.body()
 
     def handle() -> whatsapp_service.InboundResult:
@@ -293,6 +306,10 @@ def sandbox_inbound(payload: SandboxInboundIn, _: AdminOnly, db: Db) -> SandboxI
     A voice transcript makes the message a voice note, with the given
     confidence standing in for what a speech model would report.
     """
+    _require_whatsapp(
+        "WhatsApp is switched off for the pilot. Set WHATSAPP_ENABLED=true once a "
+        "WhatsApp Business provider is connected."
+    )
     sandbox = whatsapp_providers.sandbox()
     voice = None
     if payload.voice_transcript is not None:

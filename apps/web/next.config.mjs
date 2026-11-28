@@ -58,6 +58,11 @@ const nextConfig = {
             value: "camera=(), microphone=(), geolocation=()",
           },
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          // Nothing on the site is embedded from another origin: fonts are
+          // self hosted and photographs come from the API on this origin.
+          // Found missing by the OWASP ZAP baseline scan.
+          { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
+          { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
           ...(PRODUCTION ? [{ key: "Content-Security-Policy", value: CSP }] : []),
         ],
       },

@@ -201,6 +201,9 @@ function OrderView({
         <div className="flex flex-wrap items-center gap-2">
           <OrderBadge status={order.status} locale={locale} />
           <span className="font-mono text-xs text-ink-faint">{order.order_code}</span>
+          {order.settlement_mode === "direct" ? (
+            <Badge tone="neutral">{t(locale, "direct.badge")}</Badge>
+          ) : null}
         </div>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">{order.lot_title}</h1>
         <p className="mt-1 text-sm text-ink-soft">{order.seller_name}</p>
@@ -211,7 +214,21 @@ function OrderView({
         <Stat label={t(locale, "orderDetail.goods")} value={pkr(order.subtotal_pkr)} />
         <Stat label={t(locale, "orderDetail.shipping")} value={pkr(order.shipping_pkr)} />
         <Stat label={t(locale, "orderDetail.total")} value={pkr(order.total_pkr)} />
-        {order.brand_payout_pkr !== null ? (
+        {order.brand_payout_pkr !== null && order.settlement_mode === "direct" ? (
+          <>
+            <Stat label={t(locale, "direct.youCollect")} value={pkr(order.total_pkr)} />
+            <Stat
+              label={t(locale, "direct.commissionDue")}
+              value={pkr(order.commission_due_pkr ?? order.commission_pkr ?? 0)}
+              note={
+                order.commission_due_pkr === null
+                  ? t(locale, "direct.commissionLater")
+                  : `${order.commission_percent}%`
+              }
+            />
+          </>
+        ) : null}
+        {order.brand_payout_pkr !== null && order.settlement_mode !== "direct" ? (
           <>
             <Stat
               label={t(locale, "orderDetail.commission")}
@@ -223,7 +240,17 @@ function OrderView({
         ) : null}
       </dl>
 
-      {isBuyer && order.status !== "cancelled" ? (
+      {isBuyer && order.status !== "cancelled" && order.settlement_mode === "direct" ? (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle as="h2">{t(locale, "direct.payTitle")}</CardTitle>
+          </CardHeader>
+          <CardBody>
+            <p className="text-sm">{t(locale, "direct.payBody", { amount: pkr(order.total_pkr) })}</p>
+          </CardBody>
+        </Card>
+      ) : null}
+      {isBuyer && order.status !== "cancelled" && order.settlement_mode !== "direct" ? (
         <PaymentPanel order={order} session={session} onChanged={refresh} />
       ) : null}
       {selling && order.status === "paid" ? (

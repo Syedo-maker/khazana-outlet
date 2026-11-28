@@ -12,3 +12,4 @@ number and a status; a reversed one is marked superseded, never deleted.
 | [0004](0004-money-held-until-the-buyer-confirms.md) | Money in whole rupees, held until the buyer confirms | accepted |
 | [0005](0005-api-on-the-web-origin.md) | In production, the API is served under the web app's origin | accepted |
 | [0006](0006-ai-cost-model-choice-by-eval.md) | A cheaper model only where a live eval says so | accepted |
+| [0007](0007-direct-settlement-for-the-pilot.md) | In the pilot, the buyer pays the brand directly and the platform invoices commission | accepted |

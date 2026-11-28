@@ -21,6 +21,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta, timezone
+from pathlib import Path
 
 from sqlalchemy.orm import Session
 
@@ -42,6 +43,8 @@ class Job:
     every_minutes: int | None = None
     daily_at: tuple[int, int] | None = None
     weekday: int | None = None
+    # Only on this day of the month, for a monthly job.
+    monthday: int | None = None
 
     def next_after(self, moment: datetime) -> datetime:
         """The first time strictly after ``moment`` this job is due."""
@@ -57,6 +60,8 @@ class Job:
         if candidate <= local:
             candidate += timedelta(days=1)
         while self.weekday is not None and candidate.weekday() != self.weekday:
+            candidate += timedelta(days=1)
+        while self.monthday is not None and candidate.day != self.monthday:
             candidate += timedelta(days=1)
         return candidate.astimezone(UTC)
 
@@ -106,6 +111,38 @@ def _demo_reset(db: Session) -> object:
     return seed.main(["--reset"])
 
 
+def _commission_invoices(db: Session) -> object:
+    """Invoice last month's direct orders. Due on the first of the month; at
+    any other time it bills only what that run missed, never anything twice."""
+    from .services import commission_service
+
+    return commission_service.issue_previous_month(db)
+
+
+def _deliver_alerts(db: Session) -> object:
+    from .services import alert_service
+
+    return alert_service.deliver_pending(db)
+
+
+def _check_api(db: Session) -> object:
+    from .services import alert_service
+
+    return alert_service.check_api(db)
+
+
+def _check_backups(db: Session) -> object:
+    from .services import alert_service
+
+    return alert_service.check_backups(db)
+
+
+def _check_disk(db: Session) -> object:
+    from .services import alert_service
+
+    return alert_service.check_disk(db)
+
+
 def _purge_ai_cache(db: Session) -> object:
     from .ai.gateway import response_cache
 
@@ -122,7 +159,30 @@ JOBS: tuple[Job, ...] = (
     Job("forecast", _forecast, daily_at=(4, 0), weekday=0),
     Job("purge-ai-cache", _purge_ai_cache, daily_at=(4, 30)),
     Job("demo-reset", _demo_reset, daily_at=(5, 0)),
+    Job("commission-invoices", _commission_invoices, daily_at=(6, 0), monthday=1),
+    # The platform watching itself, and emailing the operator.
+    Job("deliver-alerts", _deliver_alerts, every_minutes=5),
+    Job("check-api", _check_api, every_minutes=10),
+    Job("check-backups", _check_backups, daily_at=(9, 0)),
+    Job("check-disk", _check_disk, every_minutes=60),
 )
+
+
+def _alert_job_failed(db: Session, job: Job, exc: Exception) -> None:
+    from .services import alert_service
+
+    try:
+        alert_service.raise_alert(
+            db,
+            f"job-failed:{job.name}",
+            f"Scheduled job {job.name} failed",
+            f"{type(exc).__name__} in {job.name}. The traceback is in the scheduler "
+            "log: docker compose logs scheduler. It runs again at its next slot.",
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("could not record the alert for job %s", job.name)
 
 
 def run_job(job: Job) -> bool:
@@ -132,12 +192,25 @@ def run_job(job: Job) -> bool:
         try:
             outcome = job.run(db)
             db.commit()
-        except Exception:
+        except Exception as exc:
             db.rollback()
             logger.exception("job %s failed", job.name)
+            _alert_job_failed(db, job, exc)
             return False
     logger.info("job %s done in %.1fs: %s", job.name, time.perf_counter() - started, outcome)
     return True
+
+
+# Touched on every pass of the loop. The container's health check reads its
+# age: the scheduler serves no HTTP, so a stuck loop is the thing to detect.
+HEARTBEAT = Path("/tmp/scheduler-heartbeat")  # noqa: S108
+
+
+def beat(path: Path = HEARTBEAT) -> None:
+    try:
+        path.touch()
+    except OSError:
+        logger.warning("could not write the heartbeat at %s", path)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -164,6 +237,7 @@ def main(argv: list[str] | None = None) -> int:
     for job in JOBS:
         logger.info("scheduled %s, next at %s", job.name, due[job.name].astimezone(PKT))
     while not stopping:
+        beat()
         now = datetime.now(UTC)
         for job in JOBS:
             if due[job.name] <= now:

@@ -17,20 +17,23 @@ index, are created in migration 0001 and verified by the migration job in CI.
 | `ai_outputs` | 19 | no | What the model produced, what it cost, what the human changed. |
 | `ai_response_cache` | 8 | no | A validated AI reply kept so an identical request is not paid twice. |
 | `ai_spend` | 8 | no | Daily spend per feature and brand. Caps are enforced on it. |
+| `alerts` | 10 | no | Operator alerts waiting to be emailed, one per kind per cooldown. |
 | `assistant_conversations` | 8 | no | A thread with the buyer or brand assistant. |
 | `assistant_messages` | 12 | no | One message in a thread, with its cost and grounding. |
 | `audit_log` | 15 | no | Append only before and after snapshots of consequential actions. |
 | `brand_excluded_cities` | 6 | yes | Default region lock per brand. |
 | `brand_members` | 6 | yes | Links users to brands. How tenancy is resolved. |
-| `brand_policies` | 24 | yes | Commission, discount band, protection defaults, AI budget. |
+| `brand_policies` | 25 | yes | Commission, discount band, protection defaults, AI budget. |
 | `brands` | 16 | no | The selling brand. The tenant boundary. |
 | `cart_items` | 7 | no | What a buyer intends to order, before checkout. |
 | `categories` | 8 | no | Two level taxonomy. The fixed list the AI must map into. |
+| `commission_invoices` | 16 | yes | A brand's monthly bill for commission on orders it was paid for directly. |
 | `couriers` | 7 | no | Delivery companies; one is the default. |
 | `demand_forecasts` | 11 | no | Expected pieces per category, city and week. |
 | `disputes` | 14 | yes | A buyer says the goods do not match the manifest. |
 | `embeddings` | 10 | no | Vectors for visual and semantic search. |
 | `impact_factors` | 8 | no | Weight, water and carbon per piece for the impact report. |
+| `invites` | 15 | no | Single use sign in links an admin sends by hand, in place of SMS codes. |
 | `listing_approvals` | 11 | yes | Append only record of every approval decision. |
 | `lot_defects` | 8 | yes | Itemised defects, required for grade C. |
 | `lot_excluded_cities` | 6 | yes | Per lot region lock, overriding the brand default. |
@@ -43,7 +46,7 @@ index, are created in migration 0001 and verified by the migration job in CI.
 | `order_events` | 10 | yes | Append only history of every order status change. |
 | `order_lines` | 9 | yes | What was actually bought, by size and colour. |
 | `order_returns` | 8 | yes | Returned pieces recorded against an order. |
-| `orders` | 27 | yes | One purchase of one lot, whole or part. |
+| `orders` | 30 | yes | One purchase of one lot, whole or part. |
 | `otp_challenges` | 10 | no | Pending phone verifications, code stored hashed. |
 | `partners` | 13 | no | Tailors, artisans, NGOs and recyclers who take unsellable stock. |
 | `payment_events` | 8 | no | Provider callbacks, stored once per event id. |
@@ -66,7 +69,7 @@ index, are created in migration 0001 and verified by the migration job in CI.
 | `shipping_rates` | 10 | no | Configured delivery prices between city groups. |
 | `size_chart_rows` | 12 | yes | A brand's own size chart in centimetres. |
 | `standard_sizes` | 11 | no | The platform's reference size chart. |
-| `users` | 14 | no | One row per phone number. The identity anchor. |
+| `users` | 16 | no | One row per phone number. The identity anchor. |
 | `verification_documents` | 14 | yes | NTN, incorporation certificate, CNIC, with a review trail. |
 | `whatsapp_messages` | 14 | no | Every WhatsApp message in or out, idempotent by provider id. |
 
@@ -173,6 +176,18 @@ erDiagram
         datetime created_at "required"
         datetime updated_at "required"
     }
+    alerts {
+        string kind "required"
+        string subject "required"
+        text body "required"
+        string status "required"
+        int attempts "required"
+        string last_error
+        datetime delivered_at
+        string id "PK"
+        datetime created_at "required"
+        datetime updated_at "required"
+    }
     assistant_conversations {
         string user_id "FK, required"
         string brand_id "FK"
@@ -241,6 +256,7 @@ erDiagram
         string default_visibility "required"
         bool require_brand_approval "required"
         bool allow_cod "required"
+        string settlement_mode "required"
         bool allow_part_lot_orders "required"
         bool allow_pooled_orders "required"
         bool allow_bargaining "required"
@@ -289,6 +305,24 @@ erDiagram
         string slug "required"
         bool requires_expiry "required"
         int sort_order "required"
+        string id "PK"
+        datetime created_at "required"
+        datetime updated_at "required"
+    }
+    commission_invoices {
+        string brand_id "FK, required"
+        string number "required"
+        datetime period_start "required"
+        datetime period_end "required"
+        int order_count "required"
+        int sales_pkr "required"
+        int commission_pkr "required"
+        string status "required"
+        datetime issued_at "required"
+        datetime due_at "required"
+        datetime paid_at
+        string paid_reference
+        string recorded_by_user_id "FK"
         string id "PK"
         datetime created_at "required"
         datetime updated_at "required"
@@ -349,6 +383,23 @@ erDiagram
         decimal water_litres_per_kg "required"
         decimal co2_kg_per_kg "required"
         string source "required"
+        string id "PK"
+        datetime created_at "required"
+        datetime updated_at "required"
+    }
+    invites {
+        string token_hash "required"
+        string purpose "required"
+        string phone "required"
+        string full_name
+        string role "required"
+        string brand_id "FK"
+        string note
+        string created_by_user_id "FK"
+        datetime expires_at "required"
+        datetime used_at
+        string used_by_user_id "FK"
+        datetime revoked_at
         string id "PK"
         datetime created_at "required"
         datetime updated_at "required"
@@ -535,6 +586,9 @@ erDiagram
         decimal commission_percent "required"
         int commission_pkr "required"
         int brand_payout_pkr "required"
+        string settlement_mode "required"
+        int commission_due_pkr
+        string commission_invoice_id "FK"
         string status "required"
         string payment_method "required"
         string delivery_city "required"
@@ -841,6 +895,8 @@ erDiagram
         datetime last_login_at
         string preferred_language "required"
         datetime tokens_valid_after
+        string terms_version
+        datetime terms_accepted_at
         string id "PK"
         datetime created_at "required"
         datetime updated_at "required"
@@ -897,6 +953,8 @@ erDiagram
     users ||--o{ cart_items : user_id
     lots ||--o{ cart_items : lot_id
     categories ||--o{ categories : parent_id
+    brands ||--o{ commission_invoices : brand_id
+    users ||--o{ commission_invoices : recorded_by_user_id
     categories ||--o{ demand_forecasts : category_id
     orders ||--o{ disputes : order_id
     brands ||--o{ disputes : brand_id
@@ -904,6 +962,9 @@ erDiagram
     users ||--o{ disputes : resolved_by_user_id
     brands ||--o{ embeddings : brand_id
     lots ||--o{ embeddings : lot_id
+    brands ||--o{ invites : brand_id
+    users ||--o{ invites : created_by_user_id
+    users ||--o{ invites : used_by_user_id
     lots ||--o{ listing_approvals : lot_id
     brands ||--o{ listing_approvals : brand_id
     users ||--o{ listing_approvals : actor_user_id
@@ -940,6 +1001,7 @@ erDiagram
     lots ||--o{ orders : lot_id
     brands ||--o{ orders : brand_id
     users ||--o{ orders : buyer_user_id
+    commission_invoices ||--o{ orders : commission_invoice_id
     payments ||--o{ payment_events : payment_id
     orders ||--o{ payments : order_id
     users ||--o{ payout_runs : created_by_user_id

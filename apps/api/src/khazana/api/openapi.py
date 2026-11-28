@@ -33,6 +33,7 @@ TAGS: dict[str, str] = {
     "search": "Catalogue search, saved searches, photo search and recommendations.",
     "orders": "Cart, checkout, the order lifecycle, disputes and returns.",
     "payments": "Starting a payment, provider callbacks and brand payouts.",
+    "commissions": "Monthly commission invoices for brands paid directly by cash on delivery.",
     "logistics": "Shipments, pickups, labels, tracking and courier callbacks.",
     "pools": "Committee pools: several shops buying one lot together.",
     "bargaining": "Negotiating a price inside the brand's band, and the markdown agent.",
@@ -79,8 +80,9 @@ def build(app: FastAPI) -> dict[str, Any]:
         "bearer": {
             "type": "http",
             "scheme": "bearer",
-            "description": "The access token from `POST /auth/otp/verify` or "
-            "`POST /auth/refresh`. It lasts an hour; refresh before it ends.",
+            "description": "The access token from `POST /auth/invites/{token}/accept`, "
+            "`POST /auth/otp/verify` or `POST /auth/refresh`. It lasts an hour; refresh "
+            "before it ends.",
         }
     }
     for path_item in spec.get("paths", {}).values():

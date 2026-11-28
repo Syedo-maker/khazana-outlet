@@ -75,14 +75,39 @@ class RateLimited(AppError):
     code = "rate_limited"
 
 
-class SpendLimitReached(AppError):
+class AiUnavailable(AppError):
+    """No model call can be made right now.
+
+    The spend cap, a kill switch, AI switched off for the deployment, or the
+    provider failing. Every AI feature catches this one class and offers its
+    manual path, so none of these reaches a user as an error.
+    """
+
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    code = "ai_unavailable"
+
+
+class AiSwitchedOff(AiUnavailable):
+    """AI_ENABLED is false: this deployment makes no model calls at all."""
+
+    code = "ai_switched_off"
+
+
+class SpendLimitReached(AiUnavailable):
     """An AI spend cap stopped the work before the call was made."""
 
     status_code = status.HTTP_402_PAYMENT_REQUIRED
     code = "ai_spend_limit"
 
 
-class FeatureDisabled(AppError):
+class FeatureOff(AppError):
+    """A feature that needs a paid provider is switched off on this server."""
+
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    code = "feature_off"
+
+
+class FeatureDisabled(AiUnavailable):
     """A kill switch is off for this AI feature."""
 
     status_code = status.HTTP_503_SERVICE_UNAVAILABLE
